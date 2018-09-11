@@ -1,8 +1,6 @@
+;SAM MOD player - EXAMPLE routine for BURST+SEQUENCER
 
-;SAM MOD player version 2.06
-;EXAMPLE routine for BURST+SEQUENCER
-;(C) 1996 Stefan Drissen
-;last update: 4 May 1996, 23:00
+;(C) 1996-2018 Stefan Drissen
 
 ;Contents:
 ;              "BURST" routine (make burstplayer)

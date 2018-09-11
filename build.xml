@@ -1,0 +1,94 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project name="sam-mod-player">
+
+	<property name="python" location="d:/sam/python36/python.exe" />
+	<property name="pyz80" location="d:/sam/pyz80/pyz80 - copy.py" />
+	<property name="simcoupe" location="C:\Program Files (x86)\SimCoupe\SimCoupe.exe" />
+
+	<macrodef name="assemble">
+		<attribute name="source" />
+		<attribute name="obj" default="@{source}" />
+		<attribute name="mapfile" default="false" />
+
+		<sequential xmlns:if="ant:if">
+
+			<echo message="compiling: @{source} mapfile:@{mapfile}" />
+
+			<exec executable="${python}" failonerror="true">
+				<arg value="${pyz80}" />
+				<arg value="--obj=obj/@{obj}" />
+				<arg value="--mapfile=obj/modplayer.map" if:true="@{mapfile}" />
+				<arg value="-sbreakpoint" />
+				<arg value="src/@{source}.s" />
+			</exec>
+
+		</sequential>
+
+	</macrodef>
+
+	<target name="assemble-loader">
+
+		<assemble source="loader" />
+
+	</target>
+
+	<target name="assemble-demo">
+
+		<assemble source="demo" />
+
+	</target>
+
+	<target name="assemble-burstplayer">
+
+		<assemble source="burstplayer" />
+
+	</target>
+
+	<target name="assemble-sequencer">
+
+		<assemble source="sequencer" mapfile="true" />
+
+	</target>
+
+	<target name="create-disk">
+
+		<exec executable="${python}" failonerror="true">
+			<arg value="${pyz80}" />
+			<arg value="-e" />
+			<arg value="-Ires/buena vi.m" />
+			<arg value="-oobj/modplayer.dsk" />
+			<arg value="src/modplayer.s" />
+		</exec>
+
+	</target>
+
+	<target name="all" description="compile all, create disk and launch" depends="assemble-loader,assemble-demo,assemble-burstplayer,assemble-sequencer,create-disk">
+
+		<exec executable="${simcoupe}">
+			<arg value="obj/modplayer.dsk" />
+		</exec>
+
+	</target>
+
+	<target name="clean" description="clean obj">
+
+		<delete dir="obj" />
+		<mkdir dir="obj" />
+
+	</target>
+
+	<target name="sanity" description="pyz80 sanity checks">
+		
+		<exec executable="${python}" failonerror="true">
+			<arg value="${pyz80}" />
+			<arg value="-oobj/sanity.dsk" />
+			<arg value="src/sanity.s" />
+		</exec>
+		
+		<exec executable="${simcoupe}">
+			<arg value="obj/sanity.dsk" />
+		</exec>
+		
+	</target>
+	
+</project>

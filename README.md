@@ -1,14 +1,14 @@
-# SAM-MOD-player
+# SAM MOD player
 
 ## Structure
 
-- load
+- loader
+- burstplayer
 - demo
-- onlybp
-- onlyseq
+- sequencer
 - example
 
-### load
+### loader
 
 This is the initial front end. It provides a screen to select the output device:
 
@@ -17,7 +17,7 @@ This is the initial front end. It provides a screen to select the output device:
 - samdac on port 1 or 2
 - dac on port 1 or 2
 - blue alpha sampler
-- quazer soundcard
+- quazar soundcard
 
 And the type of Amiga the mod was intended for:
 
@@ -29,19 +29,7 @@ Once these have been selected, the burst player code is generated.
 The disk (sam or dos format) is then scanned for possible mod files, the drive can be changed or rescanned.
 When a file is selected, it is loaded and the "demo" starts. 
 
-### demo
-
-This shows information on the module being played via various screens:
-
-- welcome
-- help (f1)
-- samples short (f2)
-- samples detailed (f3)
-- tracker (f4)
-- supported effects (f5)
-- sample debug info (f6)
-
-### onlybp
+### burstplayer
 
 This generates the code for the burst player based on the output device:
 
@@ -56,7 +44,19 @@ During the border area, timing is manual.  During the screen area line interrupt
 the line interrupt, the second is timed manually at 1.5 line, after which control is given back to the "demo" until the next line
 interrupt occurs.
 
-### onlyseq
+### demo
+
+This shows information on the module being played via various screens:
+
+- welcome
+- help (f1)
+- samples short (f2)
+- samples detailed (f3)
+- tracker (f4)
+- supported effects (f5)
+- sample debug info (f6)
+
+### sequencer
 
 This is the sequencer. It is called every frame. 
 It reads the pattern and sample information and fills the sample playback buffers.
@@ -67,24 +67,23 @@ This is a simple example that replaces the "demo".
 
 # To do:
 
-0. compile source with pyz80
-
 Things still to do in future versions of the SAM MOD player - just so that I don't forget them  :)                         
                                                                 
-1. compress patterns into own track structure a pattern now consists of four tracks, identical tracks are not put into memory twice                               
+1. fix SAA volume tables to use 3 bits - lowest bit is not audible.
+
+2. megabyte support
+
+3. compress patterns into own track structure a pattern now consists of four tracks, identical tracks are not put into memory twice                               
                                                                 
-2. don't keep the header info in memory, when loading grab the necessary info and then load over it                    
+4. do not keep the header info in memory, when loading grab the necessary info and then load over it                    
                                                                 
-3. allow compression (via quality reduction) on mods which are too large to fit into memory (remember 256k check!) 
+5. allow compression (via quality reduction) on mods which are too large to fit into memory (remember 256k check!) 
 if a mod is too large then only load 1 out of 2 sample bytes and transpose the pattern data down one octave.
 
 Also double all portamento commands and possibly vibrato too.  Adjust boundary values....                            
                                                                 
-4. volume bars in tracker screen plus the option to use a number of different mode 4 screens with a scrolly or something like that.... (complaints about mode 2 look)      
+6. volume bars in tracker screen plus the option to use a number of different mode 4 screens with a scrolly or something like that.... (complaints about mode 2 look)      
 - also a screen with graphs of volume and pitch             
                                                                 
-5. fix pitch commands when using different tempos.  Adjust for tempo factor (multply with parameter).                      
+7. fix pitch commands when using different tempos.  Adjust for tempo factor (multply with parameter).                      
                                                                 
-that's all for now,
-
-Stefan Drissen  27 February 1996      

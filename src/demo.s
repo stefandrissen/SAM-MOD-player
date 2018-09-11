@@ -1,0 +1,2439 @@
+;SAM MOD player - DEMO routine for BURST + SEQUENCER
+
+;(C) 1996-2018 Stefan Drissen
+
+include "ports.i"
+
+demo.device:	equ 49152+3		;device, set by loader
+
+bp.page:		equ 2
+burst.player:	equ 32768
+bp.sequence:	equ 105
+
+get.patt:		equ 10752
+gp.ret.p:		equ 10790		;set with return page
+
+far.call:		equ 10794		;C=set with return page!
+
+sq.page:		equ 4
+init.seq:		equ 32768
+install.mod:	equ 32771
+sq.demo:		equ 32774
+sq.demo.p:		equ 32776
+sq.octaves:		equ 32778
+
+mod.page:		equ 5
+
+
+;now follow variables which are located in the burst page
+;this way they can also be read by the extra routines
+
+current.row:	equ 256			;16 bytes
+palette.tab:	equ 256+16		;16 bytes
+framescreen:	equ 256+32		; 1 byte
+
+int.routine:	equ 256+33
+int.rtn.pag:	equ 256+35
+
+c1.on:			equ 256+36
+c2.on:			equ 256+37
+c3.on:			equ 256+38
+c4.on:			equ 256+39
+vol.update:		equ 256+40
+
+countint:		equ 256+41
+counter.fract:	equ 256+42		;fraction part of counter
+counter:		equ 256+43		;integer part of counter
+speed:			equ 256+44
+tempo:			equ 256+45
+song.pos:		equ 256+47
+pattern.num:	equ 256+48
+pattern.pos:	equ 256+49
+enable.burst:	equ 256+50		;word
+exit.burst:		equ 256+52		;word
+disable.pos:	equ 256+54		;disable position jumps
+mstatus:		equ 256+55		;0=playing, 1=stopped
+
+buffer:			equ 256+128	;128 bytes used by far.ldir
+							;maximum +255
+
+;===============================================================
+;demo is the program that runs in "foreground" mode
+;     the sequencer is called by the burst routine every frame
+
+	org 57344
+	dump 2,57344-49152
+
+setup.demo:
+	; di
+test.1:
+	; xor a
+	; out (254),a
+
+	; in a,(low.memory.page.register)
+	; ld (dm.lmpr+1),a
+	; ld a,32
+	; out (low.memory.page.register),a
+	jp setupmod
+
+	org  $-32768
+setupmod:
+	ex af,af'
+	ld a,mod.page
+	out (high.memory.page.register),a
+	ld hl,32768
+	ld de,mod.header-32768
+	ld bc,1084
+	ldir
+
+	ld a,sq.page
+	out (high.memory.page.register),a
+	ld hl,demo
+	ld (sq.demo),hl
+	xor a
+	ld (sq.demo.p),a
+	ex af,af'
+	ld (sq.octaves),a
+
+seq.setup:
+	ld a,0
+	or a
+	call z,init.seq
+test.2:
+	; ld a,1
+    ; out (254),a
+
+	ld a,1
+	ld (seq.setup+1),a
+
+	call install.mod
+test.3:
+	; ld a,0
+    ; out (254),a
+
+	ld a,bp.page
+	out (high.memory.page.register),a
+
+	call burst.player
+test.4:
+	; ld a,3
+    ; out (254),a
+
+    ; xor a
+    ; out (high.memory.page.register),a
+    ; jp dm.lmpr
+
+	ret
+
+	org  $+32768
+
+dm.lmpr:
+	; ld a,0
+    ; out (low.memory.page.register),a
+    ; ei
+    ; ret
+
+demo.palette:
+	defb %0000000 ;    0
+
+	defb %0011101 ;3 1 1;BLUE+green
+	defb %1011001 ;3 2 2
+	defb %1011101 ;3 3 3
+
+	defb %0101110 ;3 1 4;RED+green
+	defb %1101010 ;3 2 5
+	defb %1101110 ;3 3 6
+
+	defb %1001101 ;3 1 7;GREEN+blue
+
+	defb %0000000 ;    8;bright background
+
+	defb %1011100 ;3 2 9
+	; defb %1011101 ;3 3  same as pen 3
+
+	defb %0101011 ;3 1 A;RED+blue
+	defb %0111010 ;3 2 B
+	defb %0111011 ;3 3 C
+
+	defb %1001110 ;3 1 D;GREEN+red
+	defb %1101100 ;3 2 E
+	; defb %1101110 ;3 3  ;same as pen 6
+
+	defb %1110111 ;    F
+
+demo.palette.two:	
+	defw 0,0,0,0,0,0,0,0
+
+col.pattern:
+	defb 1,3,1,1,1,4,9,1,1,4,9,1,1,5,1,2
+
+col.samples:
+	defb 1,3,31,1
+
+;===============================================================
+;this is the routine that is running in "foreground mode"
+
+demo:
+	ld bc,15 * 256 + color.look.up.table
+	xor a
+black:
+	out (c),a
+	djnz black
+	out (c),a
+
+	ld a,32
+	out (video.memory.page.register),a
+
+	call cls
+	call set.palette
+
+	ld ix,char.list
+	ld de,( "0" - " " ) * 5 + font
+	ld hl,build.font
+	ld b,10+6
+build.blp:
+	ld a,b
+	cp 6
+	jr nz,$+5
+	ld de,( "A" - " " ) * 5 + font
+
+	ld (ix+0),l
+	ld (ix+1),h
+	inc ix
+	inc ix
+	ld (hl),&E1       ;pop hl
+	inc hl
+	ld c,4
+build.clp:
+	ld (hl),&36
+	inc hl
+	ld a,(de)
+	inc de
+	ld (hl),a         ;ld (hl),n
+	inc hl
+	ld (hl),&7D       ;ld a,l
+	inc hl
+	ld (hl),&80       ;add a,b
+	inc hl
+	ld (hl),&6F       ;ld l,a
+	inc hl
+	dec c
+	jr nz,build.clp
+	ld (hl),&36
+	inc hl
+	ld a,(de)
+	inc de
+	ld (hl),a         ;ld (hl),n
+	inc hl
+	ld (hl),&2C       ;inc l
+	inc hl
+	ld (hl),&C9       ;ret
+	inc hl
+	djnz build.blp
+
+	ld ix,line.table
+	ld hl,32768+8192
+	ld de,192
+	ld b,32
+b.line:
+	ld (ix),l
+	inc ix
+	ld (ix),h
+	inc ix
+	add hl,de
+	djnz b.line
+
+first.time:
+	ld a,0
+	or a
+	jr nz,skip.intro
+	cpl
+	ld (int.rtn.pag),a
+	ld (first.time+1),a
+
+	ld ix,col.intro
+	ld de,welcome
+	call print.screen
+
+	ld a,0
+	ld (trackon+1),a
+
+skip.intro:
+
+	ld a,(trackon+1)
+	dec a
+	call Z,show.help
+	dec a
+	call Z,show.samples
+	dec a
+	call Z,show.sizes
+	dec a
+	call Z,show.pattern
+	dec a
+	call Z,show.summary
+	dec a
+	call Z,show.burst
+
+	ld hl,(enable.burst)
+	ld (mk.enable+1),hl
+mk.enable:
+	CALL 0
+
+demo.loop:
+trackon:
+	ld a,0
+	cp 2
+	jr c,skip.patpos
+	cp 5
+	jr nc,skip.patpos
+
+	ld a,(song.pos)
+	ld b,32           ;for print routine
+	ld hl,0 * 256 + 24 + 32768
+	and &F0
+	call printhi
+	ld a,(song.pos)
+	and &0F
+	call printlo
+	inc l
+
+	ld a,(pattern.num)
+	and &F0
+	call printhi
+	ld a,(pattern.num)
+	and &0F
+	call printlo
+	inc l
+
+	ld a,(pattern.pos)
+	and &F0
+	call printhi
+	ld a,(pattern.pos)
+	and &0F
+	call printlo
+skip.patpos:
+	ld a,(trackon+1)
+	cp 4
+	jr nz,skip.speed
+
+	ld hl,256+32768+18
+	ld a,(speed)
+	ld c,a
+	and &F0
+	call printhi
+	ld a,c
+	and &0F
+	call printlo
+
+	ld hl,(tempo)
+	ld b,h
+	ld c,l
+	SRL  H
+	RR   L
+	SRL  H
+	RR   L
+	ADC  HL,BC
+	ld b,h
+	ld c,l
+	ld hl,256+32768+29
+	call do.percent
+
+skip.speed:
+	ld bc, 255 * 256 + keyboard.register
+	in c,(c)
+	bit 3,c
+	jr nz,not.left
+	ld hl,pattern.pos
+	DEC  (hl)
+	DEC  (hl)
+	BIT  7,(hl)
+	jr z,wait.left
+	ld (hl),62
+	dec l
+	dec l
+	DEC  (hl)
+	BIT  7,(hl)
+	jr z,wait.left
+	ld (hl),0
+	inc l
+	inc l
+	ld (hl),0
+wait.left:
+	ei				;just in case we're pausing
+	ld a,(counter)
+	or a
+	jr nz,wait.left
+not.left:
+	bit 4,c
+	jr nz,not.right
+	ld a,(speed)
+	ld hl,counter
+	ld (hl),a
+wait.right:
+	EI
+	ld a,(mstatus)    ;just in case end of tune
+	dec a
+	jp Z,exit
+	ld a,(hl)
+	dec a
+	jr nz,wait.right
+not.right:
+
+	ld bc,247 * 256 + keyboard.register ;12345
+	in c,(c)
+	xor a
+	bit 0,c
+	jr nz,not.key.1
+still.key.1:
+	ld a,0
+	or a
+	jr nz,key.2
+	ld hl,c1.on
+	ld a,(hl)
+	cpl
+	ld (hl),a
+	ld a,1
+	ld (vol.update),a
+not.key.1:
+	ld (still.key.1+1),a
+
+key.2:
+	xor a
+	BIT  1,C
+	jr nz,not.key.2
+still.key.2:
+	ld a,0
+	or a
+	jr nz,key.3
+	ld hl,c2.on
+	ld a,(hl)
+	cpl
+	ld (hl),a
+	ld a,1
+	ld (vol.update),a
+not.key.2:
+	ld (still.key.2+1),a
+
+key.3:
+	xor a
+	BIT  2,C
+	jr nz,not.key.3
+still.key.3:
+	ld a,0
+	or a
+	jr nz,key.4
+	ld hl,c3.on
+	ld a,(hl)
+	cpl
+	ld (hl),a
+	ld a,1
+	ld (vol.update),a
+not.key.3:
+	ld (still.key.3+1),a
+
+key.4:
+	xor a
+	bit 3,c
+	jr nz,not.key.4
+still.key.4:
+	ld a,0
+	or a
+	jr nz,key.p
+	ld hl,c4.on
+	ld a,(hl)
+	cpl
+	ld (hl),a
+	ld a,1
+	ld (vol.update),a
+not.key.4:
+	ld (still.key.4+1),a
+
+key.p:
+	xor a
+	ld bc,223*256+254
+	in c,(c)
+	bit 0,c
+	jr nz,not.key.p
+still.key.p:
+	ld a,0
+	or a
+	jr nz,still.p
+ints.on:
+	ld a,0
+	or a
+	jr z,pause
+	xor a
+	EI
+	jr cont.p
+pause:
+	ld a,1
+	di
+cont.p:
+	ld (ints.on+1),a
+	ld a,1
+not.key.p:
+	ld (still.key.p+1),a
+still.p:
+
+
+	ld hl,trackon+1
+	ld a,(hl)
+
+	ld bc,254*256+status.register
+	in c,(c)
+	BIT  5,C
+	jr nz,not.f1
+	cp 1
+	jr z,not.f1
+	ld (hl),1
+	call show.help
+	jr skip.f
+not.f1:
+	BIT  6,C
+	jr nz,not.f2
+	cp 2
+	jr z,not.f2
+	ld (hl),2
+	call show.samples
+	jr skip.f
+not.f2:
+	BIT  7,C
+	jr nz,not.f3
+	cp 3
+	jr z,not.f3
+	ld (hl),3
+	call show.sizes
+	jr skip.f
+not.f3:
+	ld bc,253 * 256 + status.register
+	in c,(c)
+	BIT  5,C
+	jr nz,not.f4
+	cp 4
+	jr z,not.f4
+	ld (hl),4
+	call show.pattern
+	jr skip.f
+not.f4:
+	BIT  6,C
+	jr nz,not.f5
+	cp 5
+	jr z,not.f5
+	ld (hl),5
+	call show.summary
+	jr skip.f
+not.f5:
+	BIT  7,C
+	jr nz,not.f6
+	ld (hl),6
+	call show.burst
+	jr skip.f
+not.f6:
+skip.f:
+	ld a,%10111111
+	in a,(keyboard.register)
+	cpl
+	and %00000010
+	jr z,not.l
+still.l:
+	ld a,0
+	or a
+	jr nz,not.l
+	ld a,(disable.pos)
+	XOR  1
+	ld (disable.pos),a
+	call pr.loop.st
+	ld a,1
+not.l:
+	ld (still.l+1),a
+
+	ld a,%11111110
+	in a,(keyboard.register)
+	cpl
+	and %00001000
+	jr z,not.c
+still.c:
+	ld a,0
+	or a
+	jr nz,not.c
+	ld a,(set.palette+1)
+	cpl
+	ld (set.palette+1),a
+	call set.palette
+	ld a,1
+not.c:
+	ld (still.c+1),a
+
+	ld a,%11111110    ;shift pressed
+	in a,(keyboard.register)
+	and %00000001
+	ld bc,64
+	jr nz,$+5
+	ld bc,256
+
+	ld a,%11101111    ;+
+	in a,(status.register)
+	and %01000000
+	jr nz,not.plus
+
+	ld hl,(amp.fac+1)
+	add hl,bc
+	ld a,h
+	cp 10
+	jr z,not.plus
+	ld (amp.fac+1),hl
+	call tables
+	call pr.amp.fac
+not.plus:
+
+	ld a,%11101111    ;-
+	in a,(status.register)
+	and %00100000
+	jr nz,not.minus
+	ld hl,(amp.fac+1)
+	SBC  HL,BC
+	jr c,not.minus
+	ld (amp.fac+1),hl
+	call tables
+	call pr.amp.fac
+not.minus:
+	ld bc,0
+	ld a,247
+	in a,(status.register)        ;escape
+	and 32
+	jr z,exit
+
+	ld a,(mstatus)    ;1=music stopped
+	dec a
+	jr z,exit
+
+	ld a,251
+	in a,(status.register)
+	and 128
+	jr nz,not.f9
+	INC  BC             ;bc <> 0
+exit:
+	ld a,(trackon+1)
+	or a
+	jr nz,$+3
+	inc a
+	ld (trackon+1),a
+
+	ld hl,(exit.burst)
+	jp (hl)
+not.f9:
+	ld a,247
+	in a,(status.register)
+	and 128            ;caps
+	jr nz,not.reset2
+	ld a,255
+	in a,(keyboard.register)
+	and 1              ;control
+	jr nz,not.reset2
+	ld a,191
+	in a,(status.register)
+	and 128            ;edit
+	jr nz,not.reset2
+
+	di
+	xor a
+	out (video.memory.page.register),a
+still.res2:
+	ld a,247
+	in a,(status.register)
+	and 128            ;caps
+	jr z,still.res2
+	ld a,255
+	in a,(keyboard.register)
+	and 1              ;control
+	jr z,still.res2
+	ld a,191
+	in a,(status.register)
+	and 128            ;edit
+	jr z,still.res2
+reset:
+	xor a
+	out (low.memory.page.register),a
+	rst 0
+not.reset2:
+
+	jp demo.loop
+
+
+set.palette:
+	ld a,0
+	or a
+	ld hl,demo.palette
+	jr z,$+5
+	ld hl,demo.palette.two
+
+	ld de,palette.tab
+	ld bc,16
+	ldir
+	ret
+
+;===============================================================
+
+;PATTERN TRACKER for MOD player
+;(C) 1995 Stefan Drissen
+;last update: 3 January 1994, 01:00
+;
+;runs off SEQUENCER frame interrupt
+;only run when frame counter <> 0
+
+printer:
+	ld hl,(counter.fract)
+	ld de,(tempo)
+	add hl,de
+	ld a,(speed)
+	dec a
+	cp H
+	ret  C
+
+pr.set:
+	ld a,0
+	or a
+	jp Z,print43
+
+	ld a,(counter)
+	or a
+	ret  NZ
+	ld (pr.set+1),a
+print12:
+	ld hl,256 * 3 + 3 + 32768
+print.pos:
+	ld a,0
+	add H
+	ld h,a
+
+	ld de,current.row
+	ld b,32
+
+	ld a,(de)
+	and &F0
+	call printhi
+	INC  E
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	inc l
+
+	DEC  E
+	DEC  E
+	ld a,(de)
+	and &0F
+	call printlo
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	ld a,(de)
+	and &0F
+	call printlo
+	inc l
+
+	INC  E
+	ld a,(de)
+	and &0F
+	call printlo
+	inc l
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	ld a,(de)
+	and &0F
+	call printlo
+
+	ld l,18
+
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	INC  E
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	inc l
+
+	DEC  E
+	DEC  E
+	ld a,(de)
+	and &0F
+	call printlo
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	ld a,(de)
+	and &0F
+	call printlo
+	inc l
+
+	INC  E
+	ld a,(de)
+	and &0F
+	call printlo
+	inc l
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	ld a,(de)
+	and &0F
+	call printlo
+	ld hl,c1.on
+	LD   D,(hl)
+	inc l
+	LD   E,(hl)
+	ld a,(print.pos+1)
+	add 128
+	ld l,1   ;width offset
+	ld c,3   ;height offset
+	add c
+	ld h,a
+print.pointer:
+	ld a,d
+	or a
+	jr z,pp.skipleft
+
+	ld (hl),%10000000
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),%11000000
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),%11100000
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),%11000000
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),%10000000
+
+pp.skipleft:
+	ld a,e
+	or a
+	jr z,pp.skiprite
+	ld l,30
+	ld (hl),%00000001
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),%00000011
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),%00000111
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),%00000011
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),%00000001
+pp.skiprite:
+	ld a,h
+	sub C
+	dec a
+	and 7
+	add c
+	add 128
+	ld h,a
+	ld l,30
+	ld c,0
+	ld (hl),c
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),c
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),c
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),c
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),c
+
+	ld l,1
+	ld (hl),c
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),c
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),c
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),c
+	ld a,l
+	add b
+	ld l,a
+	ld (hl),c
+
+	ret
+
+print43:
+	inc a
+	ld (pr.set+1),a
+	ld a,(print.pos+1)
+	add 13+128
+	ld h,a
+	ld l,18
+	ld de,current.row+8
+	ld b,32
+
+	ld a,(de)
+	and &F0
+	call printhi
+	INC  E
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	inc l
+
+	DEC  E
+	DEC  E
+	ld a,(de)
+	and &0F
+	call printlo
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	ld a,(de)
+	and &0F
+	call printlo
+	inc l
+
+	INC  E
+	ld a,(de)
+	and &0F
+	call printlo
+	inc l
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	ld a,(de)
+	and &0F
+	call printlo
+	INC  E
+
+	ld l,3
+
+	ld a,(de)
+	and &F0
+	call printhi
+	INC  E
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	inc l
+
+	DEC  E
+	DEC  E
+	ld a,(de)
+	and &0F
+	call printlo
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	ld a,(de)
+	and &0F
+	call printlo
+	inc l
+
+	INC  E
+	ld a,(de)
+	and &0F
+	call printlo
+	inc l
+	INC  E
+	ld a,(de)
+	and &F0
+	call printhi
+	ld a,(de)
+	and &0F
+	call printlo
+	INC  E
+
+	ld hl,c4.on
+	LD   D,(hl)
+	dec l
+	LD   E,(hl)
+	ld a,(print.pos+1)
+	ld c,13
+	add c
+	add 128
+	ld h,a
+	ld l,1
+	call print.pointer
+	ld hl,print.pos+1
+	ld a,(hl)
+	inc a
+	and %10000111
+	ld (hl),a
+	ret
+
+
+printhi:
+	RES  7,L
+	rrca
+	rrca
+	rrca
+	push hl
+	ld h,char.list//256
+	ld l,a
+	ld a,(hl)
+	inc l
+	ld h,(hl)
+	ld l,a
+	jp (hl)
+
+printlo:
+	RES  7,L
+	RLCA
+	push hl
+	ld h,char.list//256
+	ld l,a
+	ld a,(hl)
+	inc l
+	ld h,(hl)
+	ld l,a
+	jp (hl)
+
+print.num:
+	ld b,a
+	and &F0
+	rrca
+	rrca
+	rrca
+	rrca
+	call pr.num.hex
+	ld a,b
+	and &0F
+pr.num.hex:
+	add "0"
+	cp ":"
+	jr c,$+4
+	add 7
+	jp print.chr
+
+;print chr$ A at HL
+
+print.chr:
+	PUSH BC
+	push de
+	push hl
+	ld c," "
+	cp " "
+	jr c,unprintable
+	cp 128
+	jr nc,unprintable
+	ld c,a
+unprintable:
+	ex de,hl
+	ld b,0
+	ld l,C
+	ld h,b
+	add hl,hl
+	add hl,hl
+	add hl,bc
+	ld bc,font-160    ;-" "*5
+	add hl,bc
+	ld b,5
+pr.chr.blp:
+	ld a,(hl)
+	ld (de),a
+	inc hl
+	ld a,e
+	add 32
+	ld e,a
+	jr nc,$+3
+	inc d
+	djnz pr.chr.blp
+	pop hl
+	pop de
+	pop bc
+	inc l
+	ret
+
+print.screen:
+	push de
+	ld a,6
+	call colour.scrn
+
+	ld hl,32768
+	pop de
+	ld c,32
+wel.all:
+	ld b,32
+	push hl
+
+pr.scr.blp:
+	ld a,(de)
+	inc de
+	or a
+	jr z,end.of.line
+	call print.chr
+	djnz pr.scr.blp
+end.of.line:
+	pop hl
+	ld a,l
+	add 192
+	ld l,a
+	jr nc,$+3
+	inc h
+	dec c
+	jr nz,wel.all
+	ld a,255
+	ret
+
+show.help:
+	ld a,255
+	ld (int.rtn.pag),a
+	call cls
+	ld ix,col.help
+	ld de,help.page
+	jp print.screen
+
+show.summary:
+	ld a,255
+	ld (int.rtn.pag),a
+	call cls
+	ld ix,col.pro
+	ld de,prosummary
+	jp print.screen
+
+show.burst:
+	ld hl,(int.routine)
+	ld de,burst.int
+	or a
+	sbc hl,de
+	jr nz,sb.no.inc   ;only up channel if in this
+	                    ;mode already
+	ld hl,burst.num+1
+	ld a,(hl)
+	inc a
+	and 3
+	ld (hl),a
+sb.no.inc:
+	ld a,255
+	ld (int.rtn.pag),a
+	call cls
+	ld ix,col.burst
+	ld a,8
+	call colour.scrn
+
+	ld de,burst
+	ld hl,32768
+	ld b,32
+	call print.de.b
+	ld hl,32768 + 256
+	ld b,23
+	call print.de.b
+
+	ld hl,3 * 256 + 32768
+	ld b,8
+	call print.de.b
+burst.num:
+	ld a,0
+	add "1"
+	call print.chr
+
+	ld hl,4*256+32768
+	ld b,21
+	call print.de.b
+
+	ld hl,bp.sequence+1
+	ld de,12
+	ld a,(burst.num+1)
+	inc a
+	ld b,a
+bu.get.bi:
+	add hl,de
+	djnz bu.get.bi
+
+	LD   E,(hl)
+	inc l
+	LD   D,(hl)
+	inc l
+	ld (bi.page+1),DE
+	LD   E,(hl)
+	inc l
+	LD   D,(hl)
+	inc l
+	ld (bi.offs2+1),DE
+	inc de
+	ld (bi.offs1+1),DE
+	LD   E,(hl)
+	inc l
+	LD   D,(hl)
+	inc l
+	ld (bi.vol+1),DE
+	LD   E,(hl)
+	inc l
+	LD   D,(hl)
+	inc l
+	ld (bi.slo+1),DE
+	LD   E,(hl)
+	inc l
+	LD   D,(hl)
+	ld (bi.shi+1),DE
+
+
+	ld hl,burst.int
+	ld (int.routine),hl
+	in a,(high.memory.page.register)
+	ld (int.rtn.pag),a
+	ld a,255
+	ret
+
+burst.int:
+	ld a,(counter)
+	or a
+	ret  NZ
+
+burst.pr.pos:
+	ld hl,5 * 256 + 32768 + 2
+	ld b,32
+bi.page:
+	ld a,(0)
+	ld c,a
+	and &F0
+	call printhi
+	ld a,c
+	and &0F
+	call printlo
+	inc l
+bi.offs1:
+	ld a,(0)
+	ld c,a
+	and &F0
+	call printhi
+	ld a,c
+	and &0F
+	call printlo
+bi.offs2:
+	ld a,(0)
+	ld c,a
+	and &F0
+	call printhi
+	ld a,c
+	and &0F
+	call printlo
+	inc l
+	inc l
+bi.vol:
+	ld a,(0)
+	ld c,a
+	and &F0
+	call printhi
+	ld a,c
+	and &0F
+	call printlo
+	inc l
+	inc l
+bi.slo:
+	ld a,(0)
+	ld c,a
+	and &F0
+	call printhi
+	ld a,c
+	and &0F
+	call printlo
+	inc l
+	inc l
+bi.shi:
+	ld a,(0)
+	ld c,a
+	and &F0
+	call printhi
+	ld a,c
+	and &0F
+	call printlo
+	ld hl,burst.pr.pos+2
+	ld a,(hl)
+	inc a
+	cp 24 + 128
+	jr nz,$+4
+	ld a,5 + 128
+	ld (hl),a
+	ret
+
+show.pattern:
+	ld a,255
+	ld (int.rtn.pag),a
+	xor a
+	ld (print.pos+1),a
+	call cls
+
+	ld ix,col.pattern
+	ld a,8
+	call colour.scrn
+
+	ld hl,256 * 3 + 32768 + 8192 + 1
+	ld c,24 - 3 - 3
+	ld de,29
+col.lp2:
+	ld ix,2 * 8 + colours
+	ld b,8
+col.lp1:
+	ld a,(ix)
+	inc ix
+	ld (hl),a
+	add hl,de
+	ld (hl),a
+	inc hl
+	inc hl
+	inc hl
+	djnz col.lp1
+
+	dec c
+	ld a,c
+	cp 9
+	jr nz,$+3
+	inc h
+normal:
+	or a
+	jr nz,col.lp2
+
+	call pr.title
+
+	ld de,volume
+	ld hl,1 * 256 + 32768
+	ld b,32
+	call print.de.b
+
+	call pr.amp.fac
+
+	ld de,keys
+	ld hl,22 * 256 + 32768
+	ld b,32
+	call print.de.b
+
+	ld de,author
+	ld hl,23 * 256 + 32768
+	ld b,32
+	call print.de.b
+
+	ld de,channel
+	ld hl,2 * 256 + 1 + 32768
+	ld b,8
+	call print.de.b
+	ld a,"1"
+	call print.chr
+
+	ld de,channel
+	ld hl,2 * 256 + 22 + 32768
+	ld b,8
+	call print.de.b
+	ld a,"2"
+	call print.chr
+
+	ld de,channel
+	ld hl,12 * 256 + 1 + 32768
+	ld b,8
+	call print.de.b
+	ld a,"4"
+	call print.chr
+
+	ld de,channel
+	ld hl,12 * 256 + 22 + 32768
+	ld b,8
+	call print.de.b
+	ld a,"3"
+	call print.chr
+
+	call pr.loop.st
+
+	ld a,2
+	ld (pr.set+1),a
+
+	ld hl,printer
+	ld (int.routine),hl
+	in a,(high.memory.page.register)
+	ld (int.rtn.pag),a
+
+	ld a,255
+	ret
+
+pr.loop.st:
+	ld a,(trackon+1)  ;if not on track page then
+	cp 4              ;don't print loop status
+	ret  NZ
+	ld a,(disable.pos)
+	or a
+	ld a,"Y"
+	jr z,$+4
+	ld a,"N"
+	ld hl,32 * 8 * 22 + 31 + 32768
+	jp print.chr
+
+
+ss.pointer:
+	defb %10000000,%00000001
+	defb %11000000,%00000011
+	defb %11100000,%00000111
+	defb %11000000,%00000011
+	defb %10000000,%00000001
+
+show.samples:
+	call set.show.smp
+pr.ins.clp:
+	ld b,22
+
+	call print.de.b
+
+	inc l
+
+	ld a,(de)
+	ld b,a
+	inc de
+	ld a,(de)
+	or B
+	jr nz,pr.ins.exist
+	ld a,e
+	add a,3
+	ld e,a
+	jr nc,$+3
+	inc d
+	ld a,l
+	add 7
+	ld l,a
+	jr nc,$+3
+	inc h
+	jr pr.next.ins
+pr.ins.exist:
+	ld a,b
+	call print.num
+	ld a,(de)
+	inc de
+	call print.num
+
+	inc l
+	inc de
+	ld a,(de)
+	inc de
+	call print.num
+pr.next.ins:
+	ld a,e
+	add 4
+	ld e,a
+	jr nc,$+3
+	inc d
+
+	ld a,l
+	add 6*32-30
+	ld l,a
+	jr nc,$+3
+	inc h
+
+	dec c
+	jp nz,pr.ins.clp
+set.samp.int:
+	ld hl,instr.point
+	ld (int.routine),hl
+	in a,(high.memory.page.register)
+	ld (int.rtn.pag),a
+
+	ld a,255
+	ret
+
+set.show.smp:
+	xor a
+	ld (c1.inst+1),a
+	ld (c2.inst+1),a
+	ld (c3.inst+1),a
+	ld (c4.inst+1),a
+	cpl
+	ld (int.rtn.pag),a
+	call cls
+
+	ld ix,col.samples
+	ld a,6
+	call colour.scrn
+
+	ld hl,192*1+32768+8192+0
+	ld b,31*6
+	ld de,31
+	xor a
+ss.col.lp1:
+	ld (hl),a
+	add hl,de
+	ld (hl),a
+	inc hl
+	djnz ss.col.lp1
+
+	ld hl,192*1+32768
+	ld c,31
+ss.pr.pntc:
+	ld ix,ss.pointer
+	ld b,6
+ss.pr.pntb:
+	ld a,(ix)
+	inc ix
+	ld (hl),a
+	add hl,de
+	ld a,(ix)
+	inc ix
+	ld (hl),a
+	inc hl
+	djnz ss.pr.pntb
+	dec c
+	jr nz,ss.pr.pntc
+
+	call pr.title
+
+	ld c,31
+	ld hl,(mod.header+1080)
+	or a
+	ld de,&2E4D			;M.
+	sbc hl,de
+	jr z,got.ins
+	ld hl,(mod.header+1080)
+	or a
+	ld de,&4C46			;FL
+	sbc hl,de
+	jr z,got.ins
+	ld c,15
+got.ins:
+	ld hl,6*32+32768+1
+	ld de,mod.header+20
+	ret
+
+show.sizes:
+	call set.show.smp
+pr.size.clp:
+	ld b,9
+
+	call print.de.b
+
+	inc l
+
+	ld a,e
+	add 22-9
+	ld e,a
+	jr nc,$+3
+	inc d
+
+	ld a,(de)
+	ld b,a
+	inc de
+	ld a,(de)
+	or B
+	jr nz,pr.ins.exis2
+
+	ld a,e
+	add a,7
+	ld e,a
+	jr nc,$+3
+	inc d
+	ld a,l
+	add 30-10
+	ld l,a
+	jr nc,$+3
+	inc h
+	jr pr.next.in2
+pr.ins.exis2:
+	ld a,b
+	call print.num
+	ld a,(de)
+	inc de
+	call print.num
+	inc l
+
+	ld a,(de)
+	and &0F
+	bit 3,A
+	jr z,tune.plus
+	ld a,"-"
+	call print.chr
+	ld a,(de)
+	and &0F
+	ld b,a
+	ld a,16
+	sub b
+	jr got.tune
+tune.plus:
+	ld a,"+"
+	call print.chr
+	ld a,(de)
+	and &0F
+got.tune:
+	add  "0"
+	call print.chr
+	inc l
+	inc de
+
+	ld a,(de)
+	inc de
+	call print.num
+	inc l
+
+	ld a,(de)         ;loop offset
+	inc de
+	call print.num
+	ld a,(de)
+	inc de
+	call print.num
+	inc l
+
+	ld a,(de)         ;loop length
+	inc de
+	call print.num
+	ld a,(de)
+	inc de
+	call print.num
+pr.next.in2:
+	ld a,l
+	add 6*32-30
+	ld l,a
+	jr nc,$+3
+	inc h
+
+	dec c
+	jp nz,pr.size.clp
+
+	jp set.samp.int
+
+pr.title:
+	ld hl,32768
+	ld de,mod.header
+	ld b,20
+	call print.de.b
+	ret
+cls:
+	ld hl,32768
+	ld de,32769
+	ld bc,6143
+	ld (hl),l
+	ldir
+	ret
+
+print.de.b:
+	ld a,(de)
+	or a
+	jr z,eop
+	inc de
+	call print.chr
+	djnz print.de.b
+	ret
+
+eop:
+	ld a," "
+	inc de
+	call print.chr
+	djnz eop
+	ret
+
+colour.scrn:
+	ld (line.size+1),a
+
+	ld hl,32768+8192
+col.loop:
+	ld c,(ix)
+	inc ix
+col.clp1:
+	ld a,(ix)
+
+	ld de,colours
+	add a,a
+	add a,a
+	add a,a
+	add a,e
+	ld e,a
+	jr nc,$+3
+	inc d
+
+line.size:
+	ld b,8
+col.blp2:
+	ld a,(de)
+	inc de
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc l
+	ld (hl),a
+	inc hl
+
+	djnz col.blp2
+
+	dec c
+	jr nz,col.clp1
+	inc ix
+
+	ld a,h
+	cp ( 32768 + 8192 + 6144 ) // 256
+	jr nz,col.loop
+	ret
+
+;---------------------------------------------------------------
+;display pointers on sample name screen
+
+instr.point:
+	ld a,(counter)
+	or a
+	ret  NZ
+
+	ld b,32
+
+	ld a,(c1.inst+1)
+	or a
+	ld c,0
+	call nz,clr.point
+
+	ld a,(c4.inst+1)
+	or a
+	ld c,0
+	call nz,clr.point
+
+	ld a,(c2.inst+1)
+	or a
+	ld c,31
+	call nz,clr.point
+
+	ld a,(c3.inst+1)
+	or a
+	ld c,31
+	call nz,clr.point
+
+	ld hl,current.row
+	ld a,(hl)
+	and &10
+	ld c,a
+	inc l
+	inc l
+	ld a,(hl)
+	and &F0
+	rrca
+	rrca
+	rrca
+	rrca
+	or c
+	jr z,$+5
+	ld (c1.inst+1),a
+	inc l
+	inc l
+
+	ld a,(hl)
+	and &10
+	ld c,a
+	inc l
+	inc l
+	ld a,(hl)
+	and &F0
+	rrca
+	rrca
+	rrca
+	rrca
+	or c
+	jr z,$+5
+	ld (c2.inst+1),a
+	inc l
+	inc l
+
+	ld a,(hl)
+	and &10
+	ld c,a
+	inc l
+	inc l
+	ld a,(hl)
+	and &F0
+	rrca
+	rrca
+	rrca
+	rrca
+	or c
+	jr z,$+5
+	ld (c3.inst+1),a
+	inc l
+	inc l
+
+	ld a,(hl)
+	and &10
+	ld c,a
+	inc l
+	inc l
+	ld a,(hl)
+	and &F0
+	rrca
+	rrca
+	rrca
+	rrca
+	or c
+	jr z,$+5
+	ld (c4.inst+1),a
+	inc l
+	inc l
+
+	ld a,(c1.on)
+	or a
+	jr z,skip.c1
+c1.inst:
+	ld a,0
+	or a
+	ld c,0
+	call nz,col.point1
+skip.c1:
+	ld a,(c4.on)
+	or a
+	jr z,skip.c4
+c4.inst:
+	ld a,0
+	or a
+	ld c,0
+	call nz,col.point2
+skip.c4:
+	ld a,(c2.on)
+	or a
+	jr z,skip.c2
+c2.inst:
+	ld a,0
+	or a
+	ld c,31
+	call nz,col.point1
+skip.c2:
+	ld a,(c3.on)
+	or a
+	jr z,skip.c3
+c3.inst:
+	ld a,0
+	or a
+	ld c,31
+	call nz,col.point2
+skip.c3:
+	ret
+
+clr.point:
+	ld hl,line.table
+	add a,a
+	add a,l
+	ld l,a
+	ld a,(hl)
+	inc l
+	ld h,(hl)
+	add c
+	ld l,a
+	ld c,0
+	ld (hl),c
+	ld a,l
+	add b
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld (hl),c
+	ld a,l
+	add b
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld (hl),c
+	ld a,l
+	add b
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld (hl),c
+	ld a,l
+	add b
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld (hl),c
+	ret
+
+col.point1:
+	ld hl,line.table
+	add a,a
+	add a,l
+	ld l,a
+	ld a,(hl)
+	inc l
+	ld h,(hl)
+	add c
+	ld l,a
+
+	ld (hl),4
+	ld a,l
+	add b
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld (hl),5
+	ld a,l
+	add b
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld (hl),6
+	ld a,l
+	add b
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld (hl),5
+	ld a,l
+	add b
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld (hl),4
+	ret
+
+col.point2:
+	ld hl,line.table
+	add a,a
+	add a,l
+	ld l,a
+	ld a,(hl)
+	inc l
+	ld h,(hl)
+	add c
+	ld l,a
+
+	ld (hl),64+5
+	ld a,l
+	add b
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld (hl),64+6
+	ld a,l
+	add b
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld (hl),6
+	ld a,l
+	add b
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld (hl),64+6
+	ld a,l
+	add b
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld (hl),64+5
+	ret
+
+;---------------------------------------------------------------
+
+welcome:
+	DEFM "SAM MOD player             v2.20"
+	DEFM "(C) 2018 Stefan Drissen"
+	defb 0,0
+	DEFM "            WELCOME!"
+	defb 0,0
+	DEFM "Please note that this program is"
+	DEFM "NOT public domain, please only"
+	defb 0
+	DEFM "use this program if YOU bought"
+	defb 0
+	DEFM "it. (What's 5 pounds???)"
+	defb 0
+	defb 0
+	DEFM "My uttermost thanks go out to"
+	defb 0
+	DEFM "Edwin Blink without whom the SAM"
+	DEFM "MOD player probably would never "
+	DEFM "have seen the light of day, I"
+	defb 0
+	DEFM "really hope that Thailand gives "
+	DEFM "you what you were looking for."
+	defb 0
+	DEFM "Thanks also to Robert van der"
+	defb 0
+	DEFM "Veeke for the loading screen and"
+	DEFM "moral support."
+	defb 0
+	DEFM "And to Martijn Groen for always "
+	DEFM "having something silly to ask :)"
+	DEFM "To Joshua Jensen (PC) for his"
+	defb 0
+	DEFM "documented PC MOD player source."
+	defb 0
+	DEFM "For commercial use contact me..."
+	DEFM "                         F1=HELP"
+	DEFM "       Stefan Drissen"
+	defb 0
+	DEFM "       Zevende Herven 6"
+	defb 0
+	DEFM "       5232 JZ  's-Hertogenbosch"
+	DEFM "       The Netherlands"
+	defb 0
+	DEFM "       phone +31-73-6414969"
+	defb 0
+	DEFM "   http://www.pi.net/~drissen"
+col.intro:
+	defb 3,2,2,4,5,1,6,3,3,1,2,3,2,1,2,3,1,4,4,2,1,5
+	defb 1,1
+help.page:
+	DEFM "SAM MOD player             v2.20"
+	DEFM "(C) 2018 Stefan Drissen"
+	defb 0,0
+	DEFM "           HELP PAGE"
+	defb 0,0
+	DEFM "* F1: help page, F2: list names "
+	DEFM "  F3: list sizes, F4: tracker,  "
+	DEFM "  F5: summary effects (column 3)"
+	DEFM "  F6: techy page - burst info"
+	defb 0,0
+	DEFM "* 1, 2, 3, 4: un/mute channel"
+	defb 0,0
+	DEFM "* P: pause/play"
+	defb 0,0
+	DEFM "* Cursors: rewind/fast forward"
+	defb 0,0
+	DEFM "* ESC: stop tune, load another"
+	defb 0,0
+	DEFM "* L: loop tune on/off"
+	defb 0,0
+	DEFM "* On F2/F3 screen, the first    "
+	DEFM "  number is the sample length   "
+	DEFM "  in words, the second number is"
+	DEFM "  the default volume."
+	defb 0,0
+	DEFM "* Track-mode skips rows if the  "
+	DEFM "  song speed is too fast."
+	defb 0,0
+	DEFM "* The three digits in the top   "
+	DEFM "  right corner of the screen are"
+	DEFM "  song position, pattern number "
+	DEFM "  and pattern row."
+	defb 0
+col.help:
+	defb 3,2,2,4,5,1,2,3,2,1,2,3,2,1,2,3,5,1,3,3,4,1
+
+prosummary:
+	DEFM "SAM MOD player             v2.20"
+	DEFM "(C) 2018 Stefan Drissen"
+	defb 0,0
+	DEFM " SUMMARY OF PROTRACKER EFFECTS"
+	defb 0,0
+	DEFM "0 Arpeggio"
+	defb 0
+	DEFM "1 Portamento Up       (speed xy)"
+	DEFM "2 Portamento Down     (speed xy)"
+	DEFM "3 Tone Portamento     (speed xy)"
+	DEFM "4 Vibrato (speed x, amplitude y)"
+	DEFM "5 Tone and Volume Slide"
+	defb 0
+	DEFM "6 Vibrato and Volume Slide"
+	defb 0
+	DEFM "7 Tremolo (speed x, amplitude y)"
+	DEFM "8 Undefined"
+	defb 0
+	DEFM "9 Sample Offset (512 bytes * xy)"
+	defb 0
+	DEFM "A Volume Slide    (up x, down y)"
+	DEFM "B Position Jump          (to xy)"
+	DEFM "C Volume Change          (to xy)"
+	DEFM "D Pattern Break  (to row xy dec)"
+	DEFM "E Extra effects (x=com, y=param)"
+	DEFM "F Set Speed or Tempo if xy > 20 "
+	defb 0
+	DEFM "   EXTRA EFFECTS (E-command)"
+	defb 0,0
+	DEFM "0 filter      * 8 undefined"
+	defb 0
+	DEFM "1 fine porta up 9 retrigger note"
+	DEFM "2 fine porta dn A volume fine up"
+	DEFM "3 gliss control B volume fine dn"
+	DEFM "4 vibrato cntrl C note cut"
+	defb 0
+	DEFM "5 set fine tune D note delay    "
+	DEFM "6 jump loop     E pattern delay "
+	DEFM "7 tremolo cntrl F no standard  *"
+col.pro:
+	defb 3,2,2,4,17,1,2,4,8,3
+
+burst:
+	DEFM "SAM MOD player             v2.10"
+	DEFM "(C) 1996 Stefan Drissen"
+	DEFM "CHANNEL "
+	DEFM "Page Offs Vol SLo SHi"
+
+col.burst:
+	defb 3,2,1,4,1,5,19,1
+
+colours:
+	defb 0,0,0,0,0,0,0,0                    ;0 black
+	defb 1,2,3,2,1,0,0,0                    ;1 blue
+	defb 4,5,6,5,4,0,0,0                    ;2 orange
+	defb 7,9+56,3,9+56,7,0,0,0              ;3 green
+	defb 10+56,11+56,12+56,11+56,10+56,0,0,0;4 red
+	defb 13+56,14+56,6,14+56,13+56,0,0,0    ;5 yellow
+
+channel:	DEFM "Channel "
+
+volume:		DEFM "Vol: 000%  Speed: 00  Tempo: 000"
+keys:		DEFM "F1-F6 1234 C <> P ESC -+ Loop:  "
+author:		DEFM "(C) 2018 Stefan Drissen    v2.20"
+
+;font is already used in load routine - if it looks funny make
+;sure to check that the values are the same!
+
+font:	equ 21412 + 32768
+	; mdat "font"
+
+
+pr.amp.fac:
+	ld hl,256 + 32768 + 5
+	ld bc,(amp.fac+1)
+
+;convert &xx.xx to %
+;entry = BC
+
+do.percent:
+    LD   A,B
+	or a
+	jr nz,$+4
+	ld a," " - "0"
+	add "0"
+	call print.chr
+	ex de,hl
+	ld hl,0
+	ld b,h
+	add hl,bc
+	add hl,hl
+	add hl,hl
+	add hl,bc
+	add hl,hl
+	ld a,h
+	add "0"
+	ex de,hl
+	call print.chr
+	ex de,hl
+	ld c,l
+	ld b,0
+	ld h,b
+	add hl,hl
+	add hl,hl
+	add hl,bc
+	add hl,hl
+	ld a,h
+	add "0"
+	ex de,hl
+	jp print.chr
+
+volume.tab:	equ 512
+
+;---------------------------------------------------------------
+
+tables:
+	ld a,(demo.device)
+	ld hl,bits.per.dev
+	add a,l
+	ld l,a
+	jr nc,$+3
+	inc h
+	ld b,(hl)         ;output bits
+
+	ld c,32           ;num vol tabs
+	ld a,b
+	cp 4
+	jr nz,$+4         ;saa?
+	ld c,16
+
+;---------------------------------------------------------------
+;create volume tables for burstplayer (Amiga samples)
+;B = number of bits
+;C = number of tables
+
+make.vol.tab:
+	ld ix,volume.tab
+	push ix
+
+	xor a
+	bit 4,c
+	jr z,$+3
+	inc a
+	ld (cv.skip.table+2),a
+
+	ld a,201          ;RET
+	bit 4,c
+	jr z,$+3
+	xor a
+	ld (cv.no.double),a
+
+	ld a,c
+	ld (cv.max.tables+1),a
+	dec a
+	ld (cv.div.by+1),a
+
+	dec b
+	ld a,1
+cv.getbits:
+	rla
+	djnz cv.getbits
+	ld (cv.vol.base.1+2),a
+	ld (cv.vol.base.2+2),a
+
+	rla
+	ld (cv.vol.bits+1),a
+	ld a,0
+	adc a,0
+	ld (cv.vol.bits+2),a
+
+	xor a
+	ld (cv.volume+1),a
+
+cv.loop:
+cv.vol.bits:
+	ld de,0           ;DE=2^bits
+	ld h,d
+	ld l,e
+	dec hl             ;HL=2^bits-1
+	ld a,l
+	ld (max.vol+1),a
+
+	ld hl,0
+
+cv.volume:
+	ld a,0            ;[0-31]/[0-15]
+	or a
+	jr z,cv.no.mul
+	ld b,a
+cv.mul.vol:
+	add hl,de
+	djnz cv.mul.vol
+	                    ;HL=vol*2^bits
+
+;here we need to ensure that HL gets multiplied by the factor!
+
+	ex de,hl
+amp.fac:
+	ld bc,&0100		;amplification factor
+	xor a
+	ld h,a
+	ld l,a
+	ld (rest+1),a
+mulamp:
+rest:
+	ld a,0
+	add c
+	ld (rest+1),a
+	ld a,b
+	adc a,l
+	ld l,a
+	jr nc,$+3
+	inc h
+
+	dec de
+	ld a,d
+	or e
+	jr nz,mulamp
+;
+cv.no.mul:
+
+	ld b,h
+	ld c,l
+cv.div.by:
+	ld de,15          ;tables-1
+	call cv.bc.div.de
+	ld (cv.range+1),BC
+
+cv.vol.base.1:
+	ld hl,&0800       ;H=2^(bits-1) "central" vol.
+	ld b,128
+
+;2^bits * v/15
+
+cv.range:
+	ld de,15          ;range (step)
+
+cv.blp:
+	ld (ix),h
+	inc ix
+
+	add hl,de
+
+	ld a,h
+max.vol:
+	sub 0              ;maximum volume (2^bits-1)
+	jr z,$+4
+	jr c,not.max
+	ld a,(max.vol+1)
+	ld h,a            ;h=maximum volume
+	ld de,0           ;reset adder
+not.max:
+
+	djnz cv.blp
+
+	ld c,127
+	add ix,bc
+
+	ld de,(cv.range+1)
+
+cv.vol.base.2: 
+	ld hl,&0800       ;"central" volume
+	ld b,128
+cv.blp2:
+	or a
+	sbc hl,de
+
+	jr nc,not.min
+	ld h,0            ;minimum volume
+	ld d,h            ;reset adder
+	ld e,h
+not.min:
+	ld (ix),h
+	dec ix
+	djnz cv.blp2
+
+cv.skip.table: 
+	ld bc,129         ;B=1 if SAA
+	add ix,bc
+
+	ld a,(cv.volume+1)
+	inc a
+	ld (cv.volume+1),a
+cv.max.tables: 
+	cp 0
+	jp nz,cv.loop
+
+	pop hl
+cv.no.double:
+	ret                 ;NOP if SAA
+
+;copy tables with stereo flip for SAA1099
+
+	ld d,h
+	ld e,l
+	inc d
+	ld bc,16
+cv.saa.one:
+	ld a,(hl)
+	inc hl
+	add a,a
+	add a,a
+	add a,a
+	add a,a
+	ld (de),a
+	inc de
+	djnz cv.saa.one
+	inc d
+	inc h
+	dec c
+	jr nz,cv.saa.one
+	ret
+
+cv.bc.div.de:
+	ld a,b		;divide BC by DE
+	ld b,16		;result in BC
+	ld hl,0		;DE is unchanged
+cv.clcd1:
+	rl c
+	rla
+	adc hl,hl
+	sbc hl,de
+	jr nc,cv.clcd2
+	add hl,de
+cv.clcd2:
+	ccf
+	djnz cv.clcd1
+	rl c
+	rla
+	ld b,a
+	ret
+
+;===============================================================
+bits.per.dev:
+
+	defb 6,4,7,7,6,6,6,8      ;number of bits
+
+
+length: equ $-57344
+
+mod.header:	defs 1084
+
+chargap:	defs ( ( chargap // 256 ) + 1 ) * 256 - chargap
+char.list:	defs 16*2
+line.table:	defs 32*2
+
+build.font:
