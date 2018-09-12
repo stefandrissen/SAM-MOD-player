@@ -262,17 +262,17 @@ skip.intro:
 
 	ld a,(trackon+1)
 	dec a
-	call Z,show.help
+	call z,show.help
 	dec a
-	call Z,show.samples
+	call z,show.samples
 	dec a
-	call Z,show.sizes
+	call z,show.sizes
 	dec a
-	call Z,show.pattern
+	call z,show.pattern
 	dec a
-	call Z,show.summary
+	call z,show.summary
 	dec a
-	call Z,show.burst
+	call z,show.burst
 
 	ld hl,(enable.burst)
 	ld (mk.enable+1),hl
@@ -344,15 +344,15 @@ skip.speed:
 	bit 3,c
 	jr nz,not.left
 	ld hl,pattern.pos
-	DEC  (hl)
-	DEC  (hl)
-	BIT  7,(hl)
+	dec (hl)
+	dec (hl)
+	bit 7,(hl)
 	jr z,wait.left
 	ld (hl),62
 	dec l
 	dec l
-	DEC  (hl)
-	BIT  7,(hl)
+	dec (hl)
+	bit 7,(hl)
 	jr z,wait.left
 	ld (hl),0
 	inc l
@@ -370,7 +370,7 @@ not.left:
 	ld hl,counter
 	ld (hl),a
 wait.right:
-	EI
+	ei
 	ld a,(mstatus)    ;just in case end of tune
 	dec a
 	jp Z,exit
@@ -399,7 +399,7 @@ not.key.1:
 
 key.2:
 	xor a
-	BIT  1,C
+	bit 1,c
 	jr nz,not.key.2
 still.key.2:
 	ld a,0
@@ -416,7 +416,7 @@ not.key.2:
 
 key.3:
 	xor a
-	BIT  2,C
+	bit 2,c
 	jr nz,not.key.3
 still.key.3:
 	ld a,0
@@ -450,7 +450,7 @@ not.key.4:
 
 key.p:
 	xor a
-	ld bc,223*256+254
+	ld bc,223 * 256 + keyboard.register
 	in c,(c)
 	bit 0,c
 	jr nz,not.key.p
@@ -463,7 +463,7 @@ ints.on:
 	or a
 	jr z,pause
 	xor a
-	EI
+	ei
 	jr cont.p
 pause:
 	ld a,1
@@ -479,9 +479,9 @@ still.p:
 	ld hl,trackon+1
 	ld a,(hl)
 
-	ld bc,254*256+status.register
+	ld bc,254 * 256 + status.register
 	in c,(c)
-	BIT  5,C
+	bit 5,c
 	jr nz,not.f1
 	cp 1
 	jr z,not.f1
@@ -489,7 +489,7 @@ still.p:
 	call show.help
 	jr skip.f
 not.f1:
-	BIT  6,C
+	bit 6,c
 	jr nz,not.f2
 	cp 2
 	jr z,not.f2
@@ -497,7 +497,7 @@ not.f1:
 	call show.samples
 	jr skip.f
 not.f2:
-	BIT  7,C
+	bit 7,c
 	jr nz,not.f3
 	cp 3
 	jr z,not.f3
@@ -507,7 +507,7 @@ not.f2:
 not.f3:
 	ld bc,253 * 256 + status.register
 	in c,(c)
-	BIT  5,C
+	bit 5,c
 	jr nz,not.f4
 	cp 4
 	jr z,not.f4
@@ -515,7 +515,7 @@ not.f3:
 	call show.pattern
 	jr skip.f
 not.f4:
-	BIT  6,C
+	bit 6,c
 	jr nz,not.f5
 	cp 5
 	jr z,not.f5
@@ -523,7 +523,7 @@ not.f4:
 	call show.summary
 	jr skip.f
 not.f5:
-	BIT  7,C
+	bit 7,c
 	jr nz,not.f6
 	ld (hl),6
 	call show.burst
@@ -583,7 +583,9 @@ not.c:
 	jr z,not.plus
 	ld (amp.fac+1),hl
 	call tables
-	call pr.amp.fac
+	ld a,(trackon+1)
+	cp 4
+	call z,pr.amp.fac
 not.plus:
 
 	ld a,%11101111    ;-
@@ -591,11 +593,13 @@ not.plus:
 	and %00100000
 	jr nz,not.minus
 	ld hl,(amp.fac+1)
-	SBC  HL,BC
+	sbc hl,bc
 	jr c,not.minus
 	ld (amp.fac+1),hl
 	call tables
-	call pr.amp.fac
+	ld a,(trackon+1)
+	cp 4
+	call z,pr.amp.fac
 not.minus:
 	ld bc,0
 	ld a,247
@@ -611,7 +615,7 @@ not.minus:
 	in a,(status.register)
 	and 128
 	jr nz,not.f9
-	INC  BC             ;bc <> 0
+	inc bc             ;bc <> 0
 exit:
 	ld a,(trackon+1)
 	or a
@@ -675,8 +679,7 @@ set.palette:
 ;===============================================================
 
 ;PATTERN TRACKER for MOD player
-;(C) 1995 Stefan Drissen
-;last update: 3 January 1994, 01:00
+;(C) 1995-2018 Stefan Drissen
 ;
 ;runs off SEQUENCER frame interrupt
 ;only run when frame counter <> 0
@@ -1054,7 +1057,7 @@ print.chr:
 unprintable:
 	ex de,hl
 	ld b,0
-	ld l,C
+	ld l,c
 	ld h,b
 	add hl,hl
 	add hl,hl
@@ -2133,8 +2136,8 @@ col.pro:
 	defb 3,2,2,4,17,1,2,4,8,3
 
 burst:
-	DEFM "SAM MOD player             v2.10"
-	DEFM "(C) 1996 Stefan Drissen"
+	DEFM "SAM MOD player             v2.20"
+	DEFM "(C) 2018 Stefan Drissen"
 	DEFM "CHANNEL "
 	DEFM "Page Offs Vol SLo SHi"
 
@@ -2170,7 +2173,7 @@ pr.amp.fac:
 ;entry = BC
 
 do.percent:
-    LD   A,B
+    ld a,b
 	or a
 	jr nz,$+4
 	ld a," " - "0"

@@ -33,7 +33,7 @@ amiga:		defb pal
 bp.page:	defb 2
 
 	defm "                          "
-	defm "MAKEBURST (C)1995 Stefan Drissen"
+	defm "MAKEBURST (C)2018 Stefan Drissen"
 	defm "Thanks to Edwin Blink for the   "
 	defm "original burst idea and code...."
 
