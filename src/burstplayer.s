@@ -2,7 +2,9 @@
 
 ;(C) 1995-2018 Stefan Drissen
 
+
 include "ports.i"
+include "opcodes.i"
 
 ;samdac routine uses most memory!
 ;quazar needs largest playback buffers
@@ -36,19 +38,6 @@ bp.page:	defb 2
 	defm "MAKEBURST (C)2018 Stefan Drissen"
 	defm "Thanks to Edwin Blink for the   "
 	defm "original burst idea and code...."
-
-;opcode defines for generating code
-
-opcode_ex_af_af:	equ &08	; ex af,af'
-opcode_jr_z_n:		equ &28 ; jr z,n
-opcode_jp_nn:		equ &C3	; jp nn
-opcode_add_a_n:		equ &C6 ; add a,n
-opcode_ret:			equ &C9 ; ret
-opcode_call_nn:		equ &CD ; call nn
-opcode_out_n_a:		equ &D3 ; out (n),a
-opcode_exx:			equ &D9 ; exx
-opcode_in_a_n:		equ &DB ; in a,(n)
-opcode_cp_n:		equ &FE ; cp n
 
 ;---------------------------------------------------------------
 go.burst:
@@ -120,8 +109,9 @@ not.qss.pt:
 	inc hl
 	ld b,(hl)
 	inc hl
-	ld (mk.ro.add+1),de
-	ld (mk.ro.len+1),bc
+	ld (sound.driver.reset.address+1),de
+	ld (sound.driver.reset.length+1),bc
+	
 	ld e,(hl)
 	inc hl
 	ld d,(hl)
@@ -130,33 +120,40 @@ not.qss.pt:
 	inc hl
 	ld b,(hl)
 	inc hl
-	ld (sound.driver+1),de
-	ld (sound.dr.len+1),bc
+	ld (sound.driver.address+1),de
+	ld (sound.driver.length+1),bc
+	
 	ld c,(hl)
 	inc hl
 	ld b,(hl)
 	inc hl
 	ld (sample.port+1),bc
+	
 	ld e,(hl)
 	inc hl
 	ld d,(hl)
 	inc hl
 	ld (sample.ctrl+1),de
+	
 	ld e,(hl)
 	inc hl
 	ld d,(hl)
 	inc hl
 	ld (mk.timing+2),de
+	
 	ex de,hl
 	ld bc,129
 	add hl,bc
 	ld a,(hl)
 	ld (no.func.wait+1),a
+	
 	sub 15	;+1 for jr being done
 			;+2 for ld a,jr
 			;+4 for ld (jr+1),a
 			;+4 for ld (cp+1),a
+			
 	ld (no.func.wait2+1),a
+	
 	ex de,hl
 
 	ld a,(hl)
@@ -171,6 +168,7 @@ not.qss.pt:
 	ld de,0
 	ld bc,mk.mv.end
 	ldir
+	
 
 ;---------------------------------------------------------------
 ;interrupt routine (00056)
@@ -213,11 +211,11 @@ mk.sto1.1:
 	ld a,l
 	pop hl
 	ld (mk.stojr188+1),a
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ld (mk.recjr191+1),hl
 	inc hl
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 mk.recjradd:
 	ld de,0
@@ -225,11 +223,11 @@ mk.recjradd:
 	inc hl
 	ld (hl),d         ;ld (jr+1),a
 	inc hl
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
-	ld (hl),191       ;ld a,191
+	ld (hl),191
 	inc hl
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	dec de
 	dec de
@@ -240,7 +238,7 @@ mk.recjradd:
 
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),line.interrupt.register	;out (line.interrupt.register),a
+	ld (hl),line.interrupt.register
 	inc hl
 	ld (hl),opcode_jp_nn
 	inc hl
@@ -251,10 +249,10 @@ mk.recjradd:
 ;---------------------------------------------------------------
 ;reset output device
 
-	ld de,reset.output
-mk.ro.add:
+	ld de,sound.driver.reset
+sound.driver.reset.address:
 	ld hl,0
-mk.ro.len:
+sound.driver.reset.length:
 	ld bc,0
 	ld a,b
 	or c
@@ -279,25 +277,25 @@ mk.recjr191:
 	ld hl,0
 	ld (hl),e
 	pop hl             ;prep.bord.play:
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 mk.stojr188:
 	ld (hl),0		;ld a,jr188
 	inc hl
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld de,(mk.recjradd+1)
 	ld (hl),e
 	inc hl
 	ld (hl),d         ;ld (jradd+1),a
 	inc hl
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
-	ld (hl),188       ;ld a,188
+	ld (hl),188
 	inc hl
 	dec de
 	dec de
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld (hl),e
 	inc hl
@@ -306,34 +304,34 @@ mk.stojr188:
 
 	ld (hl),opcode_in_a_n
 	inc hl
-	ld (hl),high.memory.page.register	;in a,(high.memory.page.register)
+	ld (hl),high.memory.page.register
 	inc hl
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
-	ld (mk.sto3+1),hl ;ld (prog.p+1),a
+	ld (mk.sto3+1),hl			;ld (prog.p+1),a
 	inc hl
 	inc hl
 	ld (hl),opcode_ex_af_af
 	inc hl
-	ld (hl),&D9       ;exx
+	ld (hl),opcode_exx
 	inc hl
-	ld (hl),&F5       ;push af
+	ld (hl),opcode_push_af
 	inc hl
-	ld (hl),&C5       ;push bc
+	ld (hl),opcode_push_bc
 	inc hl
-	ld (hl),&D5       ;push de
+	ld (hl),opcode_push_de
 	inc hl
-	ld (hl),&E5       ;push hl
+	ld (hl),opcode_push_hl
 	inc hl
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&E5       ;push ix
+	ld (hl),opcode_push_ix
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
-	ld (hl),&73
+	ld (hl),opcode_ld_nn_sp
 	inc hl
-	ld (mk.sto4+1),hl ;ld (prog.sp+1),sp
+	ld (mk.sto4+1),hl			;ld (prog.sp+1),sp
 	inc hl
 	inc hl
 	ld (mk.rec2+1),hl ;playerselect:
@@ -377,9 +375,9 @@ get.pat:
 
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
-	ld (hl),&11       ;ld de,cur.pat.data
+	ld (hl),opcode_ld_de_nn
 	inc hl
 	ld (hl),cur.pat.data \ 256
 	inc hl
@@ -387,7 +385,7 @@ get.pat:
 	inc hl
 	ld b,15
 mk.gp.blp:
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&A0       ;ldi
 	inc hl
@@ -396,12 +394,12 @@ mk.gp.blp:
 	inc hl
 	ld (hl),&12       ;ld (de),a
 	inc hl
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl             ;ld a,sq.page
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
 	ld (hl),opcode_ret
 	inc hl                                     ;42
@@ -411,9 +409,9 @@ mk.gp.blp:
 call.far:
 	ld (hl),opcode_in_a_n
 	inc hl
-	ld (hl),high.memory.page.register	;in a,(high.memory.page.register)
+	ld (hl),high.memory.page.register
 	inc hl
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ex de,hl
 	ld hl,12
@@ -427,9 +425,9 @@ call.far:
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
-	ld (hl),&22
+	ld (hl),opcode_ld_nn_hl
 	inc hl
 	ex de,hl
 	ld hl,3
@@ -443,12 +441,12 @@ call.far:
 	inc hl
 	inc hl             ;call hl
 	inc hl
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl             ;ld a,sq.page
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
 	ld (hl),opcode_ret
 	inc hl                                      ;19
@@ -459,9 +457,9 @@ call.far:
 ldir.far.1:
 	ld (hl),opcode_in_a_n
 	inc hl
-	ld (hl),high.memory.page.register	;in a,(high.memory.page.register)
+	ld (hl),high.memory.page.register
 	inc hl
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld (buf.sto1+1),hl
 	inc hl             ;ld (nn),a
@@ -470,9 +468,9 @@ ldir.far.1:
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
-	ld (hl),&11
+	ld (hl),opcode_ld_de_nn
 	inc hl
 	ld (hl),buffer \ 256
 	inc hl
@@ -482,11 +480,11 @@ ldir.far.1:
 	inc hl
 	; ld (hl),0			;ld b,0
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&B0			;ldir
 	inc hl
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ex de,hl
 buf.sto1:
@@ -498,7 +496,7 @@ buf.sto1:
 	inc hl				;ld a,n
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
 	ld (hl),opcode_ret
 	inc hl                                     ;18
@@ -509,9 +507,9 @@ buf.sto1:
 ldir.far.2:
 	ld (hl),opcode_in_a_n
 	inc hl
-	ld (hl),high.memory.page.register	;in a,(high.memory.page.register)
+	ld (hl),high.memory.page.register
 	inc hl
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld (buf.sto2+1),hl
 	inc hl             ;ld (nn),a
@@ -520,7 +518,7 @@ ldir.far.2:
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
 	ld (hl),&21
 	inc hl
@@ -532,11 +530,11 @@ ldir.far.2:
 	inc hl
 	; ld (hl),0			;ld b,0
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&B0			;ldir
 	inc hl
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ex de,hl
 buf.sto2:
@@ -548,7 +546,7 @@ buf.sto2:
 	inc hl				;ld a,n
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
 	ld (hl),opcode_ret
 	inc hl                                     ;18
@@ -593,7 +591,7 @@ ins.nf.notjr:
 	or a
 	jr z,ins.nf.all
 ins.nf.lp:
-	; ld (hl),&00	;nop
+	; ld (hl),opcode_nop
 	inc hl
 	dec a
 	jr nz,ins.nf.lp
@@ -604,11 +602,11 @@ ins.nf.all:
     ; call nz,timeline
 
 	call insert.outs
-	ld (hl),&D9       ;exx
+	ld (hl),opcode_exx
 	inc hl
 	ld (hl),opcode_ex_af_af
 	inc hl
-	ld (hl),&FB       ;ei
+	ld (hl),opcode_ei
 	inc hl
 	ld (hl),opcode_ret
 	inc hl
@@ -645,7 +643,7 @@ ins.nf.notjr2:
 	or a
 	jr z,ins.nf.all2
 ins.nf.lp2:
-	; ld (hl),&00	;nop
+	; ld (hl),opcode_nop
 	inc hl
 	dec a
 	jr nz,ins.nf.lp2
@@ -656,11 +654,11 @@ ins.nf.all2:
 	; call nz,timeline
 
 	call insert.outs
-	ld (hl),&D9       ;exx
+	ld (hl),opcode_exx
 	inc hl
 	ld (hl),opcode_ex_af_af
 	inc hl
-	ld (hl),&FB       ;ei
+	ld (hl),opcode_ei
 	inc hl
 	ld (hl),&76       ;halt
 	inc hl
@@ -715,7 +713,7 @@ mk.sto24:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ld (bp.c1.page),hl	;c1.page:
 	; ld (hl),4			;ld a,4
@@ -739,7 +737,7 @@ mk.sto24:
 
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
 
 	cp 2
@@ -778,7 +776,7 @@ mk.sto24:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ld (bp.c1.sp.frct),hl ;c1.sp.frct:
 	; ld (hl),0         ;ld a,0
@@ -851,7 +849,7 @@ mk.sto25:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ld (bp.c4.page),hl ;c4.pag:
 ;              ld (hl),4          ;ld a,4
@@ -875,7 +873,7 @@ mk.sto25:
 
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
 
 	cp 2
@@ -914,7 +912,7 @@ mk.sto25:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ld (bp.c4.sp.frct),hl ;c4.sp.frct:
 	; ld (hl),0          ;ld a,0
@@ -1010,7 +1008,7 @@ mk.outd.1:
 	call c,insert.xout
 	sub 6
 
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&AB       ;outd (16*)
 	inc hl
@@ -1022,7 +1020,7 @@ mk.outd.1:
 
 	ld (hl),opcode_in_a_n
 	inc hl
-	ld (hl),video.memory.page.register	;in a,(video.memory.page.register)
+	ld (hl),video.memory.page.register
 	inc hl
 
 	cp 1
@@ -1062,7 +1060,7 @@ mk.outd.1:
 
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),video.memory.page.register	;out (video.memory.page.register),a
+	ld (hl),video.memory.page.register
 	inc hl
 
 	cp 2
@@ -1130,7 +1128,7 @@ mk.sto26:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ld (bp.c2.page),hl ;c2.pag:
 	; ld (hl),4          ;ld a,4
@@ -1154,7 +1152,7 @@ mk.sto26:
 
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
 
 	cp 2
@@ -1193,7 +1191,7 @@ mk.sto26:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ld (bp.c2.sp.frct),hl ;c2.sp.frct:
 	; ld (hl),0          ;ld a,0
@@ -1266,7 +1264,7 @@ mk.sto27:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ld (bp.c3.page),hl ;c3.pag:
 	; ld (hl),4          ;ld a,4
@@ -1290,7 +1288,7 @@ mk.sto27:
 
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
 
 	cp 2
@@ -1329,7 +1327,7 @@ mk.sto27:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ld (bp.c3.sp.frct),hl ;c3.sp.frct:
 	; ld (hl),0          ;ld a,0
@@ -1377,7 +1375,7 @@ mk.sto14:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&11
+	ld (hl),opcode_ld_de_nn
 	inc hl
 qs.playtab2.1:
 	ld (hl),0
@@ -1633,7 +1631,7 @@ mk.rec32:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&11
+	ld (hl),opcode_ld_de_nn
 	inc hl
 	ld (hl),playtab1 \ 256
 	inc hl
@@ -1670,7 +1668,7 @@ mk.sto22:
 	call c,insert.xout
 	sub 5
 
-	ld (hl),&22
+	ld (hl),opcode_ld_nn_hl
 	inc hl
 mk.rec2:
 	ld de,0
@@ -1684,7 +1682,7 @@ mk.rec2:
 	call c,insert.xout
 	sub 6
 
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&53
 	inc hl
@@ -1696,7 +1694,7 @@ mk.rec2:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ld (bp.seq.p),hl
 	; ld (hl),sq.page	;ld a,sq.page
@@ -1708,7 +1706,7 @@ mk.rec2:
 
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
 
 	cp 3
@@ -1731,7 +1729,7 @@ mk.sto4:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 ras.start.1:
 	ld (hl),0          ;ld a,ras.start
@@ -1743,14 +1741,14 @@ ras.start.1:
 
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),line.interrupt.register	;out (line.interrupt.register),a
+	ld (hl),line.interrupt.register
 	inc hl
 
 	call insert.xout
 	cp 255
 	call nz,insert.xout
 
-	ld (hl),&D9        ;exx
+	ld (hl),opcode_exx
 	inc hl
 
 	ld (hl),opcode_ex_af_af
@@ -1767,10 +1765,10 @@ mk.sto23:
 	ex de,hl           ;ld hl,00000
 	inc hl
 	inc hl
-	ld (hl),&D9        ;exx
+	ld (hl),opcode_exx
 	inc hl
 
-	ld (hl),&FB        ;ei
+	ld (hl),opcode_ei
 	inc hl
 	ld (hl),opcode_call_nn
 	inc hl
@@ -1783,9 +1781,9 @@ mk.sto23:
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),248
+	ld (hl),color.look.up.table
 	inc hl
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
 	ld (hl),&E1        ;pop ix
 	inc hl
@@ -1795,7 +1793,7 @@ mk.sto23:
 	inc hl
 	ld (hl),&C1        ;pop bc
 	inc hl
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ex de,hl
 mk.sto3:
@@ -1807,7 +1805,7 @@ mk.sto3:
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
 	ld (hl),&F1        ;pop af
 	inc hl
@@ -1821,7 +1819,7 @@ enable:
 
 	ld (hl),opcode_in_a_n
 	inc hl
-	ld (hl),status.register	;in a,(status.register)
+	ld (hl),status.register
 	inc hl
 	ld (hl),&E6
 	inc hl
@@ -1833,7 +1831,7 @@ enable:
 	inc hl
 	ld (hl),opcode_in_a_n
 	inc hl
-	ld (hl),status.register	;in a,(status.register)
+	ld (hl),status.register
 	inc hl
 	ld (hl),&E6
 	inc hl
@@ -1850,7 +1848,7 @@ enable:
 	inc hl
 	ld (hl),d          ;ld hl,borderplay1
 	inc hl
-	ld (hl),&22
+	ld (hl),opcode_ld_nn_hl
 	inc hl
 	ld de,(mk.rec2+1)
 	inc de
@@ -1860,7 +1858,7 @@ enable:
 	inc hl
 	ld (hl),opcode_ex_af_af
 	inc hl
-	ld (hl),&D9        ;exx
+	ld (hl),opcode_exx
 	inc hl
 	ld (hl),&01
 	inc hl
@@ -1876,7 +1874,7 @@ sample.port:
 	inc hl
 	ld (hl),playtab1 // 256 ;ld hl,playtab1
 	inc hl
-	ld (hl),&11
+	ld (hl),opcode_ld_de_nn
 	inc hl
 sample.ctrl:
 	ld de,1
@@ -1884,20 +1882,20 @@ sample.ctrl:
 	inc hl
 	ld (hl),d          ;ld de,sample.ctrl
 	inc hl
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 ras.start.2:
 	ld (hl),0          ;ld a,ras.start
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),line.interrupt.register    ;out (line.interrupt.register),a
+	ld (hl),line.interrupt.register
 	inc hl
-	ld (hl),&D9        ;exx
+	ld (hl),opcode_exx
 	inc hl
 	ld (hl),opcode_ex_af_af
 	inc hl
-	ld (hl),&FB        ;ei
+	ld (hl),opcode_ei
 	inc hl
 	ld (hl),opcode_ret
 	inc hl
@@ -1938,7 +1936,7 @@ set.silence:
 	inc hl
 	ld (hl),d         ;ld bc,4*208-1 (8* = QSS)
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&B0       ;ldir
 	inc hl
@@ -1948,14 +1946,12 @@ set.silence:
 ;---------------------------------------------------------------
 ;test
 
-breakpoint:
-
 	ld (run.program+1),hl
 	ld (hl),opcode_call_nn
 	inc hl
-	ld (hl),reset.output \ 256
+	ld (hl),sound.driver.reset \ 256
 	inc hl
-	ld (hl),reset.output // 256  ;call reset sound dev
+	ld (hl),sound.driver.reset // 256  ;call reset sound dev
 	inc hl
 	ld (hl),opcode_call_nn
 	inc hl
@@ -1966,14 +1962,14 @@ mk.rec37:
 	ld (hl),d          ;call set.silence
 	inc hl
 
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 	ld (bp.demo.p),hl
 	; ld (hl),sq.page		;ld a,sq.page
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),high.memory.page.register	;out (high.memory.page.register),a
+	ld (hl),high.memory.page.register
 	inc hl
 	ld (hl),opcode_jp_nn
 	inc hl
@@ -2022,7 +2018,7 @@ make.vol.tab:
 	inc a
 	ld (cv.skip.table+2),a
 
-	ld a,201          ;RET
+	ld a,opcode_ret
 	bit 4,c
 	jr z,$+3
 	xor a
@@ -2239,9 +2235,9 @@ mp.divskip1:
 insert.outs:
 	ex de,hl
 	push bc
-sound.driver:
+sound.driver.address:
 	ld hl,0
-sound.dr.len:
+sound.driver.length:
 	ld bc,0
 	ldir
 	pop bc
@@ -2261,7 +2257,7 @@ ins.notjr:
 	or a
 	jr z,ins.allnop
 ins.noplp:
-	ld (hl),&00       ;nop
+	ld (hl),opcode_nop
 	inc hl
 	dec a
 	jr nz,ins.noplp
@@ -2270,10 +2266,10 @@ ins.allnop:
 	and 1
 	call nz,time
 
-	ld (hl),&D9       ;exx
+	ld (hl),opcode_exx
 	inc hl
 	call insert.outs
-	ld (hl),&D9       ;exx
+	ld (hl),opcode_exx
 	inc hl
 
 	ld a,(maker+1)
@@ -2296,14 +2292,14 @@ poke.count:
 
 	ld (hl),opcode_ex_af_af
 	inc hl
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
 border.col:
 	ld (hl),&70       ;ld a,3
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),248       ;out (248),a
+	ld (hl),color.look.up.table
 	inc hl
 	ld (hl),opcode_ex_af_af
 	inc hl
@@ -2523,7 +2519,7 @@ blp1.1:
 
 	ld (hl),&81       ;add a,c
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&7A       ;adc hl,sp
 	inc hl
@@ -2541,7 +2537,7 @@ blp1.1:
 
 	ld (hl),&81       ;add a,c
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&7A       ;adc hl,sp
 	inc hl
@@ -2564,7 +2560,7 @@ blp1.1:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld (iy+0),l
 	ld (iy+1),h
@@ -2593,7 +2589,7 @@ blp1.1:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld (iy+0),l
 	ld (iy+1),h
@@ -2622,7 +2618,7 @@ blp1.1:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld (iy+0),l
 	ld (iy+1),h
@@ -2646,7 +2642,7 @@ blp1.1:
 
 	ld (hl),&81       ;add a,c
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&7A       ;adc hl,sp
 	inc hl
@@ -2669,7 +2665,7 @@ blp1.1:
 
 	ld (hl),&81       ;add a,c
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&7A       ;adc hl,sp
 	inc hl
@@ -2678,12 +2674,12 @@ blp1.1:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld bc,(mk.gd.spfr)
-	ld (hl),C
+	ld (hl),c
 	inc hl
-	ld (hl),B         ;ld (speedfract+1),a
+	ld (hl),b         ;ld (speedfract+1),a
 	inc hl
 
 	cp 2
@@ -2697,7 +2693,7 @@ blp1.1:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld (iy+0),l
 	ld (iy+1),h
@@ -2714,55 +2710,55 @@ blp1.1:
 
 	ld (hl),opcode_in_a_n
 	inc hl
-	ld (hl),high.memory.page.register	;in a,(high.memory.page.register)
+	ld (hl),high.memory.page.register
 	inc hl
 
 	cp 2+3
 	call c,insert.xout
 	sub 2+3
 
-	ld (hl),&CB
+	ld (hl),opcode_cb
 	inc hl
-	ld (hl),&74       ;bit 6,h
+	ld (hl),opcode_bit_6_h
 	inc hl
 	ld (hl),opcode_jr_z_n
 	inc hl
 	ld (hl),1         ;jr z,$+3
 	inc hl
-	ld (hl),&3C       ;inc a
+	ld (hl),opcode_inc_a
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld bc,(mk.gd.page)
-	ld (hl),C
+	ld (hl),c
 	inc hl
-	ld (hl),B         ;ld (samplepage+1),a
+	ld (hl),b         ;ld (samplepage+1),a
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&CB
+	ld (hl),opcode_cb
 	inc hl
-	ld (hl),&B4       ;res 6,h
+	ld (hl),opcode_res_6_h
 	inc hl
 
 	cp 5
 	call c,insert.xout
 	sub 5
 
-	ld (hl),&22
+	ld (hl),opcode_ld_nn_hl
 	inc hl
 	ld bc,(mk.gd.offs)
-	ld (hl),C
+	ld (hl),c
 	inc hl
-	ld (hl),B         ;ld (sample.offs+1),hl
+	ld (hl),b         ;ld (sample.offs+1),hl
 	inc hl
 
 	ret
@@ -2789,7 +2785,7 @@ blp1.4:
 
 	ld (hl),&81       ;add a,c
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&7A       ;adc hl,sp
 	inc hl
@@ -2807,7 +2803,7 @@ blp1.4:
 
 	ld (hl),&81       ;add a,c
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&7A       ;adc hl,sp
 	inc hl
@@ -2848,7 +2844,7 @@ blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -2895,7 +2891,7 @@ blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -2942,7 +2938,7 @@ blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -2966,7 +2962,7 @@ blp1.4:
 
 	ld (hl),&81       ;add a,c
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&7A       ;adc hl,sp
 	inc hl
@@ -2989,7 +2985,7 @@ blp1.4:
 
 	ld (hl),&81       ;add a,c
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&7A       ;adc hl,sp
 	inc hl
@@ -2998,12 +2994,12 @@ blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld bc,(mk.gd.spfr)
-	ld (hl),C
+	ld (hl),c
 	inc hl
-	ld (hl),B         ;ld (speedfract+1),a
+	ld (hl),b         ;ld (speedfract+1),a
 	inc hl
 
 	cp 2
@@ -3035,7 +3031,7 @@ blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -3052,55 +3048,55 @@ blp1.4:
 
 	ld (hl),opcode_in_a_n
 	inc hl
-	ld (hl),high.memory.page.register	;in a,(high.memory.page.register)
+	ld (hl),high.memory.page.register
 	inc hl
 
 	cp 2+3
 	call c,insert.xout
 	sub 2+3
 
-	ld (hl),&CB
+	ld (hl),opcode_cb
 	inc hl
-	ld (hl),&74       ;bit 6,h
+	ld (hl),opcode_bit_6_h
 	inc hl
 	ld (hl),opcode_jr_z_n
 	inc hl
 	ld (hl),1         ;jr z,$+3
 	inc hl
-	ld (hl),&3C       ;inc a
+	ld (hl),opcode_inc_a
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld bc,(mk.gd.page)
-	ld (hl),C
+	ld (hl),c
 	inc hl
-	ld (hl),B         ;ld (samplepage+1),a
+	ld (hl),b         ;ld (samplepage+1),a
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&CB
+	ld (hl),opcode_cb
 	inc hl
-	ld (hl),&B4       ;res 6,h
+	ld (hl),opcode_res_6_h
 	inc hl
 
 	cp 5
 	call c,insert.xout
 	sub 5
 
-	ld (hl),&22
+	ld (hl),opcode_ld_nn_hl
 	inc hl
 	ld bc,(mk.gd.offs)
-	ld (hl),C
+	ld (hl),c
 	inc hl
-	ld (hl),B         ;ld (sample.offs+1),hl
+	ld (hl),b         ;ld (sample.offs+1),hl
 	inc hl
 
 	ret
@@ -3126,7 +3122,7 @@ q.blp1.4:
 
 	ld (hl),&81       ;add a,c
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&7A       ;adc hl,sp
 	inc hl
@@ -3144,7 +3140,7 @@ q.blp1.4:
 
 	ld (hl),&81       ;add a,c
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&7A       ;adc hl,sp
 	inc hl
@@ -3167,7 +3163,7 @@ q.blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -3198,7 +3194,7 @@ q.blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -3229,7 +3225,7 @@ q.blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -3255,7 +3251,7 @@ q.blp1.4:
 
 	ld (hl),&81       ;add a,c
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&7A       ;adc hl,sp
 	inc hl
@@ -3278,7 +3274,7 @@ q.blp1.4:
 
 	ld (hl),&81       ;add a,c
 	inc hl
-	ld (hl),&ED
+	ld (hl),opcode_ed
 	inc hl
 	ld (hl),&7A       ;adc hl,sp
 	inc hl
@@ -3287,12 +3283,12 @@ q.blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld bc,(mk.gd.spfr)
-	ld (hl),C
+	ld (hl),c
 	inc hl
-	ld (hl),B         ;ld (speedfract+1),a
+	ld (hl),b         ;ld (speedfract+1),a
 	inc hl
 
 	cp 2
@@ -3306,7 +3302,7 @@ q.blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -3320,55 +3316,55 @@ q.blp1.4:
 
 	ld (hl),opcode_in_a_n
 	inc hl
-	ld (hl),high.memory.page.register	;in a,(high.memory.page.register)
+	ld (hl),high.memory.page.register
 	inc hl
 
 	cp 2+3
 	call c,insert.xout
 	sub 2+3
 
-	ld (hl),&CB
+	ld (hl),opcode_cb
 	inc hl
-	ld (hl),&74       ;bit 6,h
+	ld (hl),opcode_bit_6_h
 	inc hl
 	ld (hl),opcode_jr_z_n
 	inc hl
 	ld (hl),1         ;jr z,$+3
 	inc hl
-	ld (hl),&3C       ;inc a
+	ld (hl),opcode_inc_a
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&32
+	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld bc,(mk.gd.page)
-	ld (hl),C
+	ld (hl),c
 	inc hl
-	ld (hl),B         ;ld (samplepage+1),a
+	ld (hl),b         ;ld (samplepage+1),a
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&CB
+	ld (hl),opcode_cb
 	inc hl
-	ld (hl),&B4       ;res 6,h
+	ld (hl),opcode_res_6_h
 	inc hl
 
 	cp 5
 	call c,insert.xout
 	sub 5
 
-	ld (hl),&22
+	ld (hl),opcode_ld_nn_hl
 	inc hl
 	ld bc,(mk.gd.offs)
-	ld (hl),C
+	ld (hl),c
 	inc hl
-	ld (hl),B         ;ld (sample.offs+1),hl
+	ld (hl),b         ;ld (sample.offs+1),hl
 	inc hl
 
 	ret
@@ -3380,13 +3376,13 @@ if defined(testing)
 timeline:
 	ld (hl),&5F			;ld e,a
 	inc hl
-	ld (hl),&3E
+	ld (hl),opcode_ld_a_n
 	inc hl
-	ld (hl),&70			;ld a,&70
+	ld (hl),&70
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
-	ld (hl),248			;out (248),a
+	ld (hl),color.look.up.table
 	inc hl
 	ld (hl),&7B			;ld a,e
 	inc hl
@@ -3561,7 +3557,7 @@ bp.res.saa:
 	jr nz,bp.res.saa
 	ld hl,bp.soundtab
 	ld b,6
-	OTIR
+	otir
 e.saa:
 i.bla:
 	ld bc,127 * 256 + 127
@@ -3719,9 +3715,9 @@ bp.soundtab:
 
 
 mk.mv.end:
-reset.output:
+sound.driver.reset:
 
-length:	equ  mk.movecode-32768+reset.output
+length:	equ  mk.movecode-32768+sound.driver.reset
 
 if defined( testing )
 

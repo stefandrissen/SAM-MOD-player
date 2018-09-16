@@ -2070,7 +2070,7 @@ r2.001:
 	ld (note+1),de
 	or e				;if no period given then use
 r1.004:
-	call Z,per.nop		;last given period
+	call z,per.nop		;last given period
 
 	ex de,hl			;DE = d
 

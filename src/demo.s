@@ -3,12 +3,16 @@
 ;(C) 1996-2018 Stefan Drissen
 
 include "ports.i"
+include "opcodes.i"
 
 demo.device:	equ 49152+3		;device, set by loader
 
 bp.page:		equ 2
 burst.player:	equ 32768
 bp.sequence:	equ 105
+
+video.memory:				equ 32768
+video.memory.attributes:	equ video.memory + 8192 
 
 get.patt:		equ 10752
 gp.ret.p:		equ 10790		;set with return page
@@ -181,11 +185,13 @@ black:
 	djnz black
 	out (c),a
 
-	ld a,32
+	ld a,video.mode.2
 	out (video.memory.page.register),a
 
 	call cls
 	call set.palette
+
+; create a fast print routine for hex digits
 
 	ld ix,char.list
 	ld de,( "0" - " " ) * 5 + font
@@ -201,38 +207,42 @@ build.blp:
 	ld (ix+1),h
 	inc ix
 	inc ix
-	ld (hl),&E1       ;pop hl
+	ld (hl),opcode_pop_hl
 	inc hl
+	ld (hl),opcode_ld_a_l
+	inc hl	
 	ld c,4
 build.clp:
-	ld (hl),&36
+	ld (hl),opcode_ld_hl_n
 	inc hl
 	ld a,(de)
 	inc de
-	ld (hl),a         ;ld (hl),n
+	ld (hl),a
 	inc hl
-	ld (hl),&7D       ;ld a,l
+	ld (hl),opcode_add_a_b
 	inc hl
-	ld (hl),&80       ;add a,b
-	inc hl
-	ld (hl),&6F       ;ld l,a
+	ld (hl),opcode_ld_l_a
 	inc hl
 	dec c
 	jr nz,build.clp
-	ld (hl),&36
+	ld (hl),opcode_ld_hl_n
 	inc hl
 	ld a,(de)
 	inc de
-	ld (hl),a         ;ld (hl),n
+	ld (hl),a
 	inc hl
-	ld (hl),&2C       ;inc l
+	ld (hl),opcode_cb
 	inc hl
-	ld (hl),&C9       ;ret
+	ld (hl),opcode_res_7_l
+	inc hl
+	ld (hl),opcode_inc_l
+	inc hl
+	ld (hl),opcode_ret
 	inc hl
 	djnz build.blp
 
 	ld ix,line.table
-	ld hl,32768+8192
+	ld hl,video.memory.attributes
 	ld de,192
 	ld b,32
 b.line:
@@ -255,7 +265,7 @@ first.time:
 	ld de,welcome
 	call print.screen
 
-	ld a,0
+	ld a,4
 	ld (trackon+1),a
 
 skip.intro:
@@ -287,55 +297,50 @@ trackon:
 	cp 5
 	jr nc,skip.patpos
 
+	ld b,32						;for print routine
+	ld hl,0 * 256 + 24 + video.memory
 	ld a,(song.pos)
-	ld b,32           ;for print routine
-	ld hl,0 * 256 + 24 + 32768
-	and &F0
-	call printhi
-	ld a,(song.pos)
-	and &0F
-	call printlo
+	ld c,a
+	call print.hi.nibble
+	ld a,c
+	call print.lo.nibble
 	inc l
 
 	ld a,(pattern.num)
-	and &F0
-	call printhi
-	ld a,(pattern.num)
-	and &0F
-	call printlo
+	ld c,a
+	call print.hi.nibble
+	ld a,c
+	call print.lo.nibble
 	inc l
 
 	ld a,(pattern.pos)
-	and &F0
-	call printhi
-	ld a,(pattern.pos)
-	and &0F
-	call printlo
+	ld c,a
+	call print.hi.nibble
+	ld a,c
+	call print.lo.nibble
 skip.patpos:
 	ld a,(trackon+1)
 	cp 4
 	jr nz,skip.speed
 
-	ld hl,256+32768+18
+	ld hl,1 * 256 + 18 + video.memory
 	ld a,(speed)
 	ld c,a
-	and &F0
-	call printhi
+	call print.hi.nibble
 	ld a,c
-	and &0F
-	call printlo
+	call print.lo.nibble
 
 	ld hl,(tempo)
 	ld b,h
 	ld c,l
-	SRL  H
-	RR   L
-	SRL  H
-	RR   L
-	ADC  HL,BC
+	srl h
+	rr l
+	srl h
+	rr l
+	adc hl,bc
 	ld b,h
 	ld c,l
-	ld hl,256+32768+29
+	ld hl,1 * 256 + 29 + video.memory
 	call do.percent
 
 skip.speed:
@@ -373,7 +378,7 @@ wait.right:
 	ei
 	ld a,(mstatus)    ;just in case end of tune
 	dec a
-	jp Z,exit
+	jp z,exit
 	ld a,(hl)
 	dec a
 	jr nz,wait.right
@@ -690,108 +695,37 @@ printer:
 	add hl,de
 	ld a,(speed)
 	dec a
-	cp H
-	ret  C
+	cp h
+	ret c
 
 pr.set:
 	ld a,0
 	or a
-	jp Z,print43
+	jp z,print43
 
 	ld a,(counter)
 	or a
-	ret  NZ
+	ret nz
 	ld (pr.set+1),a
 print12:
-	ld hl,256 * 3 + 3 + 32768
+	ld hl,3 * 256 + 3 + video.memory
 print.pos:
 	ld a,0
-	add H
+	add h
 	ld h,a
 
-	ld de,current.row
-	ld b,32
-
-	ld a,(de)
-	and &F0
-	call printhi
-	INC  E
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	inc l
-
-	DEC  E
-	DEC  E
-	ld a,(de)
-	and &0F
-	call printlo
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	ld a,(de)
-	and &0F
-	call printlo
-	inc l
-
-	INC  E
-	ld a,(de)
-	and &0F
-	call printlo
-	inc l
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	ld a,(de)
-	and &0F
-	call printlo
-
+	ld b,32					; used
+	ld ix,current.row
+	call print.channel
+	
+	ld ix,current.row + 4
 	ld l,18
-
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	INC  E
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	inc l
-
-	DEC  E
-	DEC  E
-	ld a,(de)
-	and &0F
-	call printlo
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	ld a,(de)
-	and &0F
-	call printlo
-	inc l
-
-	INC  E
-	ld a,(de)
-	and &0F
-	call printlo
-	inc l
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	ld a,(de)
-	and &0F
-	call printlo
+	call print.channel
+	
 	ld hl,c1.on
-	LD   D,(hl)
+	ld d,(hl)
 	inc l
-	LD   E,(hl)
+	ld e,(hl)
 	ld a,(print.pos+1)
 	add 128
 	ld l,1   ;width offset
@@ -899,91 +833,20 @@ print43:
 	add 13+128
 	ld h,a
 	ld l,18
-	ld de,current.row+8
+	
 	ld b,32
-
-	ld a,(de)
-	and &F0
-	call printhi
-	INC  E
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	inc l
-
-	DEC  E
-	DEC  E
-	ld a,(de)
-	and &0F
-	call printlo
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	ld a,(de)
-	and &0F
-	call printlo
-	inc l
-
-	INC  E
-	ld a,(de)
-	and &0F
-	call printlo
-	inc l
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	ld a,(de)
-	and &0F
-	call printlo
-	INC  E
-
+	
+	ld ix,current.row+8
+	call print.channel
+	
 	ld l,3
-
-	ld a,(de)
-	and &F0
-	call printhi
-	INC  E
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	inc l
-
-	DEC  E
-	DEC  E
-	ld a,(de)
-	and &0F
-	call printlo
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	ld a,(de)
-	and &0F
-	call printlo
-	inc l
-
-	INC  E
-	ld a,(de)
-	and &0F
-	call printlo
-	inc l
-	INC  E
-	ld a,(de)
-	and &F0
-	call printhi
-	ld a,(de)
-	and &0F
-	call printlo
-	INC  E
-
+	ld ix,current.row+12
+	call print.channel
+	
 	ld hl,c4.on
-	LD   D,(hl)
+	ld d,(hl)
 	dec l
-	LD   E,(hl)
+	ld e,(hl)
 	ld a,(print.pos+1)
 	ld c,13
 	add c
@@ -998,14 +861,109 @@ print43:
 	ld (hl),a
 	ret
 
+;==============================================================================	
+print.channel:
 
-printhi:
-	RES  7,L
+; prints information about channel
+
+; input: ix = pattern.row channel 
+; input: hl = screen address
+;------------------------------------------------------------------------------	
+	
+	ld a,(ix+0)				; instrument hi
+	ld d,a
+	and &f0
+	jr nz,@not.blank	
+	ld a,(ix+2)					
+	ld e,a
+	and &f0
+	jr z,@blank
+	
+@not.blank:
+
+	ld a,d
+	call print.hi.nibble
+	ld a,e
+	call print.hi.nibble
+	
+	jr @continue
+	
+@blank:
+
+	call print.space
+	call print.space.c
+	
+@continue:	
+	
+	inc l
+
+	ld a,d					; period value
+	and &0f
+	jr nz,@not.blank
+	ld a,(ix+1)
+	or a
+	ld e,a
+	jr z,@blank
+	
+@not.blank:
+
+	ld a,d
+	call print.lo.nibble
+	ld a,e
+	call print.hi.nibble
+	ld a,e
+	call print.lo.nibble	
+
+	jr @continue
+	
+@blank:
+
+	call print.space
+	call print.space.c
+	call print.space.c
+	
+@continue:
+	
+	inc l
+
+	ld a,(ix+2)				; command
+	and &0f
+	
+	jr z,@blank
+	
+	call print.lo.nibble
+	inc l	
+	ld a,(ix+3)				; command parameter
+	ld e,a
+	call print.hi.nibble
+	ld a,e
+	call print.lo.nibble
+	
+	jr @continue
+	
+@blank:
+
+	call print.space
+	inc l
+	call print.space.c
+	call print.space.c
+	
+@continue:
+
+	ret
+	
+;==============================================================================	
+print.hi.nibble:
+
+; print high nibble of A register at HL
+;------------------------------------------------------------------------------	
+
+	and &f0
 	rrca
 	rrca
 	rrca
 	push hl
-	ld h,char.list//256
+	ld h,char.list // 256
 	ld l,a
 	ld a,(hl)
 	inc l
@@ -1013,11 +971,16 @@ printhi:
 	ld l,a
 	jp (hl)
 
-printlo:
-	RES  7,L
-	RLCA
+;==============================================================================	
+print.lo.nibble:
+
+; print low nibble of A register at HL
+;------------------------------------------------------------------------------	
+	
+	and &0f
+	rlca
 	push hl
-	ld h,char.list//256
+	ld h,char.list // 256
 	ld l,a
 	ld a,(hl)
 	inc l
@@ -1042,10 +1005,45 @@ pr.num.hex:
 	add 7
 	jp print.chr
 
+
+;==============================================================================	
+print.space:
+
+; blank out character at HL - assumes b = 32
+;------------------------------------------------------------------------------	
+
+	ld c,%00000000
+print.space.c:	
+	ld a,l
+	ld (hl),c
+	add b
+	ld l,a
+	ld (hl),c
+	add b
+	ld l,a
+	ld (hl),c
+	add b
+	ld l,a
+	ld (hl),c
+	add b
+	ld l,a
+	ld (hl),c
+	res 7,l		; l has been increased by 4 * 32 = 128
+	inc l
+	
+	ret
+
+@error:
+	di
+	ld a,4
+	out (254),a
+	jr @error
+
+
 ;print chr$ A at HL
 
 print.chr:
-	PUSH BC
+	push bc
 	push de
 	push hl
 	ld c," "
@@ -1086,7 +1084,7 @@ print.screen:
 	ld a,6
 	call colour.scrn
 
-	ld hl,32768
+	ld hl,video.memory
 	pop de
 	ld c,32
 wel.all:
@@ -1112,7 +1110,12 @@ end.of.line:
 	ld a,255
 	ret
 
+;------------------------------------------------------------------------------
 show.help:
+
+; F1
+;------------------------------------------------------------------------------
+
 	ld a,255
 	ld (int.rtn.pag),a
 	call cls
@@ -1120,7 +1123,12 @@ show.help:
 	ld de,help.page
 	jp print.screen
 
+;------------------------------------------------------------------------------
 show.summary:
+
+; F5
+;------------------------------------------------------------------------------
+
 	ld a,255
 	ld (int.rtn.pag),a
 	call cls
@@ -1128,13 +1136,17 @@ show.summary:
 	ld de,prosummary
 	jp print.screen
 
+;------------------------------------------------------------------------------
 show.burst:
+
+; F6
+;------------------------------------------------------------------------------
+
 	ld hl,(int.routine)
 	ld de,burst.int
 	or a
 	sbc hl,de
-	jr nz,sb.no.inc   ;only up channel if in this
-	                    ;mode already
+	jr nz,sb.no.inc		;only up channel if in this mode already
 	ld hl,burst.num+1
 	ld a,(hl)
 	inc a
@@ -1149,14 +1161,14 @@ sb.no.inc:
 	call colour.scrn
 
 	ld de,burst
-	ld hl,32768
+	ld hl,0 * 256 + 0 + video.memory
 	ld b,32
 	call print.de.b
-	ld hl,32768 + 256
+	ld hl,1 * 256 + 0 + video.memory
 	ld b,23
 	call print.de.b
 
-	ld hl,3 * 256 + 32768
+	ld hl,3 * 256 + 0 + video.memory
 	ld b,8
 	call print.de.b
 burst.num:
@@ -1164,7 +1176,7 @@ burst.num:
 	add "1"
 	call print.chr
 
-	ld hl,4*256+32768
+	ld hl,4 * 256 + 0 + video.memory
 	ld b,21
 	call print.de.b
 
@@ -1177,31 +1189,31 @@ bu.get.bi:
 	add hl,de
 	djnz bu.get.bi
 
-	LD   E,(hl)
+	ld e,(hl)
 	inc l
-	LD   D,(hl)
+	ld d,(hl)
 	inc l
 	ld (bi.page+1),DE
-	LD   E,(hl)
+	ld e,(hl)
 	inc l
-	LD   D,(hl)
+	ld d,(hl)
 	inc l
 	ld (bi.offs2+1),DE
 	inc de
 	ld (bi.offs1+1),DE
-	LD   E,(hl)
+	ld e,(hl)
 	inc l
-	LD   D,(hl)
+	ld d,(hl)
 	inc l
 	ld (bi.vol+1),DE
-	LD   E,(hl)
+	ld e,(hl)
 	inc l
-	LD   D,(hl)
+	ld d,(hl)
 	inc l
 	ld (bi.slo+1),DE
-	LD   E,(hl)
+	ld e,(hl)
 	inc l
-	LD   D,(hl)
+	ld d,(hl)
 	ld (bi.shi+1),DE
 
 
@@ -1215,66 +1227,54 @@ bu.get.bi:
 burst.int:
 	ld a,(counter)
 	or a
-	ret  NZ
+	ret nz
 
 burst.pr.pos:
-	ld hl,5 * 256 + 32768 + 2
+	ld hl,5 * 256 + 2 + video.memory 
 	ld b,32
 bi.page:
 	ld a,(0)
 	ld c,a
-	and &F0
-	call printhi
+	call print.hi.nibble
 	ld a,c
-	and &0F
-	call printlo
+	call print.lo.nibble
 	inc l
 bi.offs1:
 	ld a,(0)
 	ld c,a
-	and &F0
-	call printhi
+	call print.hi.nibble
 	ld a,c
-	and &0F
-	call printlo
+	call print.lo.nibble
 bi.offs2:
 	ld a,(0)
 	ld c,a
-	and &F0
-	call printhi
+	call print.hi.nibble
 	ld a,c
-	and &0F
-	call printlo
+	call print.lo.nibble
 	inc l
 	inc l
 bi.vol:
 	ld a,(0)
 	ld c,a
-	and &F0
-	call printhi
+	call print.hi.nibble
 	ld a,c
-	and &0F
-	call printlo
+	call print.lo.nibble
 	inc l
 	inc l
 bi.slo:
 	ld a,(0)
 	ld c,a
-	and &F0
-	call printhi
+	call print.hi.nibble
 	ld a,c
-	and &0F
-	call printlo
+	call print.lo.nibble
 	inc l
 	inc l
 bi.shi:
 	ld a,(0)
 	ld c,a
-	and &F0
-	call printhi
+	call print.hi.nibble
 	ld a,c
-	and &0F
-	call printlo
+	call print.lo.nibble
 	ld hl,burst.pr.pos+2
 	ld a,(hl)
 	inc a
@@ -1284,7 +1284,12 @@ bi.shi:
 	ld (hl),a
 	ret
 
+;------------------------------------------------------------------------------
 show.pattern:
+
+; F4
+;------------------------------------------------------------------------------
+
 	ld a,255
 	ld (int.rtn.pag),a
 	xor a
@@ -1295,7 +1300,7 @@ show.pattern:
 	ld a,8
 	call colour.scrn
 
-	ld hl,256 * 3 + 32768 + 8192 + 1
+	ld hl,256 * 3 + 1 + video.memory.attributes
 	ld c,24 - 3 - 3
 	ld de,29
 col.lp2:
@@ -1324,45 +1329,45 @@ normal:
 	call pr.title
 
 	ld de,volume
-	ld hl,1 * 256 + 32768
+	ld hl,1 * 256 + 0 + video.memory
 	ld b,32
 	call print.de.b
 
 	call pr.amp.fac
 
 	ld de,keys
-	ld hl,22 * 256 + 32768
+	ld hl,22 * 256 + 0 + video.memory
 	ld b,32
 	call print.de.b
 
 	ld de,author
-	ld hl,23 * 256 + 32768
+	ld hl,23 * 256 + 0 + video.memory
 	ld b,32
 	call print.de.b
 
 	ld de,channel
-	ld hl,2 * 256 + 1 + 32768
+	ld hl,2 * 256 + 1 + video.memory
 	ld b,8
 	call print.de.b
 	ld a,"1"
 	call print.chr
 
 	ld de,channel
-	ld hl,2 * 256 + 22 + 32768
+	ld hl,2 * 256 + 22 + video.memory
 	ld b,8
 	call print.de.b
 	ld a,"2"
 	call print.chr
 
 	ld de,channel
-	ld hl,12 * 256 + 1 + 32768
+	ld hl,12 * 256 + 1 + video.memory
 	ld b,8
 	call print.de.b
 	ld a,"4"
 	call print.chr
 
 	ld de,channel
-	ld hl,12 * 256 + 22 + 32768
+	ld hl,12 * 256 + 22 + video.memory
 	ld b,8
 	call print.de.b
 	ld a,"3"
@@ -1382,15 +1387,15 @@ normal:
 	ret
 
 pr.loop.st:
-	ld a,(trackon+1)  ;if not on track page then
-	cp 4              ;don't print loop status
-	ret  NZ
+	ld a,(trackon+1)	;if not on track page then don't print loop status
+	cp 4
+	ret nz
 	ld a,(disable.pos)
 	or a
 	ld a,"Y"
 	jr z,$+4
 	ld a,"N"
-	ld hl,32 * 8 * 22 + 31 + 32768
+	ld hl,256 * 22 + 31 + video.memory
 	jp print.chr
 
 
@@ -1401,7 +1406,12 @@ ss.pointer:
 	defb %11000000,%00000011
 	defb %10000000,%00000001
 
+;------------------------------------------------------------------------------
 show.samples:
+
+; F2
+;------------------------------------------------------------------------------
+
 	call set.show.smp
 pr.ins.clp:
 	ld b,22
@@ -1477,8 +1487,8 @@ set.show.smp:
 	ld a,6
 	call colour.scrn
 
-	ld hl,192*1+32768+8192+0
-	ld b,31*6
+	ld hl,192 * 1 + 0 + video.memory.attributes
+	ld b,31 * 6
 	ld de,31
 	xor a
 ss.col.lp1:
@@ -1488,7 +1498,7 @@ ss.col.lp1:
 	inc hl
 	djnz ss.col.lp1
 
-	ld hl,192*1+32768
+	ld hl,192 * 1 + 0 + video.memory
 	ld c,31
 ss.pr.pntc:
 	ld ix,ss.pointer
@@ -1521,11 +1531,14 @@ ss.pr.pntb:
 	jr z,got.ins
 	ld c,15
 got.ins:
-	ld hl,6*32+32768+1
+	ld hl,6 * 32 + 32768 + 1
 	ld de,mod.header+20
 	ret
 
+;------------------------------------------------------------------------------
 show.sizes:
+;------------------------------------------------------------------------------
+
 	call set.show.smp
 pr.size.clp:
 	ld b,9
@@ -1627,8 +1640,8 @@ pr.title:
 	call print.de.b
 	ret
 cls:
-	ld hl,32768
-	ld de,32769
+	ld hl,video.memory
+	ld de,video.memory + 1
 	ld bc,6143
 	ld (hl),l
 	ldir
@@ -1653,7 +1666,7 @@ eop:
 colour.scrn:
 	ld (line.size+1),a
 
-	ld hl,32768+8192
+	ld hl,video.memory.attributes
 col.loop:
 	ld c,(ix)
 	inc ix
@@ -1749,7 +1762,7 @@ col.blp2:
 	inc ix
 
 	ld a,h
-	cp ( 32768 + 8192 + 6144 ) // 256
+	cp ( video.memory.attributes + 6144 ) // 256
 	jr nz,col.loop
 	ret
 
@@ -1759,7 +1772,7 @@ col.blp2:
 instr.point:
 	ld a,(counter)
 	or a
-	ret  NZ
+	ret nz
 
 	ld b,32
 
@@ -1900,27 +1913,23 @@ clr.point:
 	ld h,(hl)
 	add c
 	ld l,a
-	ld c,0
+	ld c,%00000000
 	ld (hl),c
-	ld a,l
 	add b
 	ld l,a
 	jr nc,$+3
 	inc h
 	ld (hl),c
-	ld a,l
 	add b
 	ld l,a
 	jr nc,$+3
 	inc h
 	ld (hl),c
-	ld a,l
 	add b
 	ld l,a
 	jr nc,$+3
 	inc h
 	ld (hl),c
-	ld a,l
 	add b
 	ld l,a
 	jr nc,$+3
@@ -2166,7 +2175,7 @@ font:	equ 21412 + 32768
 
 
 pr.amp.fac:
-	ld hl,256 + 32768 + 5
+	ld hl,256 * 1 + 5 + video.memory
 	ld bc,(amp.fac+1)
 
 ;convert &xx.xx to %
@@ -2238,7 +2247,7 @@ make.vol.tab:
 	inc a
 	ld (cv.skip.table+2),a
 
-	ld a,201          ;RET
+	ld a,opcode_ret
 	bit 4,c
 	jr z,$+3
 	xor a
@@ -2435,8 +2444,22 @@ length: equ $-57344
 
 mod.header:	defs 1084
 
-chargap:	defs ( ( chargap // 256 ) + 1 ) * 256 - chargap
-char.list:	defs 16*2
-line.table:	defs 32*2
+	defs align 256
+
+;------------------------------------------------------------------------------
+char.list:
+
+; addresses to print routines for 0-9 A-F  
+
+	defs 16 * 2
+
+;------------------------------------------------------------------------------
+line.table:
+
+; contains screen address per row in 32 row mode (all but pattern screen)
+
+	defs 32*2
+
+;------------------------------------------------------------------------------
 
 build.font:

@@ -76,19 +76,5 @@
 		<mkdir dir="obj" />
 
 	</target>
-
-	<target name="sanity" description="pyz80 sanity checks">
-		
-		<exec executable="${python}" failonerror="true">
-			<arg value="${pyz80}" />
-			<arg value="-oobj/sanity.dsk" />
-			<arg value="src/sanity.s" />
-		</exec>
-		
-		<exec executable="${simcoupe}">
-			<arg value="obj/sanity.dsk" />
-		</exec>
-		
-	</target>
 	
 </project>
