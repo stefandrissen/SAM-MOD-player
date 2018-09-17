@@ -65,25 +65,10 @@ It reads the pattern and sample information and fills the sample playback buffer
 
 This is a simple example that replaces the "demo".
 
-# To do:
+## compiling
 
-Things still to do in future versions of the SAM MOD player - just so that I don't forget them  :)                         
-                                                                
-1. fix SAA volume tables to use 3 bits - lowest bit is not audible.
+I use Eclipse. Ant is used to invoke pyz80 for assembling.
 
-2. megabyte support
+"all" will assemble loader, demo, burstplayer and sequencer, the four object files are then combined by assembling modplayer which produces an autoboot modplayer.dsk image. SimCoupe is then started with the modplayer.dsk image.
 
-3. compress patterns into own track structure a pattern now consists of four tracks, identical tracks are not put into memory twice                               
-                                                                
-4. do not keep the header info in memory, when loading grab the necessary info and then load over it                    
-                                                                
-5. allow compression (via quality reduction) on mods which are too large to fit into memory (remember 256k check!) 
-if a mod is too large then only load 1 out of 2 sample bytes and transpose the pattern data down one octave.
-
-Also double all portamento commands and possibly vibrato too.  Adjust boundary values....                            
-                                                                
-6. volume bars in tracker screen plus the option to use a number of different mode 4 screens with a scrolly or something like that.... (complaints about mode 2 look)      
-- also a screen with graphs of volume and pitch             
-                                                                
-7. fix pitch commands when using different tempos.  Adjust for tempo factor (multply with parameter).                      
-                                                                
+The properties used to find python, pyz80 and SimCoupe are at the top of the build.xml file.
