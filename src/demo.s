@@ -1424,7 +1424,7 @@ pr.ins.clp:
 	ld b,a
 	inc de
 	ld a,(de)
-	or B
+	or b
 	jr nz,pr.ins.exist
 	ld a,e
 	add a,3
@@ -1457,7 +1457,7 @@ pr.next.ins:
 	inc d
 
 	ld a,l
-	add 6*32-30
+	add 32 * 6 - 30
 	ld l,a
 	jr nc,$+3
 	inc h
@@ -1537,6 +1537,8 @@ got.ins:
 
 ;------------------------------------------------------------------------------
 show.sizes:
+
+; F3
 ;------------------------------------------------------------------------------
 
 	call set.show.smp
@@ -1557,7 +1559,7 @@ pr.size.clp:
 	ld b,a
 	inc de
 	ld a,(de)
-	or B
+	or b
 	jr nz,pr.ins.exis2
 
 	ld a,e
@@ -1605,9 +1607,34 @@ got.tune:
 	ld a,(de)
 	inc de
 	call print.num
+	
+	inc de
+	inc de
+	ld a,(de)
+	ld b,a
+	inc de
+	ld a,(de)
+	cp 1
+	jr nz,@has.loop
+	ld a,b
+	or a	
+	jr nz,@has.loop
+	
+	inc de	
+	ld a,l
+	add 32 * 6 - 30 + 10
+
+	jr @fin.loop
+
+@has.loop:
+
 	inc l
 
-	ld a,(de)         ;loop offset
+	dec de
+	dec de
+	dec de
+
+	ld a,(de)			;loop offset
 	inc de
 	call print.num
 	ld a,(de)
@@ -1615,15 +1642,17 @@ got.tune:
 	call print.num
 	inc l
 
-	ld a,(de)         ;loop length
+	ld a,(de)			;loop length
 	inc de
 	call print.num
 	ld a,(de)
 	inc de
-	call print.num
+	call print.num	
+	
 pr.next.in2:
 	ld a,l
-	add 6*32-30
+	add 32 * 6 - 30
+@fin.loop:
 	ld l,a
 	jr nc,$+3
 	inc h
@@ -1647,7 +1676,12 @@ cls:
 	ldir
 	ret
 
+;------------------------------------------------------------------------------
 print.de.b:
+
+; print zero-terminated string (DE) for B characters 
+;------------------------------------------------------------------------------
+
 	ld a,(de)
 	or a
 	jr z,eop
@@ -2328,7 +2362,7 @@ cv.no.mul:
 cv.div.by:
 	ld de,15          ;tables-1
 	call cv.bc.div.de
-	ld (cv.range+1),BC
+	ld (cv.range+1),bc
 
 cv.vol.base.1:
 	ld hl,&0800       ;H=2^(bits-1) "central" vol.
