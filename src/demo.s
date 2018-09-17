@@ -1611,14 +1611,12 @@ got.tune:
 	inc de
 	inc de
 	ld a,(de)
-	ld b,a
 	inc de
+	or a
+	jr nz,@has.loop
 	ld a,(de)
-	cp 1
-	jr nz,@has.loop
-	ld a,b
-	or a	
-	jr nz,@has.loop
+	cp 2
+	jr nc,@has.loop
 	
 	inc de	
 	ld a,l
