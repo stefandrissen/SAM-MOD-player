@@ -14,6 +14,8 @@
 
 			<echo message="compiling: @{source} mapfile:@{mapfile}" />
 
+			<mkdir dir="obj" />
+
 			<exec executable="${python}" failonerror="true">
 				<arg value="${pyz80}" />
 				<arg value="--obj=obj/@{obj}" />
