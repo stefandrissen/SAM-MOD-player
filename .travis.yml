@@ -15,7 +15,7 @@ script:
 deploy:
 
   provider: releases
-  api_key: "4f675cbb9a85257b702c28601413569683b1d97c"
+  api_key: "6c5b3a9a7063885403cc5f139733073312d57594"
   file: "obj/modplayer.dsk"
   skip_cleanup: true
   on:
