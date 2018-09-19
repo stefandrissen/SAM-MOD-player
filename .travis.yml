@@ -16,7 +16,7 @@ deploy:
 
   provider: releases
   api_key: "4f675cbb9a85257b702c28601413569683b1d97c"
-  file: "modplayer.dsk"
+  file: "obj/modplayer.dsk"
   skip_cleanup: true
   on:
     tags: true
