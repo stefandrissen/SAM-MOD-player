@@ -358,11 +358,6 @@ pitch.table:	equ volume.tab + ( 32 * 256 )	;1024 * 2
 
 output.bits:
 	ld b,0
-	ld c,32           ;num vol tabs
-	ld a,b
-	cp 4
-	jr nz,$+4         ;saa?
-	ld c,16
 
 	call make.vol.tab
 
@@ -387,12 +382,12 @@ get.pat:
 mk.gp.blp:
 	ld (hl),opcode_ed
 	inc hl
-	ld (hl),&A0       ;ldi
+	ld (hl),opcode_ldi
 	inc hl
 	djnz mk.gp.blp
-	ld (hl),&7E       ;ld a,(hl)
+	ld (hl),opcode_ld_a_hl
 	inc hl
-	ld (hl),&12       ;ld (de),a
+	ld (hl),opcode_ld_de_a
 	inc hl
 	ld (hl),opcode_ld_a_n
 	inc hl             ;ld a,sq.page
@@ -419,9 +414,9 @@ call.far:
 	ex de,hl
 	ld (hl),e
 	inc hl
-	ld (hl),d         ;ld (nn),a
+	ld (hl),d
 	inc hl
-	ld (hl),&79       ;ld a,c
+	ld (hl),opcode_ld_a_c
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
@@ -462,9 +457,9 @@ ldir.far.1:
 	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld (buf.sto1+1),hl
-	inc hl             ;ld (nn),a
 	inc hl
-	ld (hl),&78       ;ld a,b
+	inc hl
+	ld (hl),opcode_ld_a_b
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
@@ -476,13 +471,13 @@ ldir.far.1:
 	inc hl
 	ld (hl),buffer // 256;ld de,buffer
 	inc hl
-	ld (hl),&06
+	ld (hl),opcode_ld_b_n
 	inc hl
-	; ld (hl),0			;ld b,0
+	; ld (hl),0
 	inc hl
 	ld (hl),opcode_ed
 	inc hl
-	ld (hl),&B0			;ldir
+	ld (hl),opcode_ldir
 	inc hl
 	ld (hl),opcode_ld_a_n
 	inc hl
@@ -493,7 +488,7 @@ buf.sto1:
 	inc hl
 	ld (hl),d
 	ex de,hl
-	inc hl				;ld a,n
+	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
 	ld (hl),high.memory.page.register
@@ -512,27 +507,27 @@ ldir.far.2:
 	ld (hl),opcode_ld_nn_a
 	inc hl
 	ld (buf.sto2+1),hl
-	inc hl             ;ld (nn),a
 	inc hl
-	ld (hl),&78       ;ld a,b
+	inc hl
+	ld (hl),opcode_ld_a_b
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
 	ld (hl),high.memory.page.register
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_hl_nn
 	inc hl
 	ld (hl),buffer \ 256
 	inc hl
 	ld (hl),buffer // 256;ld hl,buffer
 	inc hl
-	ld (hl),&06
+	ld (hl),opcode_ld_b_n
 	inc hl
-	; ld (hl),0			;ld b,0
+	; ld (hl),0
 	inc hl
 	ld (hl),opcode_ed
 	inc hl
-	ld (hl),&B0			;ldir
+	ld (hl),opcode_ldir
 	inc hl
 	ld (hl),opcode_ld_a_n
 	inc hl
@@ -543,7 +538,7 @@ buf.sto2:
 	inc hl
 	ld (hl),d
 	ex de,hl
-	inc hl				;ld a,n
+	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
 	ld (hl),high.memory.page.register
@@ -581,7 +576,7 @@ no.func.wait:
 ins.nf.nop:
 	cp 3
 	jr c,ins.nf.notjr
-	ld (hl),&18
+	ld (hl),opcode_jr_n
 	inc hl
 	; ld (hl),0		;jr $+2
 	inc hl
@@ -633,7 +628,7 @@ no.func.wait2:
 ins.nf.nop2:
 	cp 3
 	jr c,ins.nf.notjr2
-	ld (hl),&18
+	ld (hl),opcode_jr_n
 	inc hl
 	; ld (hl),0		;jr $+2
 	inc hl
@@ -660,7 +655,7 @@ ins.nf.all2:
 	inc hl
 	ld (hl),opcode_ei
 	inc hl
-	ld (hl),&76       ;halt
+	ld (hl),opcode_halt
 	inc hl
 	ld (hl),opcode_ret
 	inc hl
@@ -683,9 +678,9 @@ mk.sto5:
 	ld (hl),d
 	ex de,hl
 	ld (mk.rec32+1),hl
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_ix_nn
 	inc hl
 	ld (mk.sto10+1),hl ;ld ix,bord.pl11
 	inc hl
@@ -699,6 +694,14 @@ mk.sto5:
 ;=====----- get channel 1 data
 
 ;fetch channel 1 data
+
+
+; hla = sample pointer (hl = address, a = fraction)
+; spc = speed (sp = bytes, c = fraction)
+; d = volume table high byte
+
+; result from channel 1 put into channel 2 player which 
+; "mixes" (adds 7 bit + 7 bit in case of samdac) and puts into playback buffer
 
 	ld (mk.getc1data+1),hl
 	ex de,hl
@@ -723,7 +726,7 @@ mk.sto24:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&21
+	ld (hl),opcode_ld_ix_nn
 	inc hl
 	ld (bp.c1.offs),hl	;c1.off:
 	; ld (hl),0
@@ -744,7 +747,7 @@ mk.sto24:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&16
+	ld (hl),opcode_ld_d_n
 	inc hl
 	ld (bp.c1.vol),hl ;c1.tab:
 	; ld (hl),32        ;ld d,32
@@ -754,7 +757,7 @@ mk.sto24:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&0E
+	ld (hl),opcode_ld_c_n
 	inc hl
 	ld (bp.c1.speedlo),hl ;c1.speedlo:
 	; ld (hl),128		;ld c,128
@@ -764,7 +767,7 @@ mk.sto24:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&31
+	ld (hl),opcode_ld_sp_nn
 	inc hl
 	ld (bp.c1.speedhi),hl ;c1.speedhi:
 	; ld (hl),1
@@ -786,9 +789,9 @@ mk.sto24:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&E9       ;jp (ix)
+	ld (hl),opcode_jp_ix
 	inc hl
 
 ;=====----- end get channel 1 data
@@ -814,9 +817,9 @@ mk.sto10:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_ix_nn
 	inc hl
 	ld (mk.sto11+1),hl ;ld ix,bord.pl14
 	inc hl
@@ -859,7 +862,7 @@ mk.sto25:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&21
+	ld (hl),opcode_ld_ix_nn
 	inc hl
 	ld (bp.c4.offs),hl ;c4.off:
 	; ld (hl),0
@@ -880,7 +883,7 @@ mk.sto25:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&16
+	ld (hl),opcode_ld_d_n
 	inc hl
 	ld (bp.c4.vol),hl ;c4.tab:
 	; ld (hl),32         ;ld d,32
@@ -890,7 +893,7 @@ mk.sto25:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&0E
+	ld (hl),opcode_ld_c_n
 	inc hl
 	ld (bp.c4.speedlo),hl ;c4.speedlo:
 	; ld (hl),128        ;ld c,128
@@ -900,7 +903,7 @@ mk.sto25:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&31
+	ld (hl),opcode_ld_sp_nn
 	inc hl
 	ld (bp.c4.speedhi),hl ;c4.speedhi:
 	; ld (hl),1
@@ -922,9 +925,9 @@ mk.sto25:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&E9        ;jp (ix)
+	ld (hl),opcode_jp_ix
 	inc hl
 
 ;=====----- end get channel 4 data
@@ -950,9 +953,9 @@ mk.sto11:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_ix_nn
 	inc hl
 	ld (mk.sto12+1),hl ;ld ix,bordpl1f
 	inc hl
@@ -985,7 +988,7 @@ mk.paltabsel:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&21
+	ld (hl),opcode_ld_hl_nn
 	inc hl
 	ld (hl),( paltab + 15 ) \ 256
 	inc hl
@@ -996,11 +999,11 @@ mk.paltabsel:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&01
+	ld (hl),opcode_ld_bc_nn
 	inc hl
 	ld (hl),color.look.up.table
 	inc hl
-	ld (hl),16        ;ld bc,16*256+color.look.up.table
+	ld (hl),16					; ld bc,16*256+color.look.up.table
 	inc hl
 	ld b,16
 mk.outd.1:
@@ -1010,7 +1013,7 @@ mk.outd.1:
 
 	ld (hl),opcode_ed
 	inc hl
-	ld (hl),&AB       ;outd (16*)
+	ld (hl),opcode_outd			; outd (16*)
 	inc hl
 	djnz mk.outd.1
 
@@ -1027,31 +1030,31 @@ mk.outd.1:
 	call c,insert.xout
 	sub 1
 
-	ld (hl),&5F       ;ld e,a
+	ld (hl),opcode_ld_e_a
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&3A
+	ld (hl),opcode_ld_a_nn
 	inc hl
 	ld (hl),frame.scr \ 256
 	inc hl
-	ld (hl),frame.scr // 256 ;ld a,(frame.scr)
+	ld (hl),frame.scr // 256
 	inc hl
 
 	cp 1+3
 	call c,insert.xout
 	sub 1+3
 
-	ld (hl),&A7       ;and a
+	ld (hl),opcode_and_a
 	inc hl
-	ld (hl),&20
+	ld (hl),opcode_jr_nz_n
 	inc hl
-	ld (hl),1         ;jr nz,$+3
+	ld (hl),1				;jr nz,$+3
 	inc hl
-	ld (hl),&7B       ;ld a,e
+	ld (hl),opcode_ld_a_e
 	inc hl
 
 	cp 4
@@ -1067,9 +1070,9 @@ mk.outd.1:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&E9       ;jp (ix)
+	ld (hl),opcode_jp_ix
 	inc hl
 
 ;=====----- end paltabselect
@@ -1093,9 +1096,9 @@ mk.sto12:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_ix_nn
 	inc hl
 	ld (mk.sto13+1),hl ;ld ix,bord.pl12
 	inc hl
@@ -1138,7 +1141,7 @@ mk.sto26:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&21
+	ld (hl),opcode_ld_hl_nn
 	inc hl
 	ld (bp.c2.offs),hl ;c2.off:
 	; ld (hl),0
@@ -1159,7 +1162,7 @@ mk.sto26:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&16
+	ld (hl),opcode_ld_d_n
 	inc hl
 	ld (bp.c2.vol),hl ;c2.tab:
 	; ld (hl),32         ;ld d,32
@@ -1169,7 +1172,7 @@ mk.sto26:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&0E
+	ld (hl),opcode_ld_c_n
 	inc hl
 	ld (bp.c2.speedlo),hl ;c2.speedlo:
 	; ld (hl),128        ;ld c,128
@@ -1179,7 +1182,7 @@ mk.sto26:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&31
+	ld (hl),opcode_ld_sp_nn
 	inc hl
 	ld (bp.c2.speedhi),hl ;c2.speedhi:
 	; ld (hl),1
@@ -1201,9 +1204,9 @@ mk.sto26:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&E9        ;jp (ix)
+	ld (hl),opcode_jp_ix
 	inc hl
 
 ;=====----- end get channel 2 data
@@ -1229,9 +1232,9 @@ mk.sto13:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_ix_nn
 	inc hl
 	ld (mk.sto14+1),hl ;ld ix,bord.pl13
 	inc hl
@@ -1274,7 +1277,7 @@ mk.sto27:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&21
+	ld (hl),opcode_ld_hl_nn
 	inc hl
 	ld (bp.c3.offs),hl ;c3.off:
 	; ld (hl),0
@@ -1295,7 +1298,7 @@ mk.sto27:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&16
+	ld (hl),opcode_ld_d_n
 	inc hl
 	ld (bp.c3.vol),hl ;c3.tab:
 	; ld (hl),32         ;ld d,32
@@ -1305,7 +1308,7 @@ mk.sto27:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&0E
+	ld (hl),opcode_ld_c_n
 	inc hl
 	ld (bp.c3.speedlo),hl ;c3.speedlo:
 	; ld (hl),128        ;ld c,128
@@ -1315,7 +1318,7 @@ mk.sto27:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&31
+	ld (hl),opcode_ld_sp_nn
 	inc hl
 	ld (bp.c3.speedhi),hl ;c3.speedhi:
 	; ld (hl),1
@@ -1337,9 +1340,9 @@ mk.sto27:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&E9        ;jp (ix)
+	ld (hl),opcode_jp_ix
 	inc hl
 
 ;=====----- end get channel 3 data
@@ -1365,7 +1368,7 @@ mk.sto14:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&21
+	ld (hl),opcode_ld_hl_nn
 	inc hl
 	ld (mk.sto15+1),hl ;ld hl,borderplay2
 	inc hl
@@ -1413,9 +1416,9 @@ mk.sto15:
 	inc hl
 	ld (hl),d
 	ex de,hl
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_ix_nn
 	inc hl
 	ld (mk.sto17+1),hl ;ld ix,bord.pl21
 	inc hl
@@ -1450,9 +1453,9 @@ mk.a1:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_ix_nn
 	inc hl
 	ld (mk.sto18+1),hl ;ld ix,bord.pl24
 	inc hl
@@ -1492,9 +1495,9 @@ mk.a4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_ix_nn
 	inc hl
 	ld (mk.sto19+1),hl ;ld ix,bordpl2f
 	inc hl
@@ -1534,9 +1537,9 @@ mk.sto19:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_ix_nn
 	inc hl
 	ld (mk.sto20+1),hl ;ld ix,bord.pl22
 	inc hl
@@ -1576,9 +1579,9 @@ mk.a2:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),&DD
+	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_ix_nn
 	inc hl
 	ld (mk.sto21+1),hl ;ld ix,bord.pl23
 	inc hl
@@ -1618,7 +1621,7 @@ mk.a3:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&21
+	ld (hl),opcode_ld_hl_nn
 	inc hl
 mk.rec32:
 	ld de,0
@@ -1635,7 +1638,7 @@ mk.rec32:
 	inc hl
 	ld (hl),playtab1 \ 256
 	inc hl
-	ld (hl),playtab1 // 256 ;ld de,playtab1
+	ld (hl),playtab1 // 256
 	inc hl
 
 	cp 3
@@ -1684,7 +1687,7 @@ mk.rec2:
 
 	ld (hl),opcode_ed
 	inc hl
-	ld (hl),&53
+	ld (hl),opcode_ld_nn_de
 	inc hl
 	ld (mk.sto23+1),hl ;ld (playtabselect+1),de
 	inc hl
@@ -1713,7 +1716,7 @@ mk.rec2:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),&31
+	ld (hl),opcode_ld_sp_nn
 	inc hl
 	ex de,hl
 mk.sto4:
@@ -1754,7 +1757,7 @@ ras.start.1:
 	ld (hl),opcode_ex_af_af
 	inc hl
 
-	ld (hl),&21
+	ld (hl),opcode_ld_hl_nn
 	inc hl
 	ex de,hl
 mk.sto23:
@@ -1777,7 +1780,7 @@ mk.sto23:
 	inc hl
     ; ld (hl),0          ;call sequencer
 	inc hl
-	ld (hl),&AF
+	ld (hl),opcode_xor_a
 	inc hl
 	ld (hl),opcode_out_n_a
 	inc hl
@@ -1785,13 +1788,13 @@ mk.sto23:
 	inc hl
 	ld (hl),opcode_ix
 	inc hl
-	ld (hl),&E1        ;pop ix
+	ld (hl),opcode_pop_ix
 	inc hl
-	ld (hl),&E1        ;pop hl
+	ld (hl),opcode_pop_hl
 	inc hl
-	ld (hl),&D1        ;pop de
+	ld (hl),opcode_pop_de
 	inc hl
-	ld (hl),&C1        ;pop bc
+	ld (hl),opcode_pop_bc
 	inc hl
 	ld (hl),opcode_ld_a_n
 	inc hl
@@ -1807,7 +1810,7 @@ mk.sto3:
 	inc hl
 	ld (hl),high.memory.page.register
 	inc hl
-	ld (hl),&F1        ;pop af
+	ld (hl),opcode_pop_af
 	inc hl
 	ld (hl),opcode_ret
 	inc hl
@@ -1821,11 +1824,11 @@ enable:
 	inc hl
 	ld (hl),status.register
 	inc hl
-	ld (hl),&E6
+	ld (hl),opcode_and_n
 	inc hl
-	ld (hl),&08        ;and 8
+	ld (hl),frame.interrupt
 	inc hl
-	ld (hl),&20
+	ld (hl),opcode_jr_nz_n
 	inc hl
 	ld (hl),-6         ;jr nz,$-4
 	inc hl
@@ -1833,15 +1836,15 @@ enable:
 	inc hl
 	ld (hl),status.register
 	inc hl
-	ld (hl),&E6
+	ld (hl),opcode_and_n
 	inc hl
-	ld (hl),&08        ;and 8
+	ld (hl),frame.interrupt
 	inc hl
 	ld (hl),opcode_jr_z_n
 	inc hl
 	ld (hl),-6         ;jr z,$-4
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_hl_nn
 	inc hl
 	ld de,(mk.rec32+1)
 	ld (hl),e
@@ -1860,7 +1863,7 @@ enable:
 	inc hl
 	ld (hl),opcode_exx
 	inc hl
-	ld (hl),&01
+	ld (hl),opcode_ld_bc_nn
 	inc hl
 sample.port:
 	ld de,232
@@ -1868,7 +1871,7 @@ sample.port:
 	inc hl
 	ld (hl),d          ;ld bc,sample.port
 	inc hl
-	ld (hl),&21
+	ld (hl),opcode_ld_hl_nn
 	inc hl
 	ld (hl),playtab1 \ 256
 	inc hl
@@ -1904,7 +1907,7 @@ ras.start.2:
 ;set silence
 set.silence:
 	ld (mk.rec37+1),hl ;set.silence
-	ld (hl),&21
+	ld (hl),opcode_ld_hl_nn
 	inc hl
 	ld (hl),playtab1 \ 256
 	inc hl
@@ -1938,7 +1941,7 @@ set.silence:
 	inc hl
 	ld (hl),opcode_ed
 	inc hl
-	ld (hl),&B0       ;ldir
+	ld (hl),opcode_ldir
 	inc hl
 	ld (hl),opcode_ret
 	inc hl
@@ -2002,155 +2005,8 @@ mk.swap.lp:
 
 	ret                 ;!!!!!!!!!!!!!!!!!!
 
+include "volume.i"
 
-;---------------------------------------------------------------
-;create volume tables for burstplayer (Amiga samples)
-;B = number of bits
-;C = number of tables
-
-make.vol.tab:
-	ld ix,volume.tab
-	push ix
-
-	xor a
-	bit 4,c
-	jr z,$+3
-	inc a
-	ld (cv.skip.table+2),a
-
-	ld a,opcode_ret
-	bit 4,c
-	jr z,$+3
-	xor a
-	ld (cv.no.double),a
-
-	ld a,c
-	ld (cv.max.tables+1),a
-	dec a
-	ld (cv.div.by+1),a
-
-	dec b
-	ld a,1
-cv.getbits:
-	rla
-	djnz cv.getbits
-	ld (cv.vol.base.1+2),a
-	ld (cv.vol.base.2+2),a
-
-	rla
-	ld (cv.vol.bits+1),a
-	ld a,0
-	adc a,0
-	ld (cv.vol.bits+2),a
-
-	xor a
-	ld (cv.volume+1),a
-
-cv.loop:
-cv.vol.bits:
-	ld de,0
-	ld hl,0
-
-cv.volume:
-	ld a,0
-	or a
-	jr z,cv.no.mul
-	ld b,a
-cv.mul.vol:
-	add hl,de
-	djnz cv.mul.vol
-cv.no.mul:
-	ld b,h
-	ld c,l
-cv.div.by:
-	ld de,15			;tables-1
-	call cv.bc.div.de
-	ld (cv.range+1),bc
-
-cv.vol.base.1:
-	ld hl,&0800			;H=2^(bits-1)
-	ld b,128
-
-;2^bits * v/15
-
-cv.range:
-	ld de,15          ;range
-
-cv.blp:
-	ld (ix),h
-	inc ix
-
-	add hl,de
-
-	djnz cv.blp
-
-	ld c,127
-	add ix,bc
-
-cv.vol.base.2:
-	ld hl,&0800
-	ld b,128
-cv.blp2:
-	or a
-	sbc hl,de
-
-	ld (ix),h
-	dec ix
-	djnz cv.blp2
-
-cv.skip.table:
-	ld bc,129			;B=1 if SAA
-	add ix,bc
-
-	ld a,(cv.volume+1)
-	inc a
-	ld (cv.volume+1),a
-cv.max.tables:
-	cp 0
-	jr nz,cv.loop
-
-	pop hl
-cv.no.double:
-	ret					;nop if SAA
-
-	ld d,h
-	ld e,l
-	inc d
-	ld bc,16
-cv.saa.one:
-	ld a,(hl)
-	inc hl
-	add a,a
-	add a,a
-	add a,a
-	add a,a
-	ld (de),a
-	inc de
-	djnz cv.saa.one
-	inc d
-	inc h
-	dec c
-	jr nz,cv.saa.one
-	ret
-
-cv.bc.div.de:
-	ld a,b            ;divide bc by de
-	ld b,16           ;result in bc
-	ld hl,0           ;DE is unchanged
-cv.clcd1:
-	rl c
-	rla
-	adc hl,hl
-	sbc hl,de
-	jr nc,cv.clcd2
-	add hl,de
-cv.clcd2:
-	ccf
-	djnz cv.clcd1
-	rl c
-	rla
-	ld b,a
-	ret
 
 ;---------------------------------------------------------------
 make.pitch:
@@ -2247,9 +2103,9 @@ sound.driver.length:
 insert.xout:
 	cp 3
 	jr c,ins.notjr
-	ld (hl),&18       ;a = 3 or 4 or 5
+	ld (hl),opcode_jr_n		;a = 3 or 4 or 5
 	inc hl
-	ld (hl),0         ;jr $+2
+	ld (hl),0				;jr $+2
 	inc hl
 	sub 3
 	jr   insert.xout
@@ -3374,7 +3230,7 @@ q.blp1.4:
 if defined(testing)
 
 timeline:
-	ld (hl),&5F			;ld e,a
+	ld (hl),opcode_ld_e_a
 	inc hl
 	ld (hl),opcode_ld_a_n
 	inc hl
@@ -3384,7 +3240,7 @@ timeline:
 	inc hl
 	ld (hl),color.look.up.table
 	inc hl
-	ld (hl),&7B			;ld a,e
+	ld (hl),opcode_ld_a_e
 	inc hl
 	ret
 	
@@ -3492,7 +3348,7 @@ device.list:
 	defw &0205
 	defw timing.saa
 	defb 23 * 3 + 2
-	defb 4
+	defb 3
 
 	defw 0,0                  ;samdac
 	defw sd.samdac,12
