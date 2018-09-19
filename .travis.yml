@@ -1,0 +1,13 @@
+language: java
+
+python:
+ 
+  - "3.7"
+  
+before_install:  
+
+  wget https://github.com/simonowen/pyz80/blob/master/pyz80.py
+  
+script:
+
+  - ant create-disk -Dpython=python -Dpyz80=pyz80.py
