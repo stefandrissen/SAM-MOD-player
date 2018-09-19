@@ -11,3 +11,12 @@ before_install:
 script:
 
   - ant create-disk -Dpython=python -Dpyz80=pyz80.py
+  
+deploy:
+
+  provider: releases
+  api_key: "4f675cbb9a85257b702c28601413569683b1d97c"
+  file: "modplayer.dsk"
+  skip_cleanup: true
+  on:
+    tags: true
