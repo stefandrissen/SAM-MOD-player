@@ -261,10 +261,6 @@ first.time:
 	ld (int.rtn.pag),a
 	ld (first.time+1),a
 
-	ld ix,col.intro
-	ld de,welcome
-	call print.screen
-
 	ld a,4
 	ld (trackon+1),a
 
@@ -2047,140 +2043,91 @@ col.point2:
 
 ;---------------------------------------------------------------
 
-welcome:
-	DEFM "SAM MOD player             v2.20"
-	DEFM "(C) 2018 Stefan Drissen"
-	defb 0,0
-	DEFM "            WELCOME!"
-	defb 0,0
-	DEFM "Please note that this program is"
-	DEFM "NOT public domain, please only"
-	defb 0
-	DEFM "use this program if YOU bought"
-	defb 0
-	DEFM "it. (What's 5 pounds???)"
-	defb 0
-	defb 0
-	DEFM "My uttermost thanks go out to"
-	defb 0
-	DEFM "Edwin Blink without whom the SAM"
-	DEFM "MOD player probably would never "
-	DEFM "have seen the light of day, I"
-	defb 0
-	DEFM "really hope that Thailand gives "
-	DEFM "you what you were looking for."
-	defb 0
-	DEFM "Thanks also to Robert van der"
-	defb 0
-	DEFM "Veeke for the loading screen and"
-	DEFM "moral support."
-	defb 0
-	DEFM "And to Martijn Groen for always "
-	DEFM "having something silly to ask :)"
-	DEFM "To Joshua Jensen (PC) for his"
-	defb 0
-	DEFM "documented PC MOD player source."
-	defb 0
-	DEFM "For commercial use contact me..."
-	DEFM "                         F1=HELP"
-	DEFM "       Stefan Drissen"
-	defb 0
-	DEFM "       Zevende Herven 6"
-	defb 0
-	DEFM "       5232 JZ  's-Hertogenbosch"
-	DEFM "       The Netherlands"
-	defb 0
-	DEFM "       phone +31-73-6414969"
-	defb 0
-	DEFM "   http://www.pi.net/~drissen"
-col.intro:
-	defb 3,2,2,4,5,1,6,3,3,1,2,3,2,1,2,3,1,4,4,2,1,5
-	defb 1,1
 help.page:
-	DEFM "SAM MOD player             v2.20"
-	DEFM "(C) 2018 Stefan Drissen"
+	defm "SAM MOD player             v2.20"
+	defm "(C) 2018 Stefan Drissen"
 	defb 0,0
-	DEFM "           HELP PAGE"
+	defm "           HELP PAGE"
 	defb 0,0
-	DEFM "* F1: help page, F2: list names "
-	DEFM "  F3: list sizes, F4: tracker,  "
-	DEFM "  F5: summary effects (column 3)"
-	DEFM "  F6: techy page - burst info"
+	defm "* F1: help page, F2: list names "
+	defm "  F3: list sizes, F4: tracker,  "
+	defm "  F5: summary effects (column 3)"
+	defm "  F6: techy page - burst info"
 	defb 0,0
-	DEFM "* 1, 2, 3, 4: un/mute channel"
+	defm "* 1, 2, 3, 4: un/mute channel"
 	defb 0,0
-	DEFM "* P: pause/play"
+	defm "* P: pause/play"
 	defb 0,0
-	DEFM "* Cursors: rewind/fast forward"
+	defm "* Cursors: rewind/fast forward"
 	defb 0,0
-	DEFM "* ESC: stop tune, load another"
+	defm "* ESC: stop tune, load another"
 	defb 0,0
-	DEFM "* L: loop tune on/off"
+	defm "* L: loop tune on/off"
 	defb 0,0
-	DEFM "* On F2/F3 screen, the first    "
-	DEFM "  number is the sample length   "
-	DEFM "  in words, the second number is"
-	DEFM "  the default volume."
+	defm "* On F2/F3 screen, the first    "
+	defm "  number is the sample length   "
+	defm "  in words, the second number is"
+	defm "  the default volume."
 	defb 0,0
-	DEFM "* Track-mode skips rows if the  "
-	DEFM "  song speed is too fast."
+	defm "* Track-mode skips rows if the  "
+	defm "  song speed is too fast."
 	defb 0,0
-	DEFM "* The three digits in the top   "
-	DEFM "  right corner of the screen are"
-	DEFM "  song position, pattern number "
-	DEFM "  and pattern row."
+	defm "* The three digits in the top   "
+	defm "  right corner of the screen are"
+	defm "  song position, pattern number "
+	defm "  and pattern row."
 	defb 0
 col.help:
 	defb 3,2,2,4,5,1,2,3,2,1,2,3,2,1,2,3,5,1,3,3,4,1
 
 prosummary:
-	DEFM "SAM MOD player             v2.20"
-	DEFM "(C) 2018 Stefan Drissen"
+	defm "SAM MOD player             v2.20"
+	defm "(C) 2018 Stefan Drissen"
 	defb 0,0
-	DEFM " SUMMARY OF PROTRACKER EFFECTS"
+	defm " SUMMARY OF PROTRACKER EFFECTS"
 	defb 0,0
-	DEFM "0 Arpeggio"
+	defm "0 Arpeggio"
 	defb 0
-	DEFM "1 Portamento Up       (speed xy)"
-	DEFM "2 Portamento Down     (speed xy)"
-	DEFM "3 Tone Portamento     (speed xy)"
-	DEFM "4 Vibrato (speed x, amplitude y)"
-	DEFM "5 Tone and Volume Slide"
+	defm "1 Portamento Up       (speed xy)"
+	defm "2 Portamento Down     (speed xy)"
+	defm "3 Tone Portamento     (speed xy)"
+	defm "4 Vibrato (speed x, amplitude y)"
+	defm "5 Tone and Volume Slide"
 	defb 0
-	DEFM "6 Vibrato and Volume Slide"
+	defm "6 Vibrato and Volume Slide"
 	defb 0
-	DEFM "7 Tremolo (speed x, amplitude y)"
-	DEFM "8 Undefined"
+	defm "7 Tremolo (speed x, amplitude y)"
+	defm "8 Undefined"
 	defb 0
-	DEFM "9 Sample Offset (512 bytes * xy)"
+	defm "9 Sample Offset (512 bytes * xy)"
 	defb 0
-	DEFM "A Volume Slide    (up x, down y)"
-	DEFM "B Position Jump          (to xy)"
-	DEFM "C Volume Change          (to xy)"
-	DEFM "D Pattern Break  (to row xy dec)"
-	DEFM "E Extra effects (x=com, y=param)"
-	DEFM "F Set Speed or Tempo if xy > 20 "
+	defm "A Volume Slide    (up x, down y)"
+	defm "B Position Jump          (to xy)"
+	defm "C Volume Change          (to xy)"
+	defm "D Pattern Break  (to row xy dec)"
+	defm "E Extra effects (x=com, y=param)"
+	defm "F Set Speed or Tempo if xy > 20 "
 	defb 0
-	DEFM "   EXTRA EFFECTS (E-command)"
+	defm "   EXTRA EFFECTS (E-command)"
 	defb 0,0
-	DEFM "0 filter      * 8 undefined"
+	defm "0 filter      * 8 undefined"
 	defb 0
-	DEFM "1 fine porta up 9 retrigger note"
-	DEFM "2 fine porta dn A volume fine up"
-	DEFM "3 gliss control B volume fine dn"
-	DEFM "4 vibrato cntrl C note cut"
+	defm "1 fine porta up 9 retrigger note"
+	defm "2 fine porta dn A volume fine up"
+	defm "3 gliss control B volume fine dn"
+	defm "4 vibrato cntrl C note cut"
 	defb 0
-	DEFM "5 set fine tune D note delay    "
-	DEFM "6 jump loop     E pattern delay "
-	DEFM "7 tremolo cntrl F no standard  *"
+	defm "5 set fine tune D note delay    "
+	defm "6 jump loop     E pattern delay "
+	defm "7 tremolo cntrl F no standard  *"
 col.pro:
 	defb 3,2,2,4,17,1,2,4,8,3
 
 burst:
-	DEFM "SAM MOD player             v2.20"
-	DEFM "(C) 2018 Stefan Drissen"
-	DEFM "CHANNEL "
-	DEFM "Page Offs Vol SLo SHi"
+	defm "SAM MOD player             v2.20"
+	defm "(C) 2018 Stefan Drissen"
+	defm "CHANNEL "
+	defm "Page Offs Vol SLo SHi"
 
 col.burst:
 	defb 3,2,1,4,1,5,19,1
@@ -2193,11 +2140,11 @@ colours:
 	defb 10+56,11+56,12+56,11+56,10+56,0,0,0;4 red
 	defb 13+56,14+56,6,14+56,13+56,0,0,0    ;5 yellow
 
-channel:	DEFM "Channel "
+channel:	defm "Channel "
 
-volume:		DEFM "Vol: 000%  Speed: 00  Tempo: 000"
-keys:		DEFM "F1-F6 1234 C <> P ESC -+ Loop:  "
-author:		DEFM "(C) 2018 Stefan Drissen    v2.20"
+volume:		defm "Vol: 000%  Speed: 00  Tempo: 000"
+keys:		defm "F1-F6 1234 C <> P ESC -+ Loop:  "
+author:		defm "(C) 2018 Stefan Drissen    v2.20"
 
 ;font is already used in load routine - if it looks funny make
 ;sure to check that the values are the same!
