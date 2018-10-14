@@ -76,31 +76,33 @@ patterns:
 	note.As3:	equ	120	; &078
 	note.B_3:	equ	113	; &071
 	
+	note.test:	equ 341	; pitch has speed 1, fraction 0
+	
 
 row.1:
 
 	; SPPPSECC S = sample, p = period, e = effect, c = command
 
 	@channel.1:	
-		defb note.C_1 // 256	; H  = upper sample, L upper note
-		defb note.C_1 \ 256		; HL = note
+		defb note.test // 256	; H  = upper sample, L upper note
+		defb note.test \ 256	; HL = note
 		defb &1C				; H  = lower sample, L = effect
 		defb &40				; HL = command
 	@channel.2:
-		defb note.C_1 // 256	; H  = upper sample, L upper note
-		defb note.C_1 \ 256		; HL = note
-		defb &1C		; H  = lower sample, L = effect
-		defb &40		; HL = command
+		defb note.test // 256	; H  = upper sample, L upper note
+		defb note.test \ 256	; HL = note
+		defb &1C				; H  = lower sample, L = effect
+		defb &40				; HL = command
 	@channel.3:
-		defb note.C_1 // 256	; H  = upper sample, L upper note
-		defb note.C_1 \ 256		; HL = note
-		defb &1C		; H  = lower sample, L = effect
-		defb &40		; HL = command
+		defb note.test // 256	; H  = upper sample, L upper note
+		defb note.test \ 256	; HL = note
+		defb &1C				; H  = lower sample, L = effect
+		defb &40				; HL = command
 	@channel.4:
-		defb note.C_1 // 256	; H  = upper sample, L upper note
-		defb note.C_1 \ 256		; HL = note
-		defb &1C		; H  = lower sample, L = effect
-		defb &40		; HL = command
+		defb note.test // 256	; H  = upper sample, L upper note
+		defb note.test \ 256	; HL = note
+		defb &1C				; H  = lower sample, L = effect
+		defb &40				; HL = command
 
 row.2:
 
