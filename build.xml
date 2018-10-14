@@ -20,7 +20,6 @@
 				<arg value="${pyz80}" />
 				<arg value="--obj=obj/@{obj}" />
 				<arg value="--mapfile=obj/modplayer.map" if:true="@{mapfile}" />
-				<arg value="-sbreakpoint" />
 				<arg value="src/@{source}.s" />
 			</exec>
 
@@ -36,7 +35,7 @@
 
 	<target name="assemble-demo">
 
-		<assemble source="demo" />
+		<assemble source="demo" mapfile="true" />
 
 	</target>
 
@@ -48,16 +47,22 @@
 
 	<target name="assemble-sequencer">
 
-		<assemble source="sequencer" mapfile="true" />
+		<assemble source="sequencer" />
 
 	</target>
 
-	<target name="create-disk" depends="assemble-loader,assemble-demo,assemble-burstplayer,assemble-sequencer">
+	<target name="assemble-example">
+
+		<assemble source="example" />
+
+	</target>
+
+	<target name="create-disk" depends="assemble-loader,assemble-demo,assemble-burstplayer,assemble-sequencer,assemble-test-mod">
 
 		<exec executable="${python}" failonerror="true">
 			<arg value="${pyz80}" />
 			<arg value="-e" />
-			<arg value="-Ires/buena vi.m" />
+			<arg value="-Ires/test.m" />
 			<arg value="-oobj/modplayer.dsk" />
 			<arg value="src/modplayer.s" />
 		</exec>
@@ -69,6 +74,17 @@
 		<exec executable="${simcoupe}">
 			<arg value="obj/modplayer.dsk" />
 		</exec>
+
+	</target>
+
+	<target name="assemble-test-mod">
+
+		<exec executable="${python}" failonerror="true">
+			<arg value="${pyz80}" />
+			<arg value="--obj=res/test.m" />
+			<arg value="src/test.mod.s" />
+		</exec>
+
 
 	</target>
 

@@ -4,16 +4,18 @@
 
 ; easiest way to combine the various output files and auto-load them
 
-	dump 1,0    
+	include "memory.i"
+
+	dump page.loader,0    
 	autoexec    
 	mdat "../obj/loader"
 	
-	dump 1,8192	
+	dump page.loader,8192	
 	mdat "../obj/demo"
 	
-	dump 4,0	
+	dump page.sequencer,0	
 	mdat "../obj/sequencer"
 	
-	dump 5,0
+	dump page.create.burstplayer,0
 	mdat "../obj/burstplayer"
 	 	    

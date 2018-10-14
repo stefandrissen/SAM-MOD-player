@@ -2,71 +2,19 @@
 
 ;(C) 1996-2018 Stefan Drissen
 
+include "memory.i"
 include "ports.i"
 include "opcodes.i"
 
-demo.device:	equ 49152+3		;device, set by loader
+demo.device:	equ 49152+3		; device, set by loader [0-5]
 
-bp.page:		equ 2
-burst.player:	equ 32768
-bp.sequence:	equ 105
-
-video.memory:				equ 32768
-video.memory.attributes:	equ video.memory + 8192 
-
-get.patt:		equ 10752
-gp.ret.p:		equ 10790		;set with return page
-
-far.call:		equ 10794		;C=set with return page!
-
-sq.page:		equ 4
-init.seq:		equ 32768
-install.mod:	equ 32771
-sq.demo:		equ 32774
-sq.demo.p:		equ 32776
-sq.octaves:		equ 32778
-
-mod.page:		equ 5
-
-
-;now follow variables which are located in the burst page
-;this way they can also be read by the extra routines
-
-current.row:	equ 256			;16 bytes
-palette.tab:	equ 256+16		;16 bytes
-framescreen:	equ 256+32		; 1 byte
-
-int.routine:	equ 256+33
-int.rtn.pag:	equ 256+35
-
-c1.on:			equ 256+36
-c2.on:			equ 256+37
-c3.on:			equ 256+38
-c4.on:			equ 256+39
-vol.update:		equ 256+40
-
-countint:		equ 256+41
-counter.fract:	equ 256+42		;fraction part of counter
-counter:		equ 256+43		;integer part of counter
-speed:			equ 256+44
-tempo:			equ 256+45
-song.pos:		equ 256+47
-pattern.num:	equ 256+48
-pattern.pos:	equ 256+49
-enable.burst:	equ 256+50		;word
-exit.burst:		equ 256+52		;word
-disable.pos:	equ 256+54		;disable position jumps
-mstatus:		equ 256+55		;0=playing, 1=stopped
-
-buffer:			equ 256+128	;128 bytes used by far.ldir
-							;maximum +255
 
 ;===============================================================
 ;demo is the program that runs in "foreground" mode
-;     the sequencer is called by the burst routine every frame
+;	the sequencer is called by the burst routine every frame
 
-	org 57344
-	dump 2,57344-49152
+	org addr.demo
+	dump page.burstplayer,addr.demo \ 16384
 
 setup.demo:
 	; di
@@ -76,28 +24,52 @@ test.1:
 
 	; in a,(low.memory.page.register)
 	; ld (dm.lmpr+1),a
-	; ld a,32
+	; ld a,low.memory.ram.0
 	; out (low.memory.page.register),a
 	jp setupmod
 
 	org  $-32768
+	
+demo.external.ram:	defb 0	; [0-4]
+	
 setupmod:
 	ex af,af'
-	ld a,mod.page
+	
+	ld a,c
+	ld (demo.external.ram),a
+	
+	or a	
+	ld a,page.mod	
+	jr z,@no.megabyte.1
+	ld a,page.mod.megabyte
+	out (external.memory.page.c),a
+	inc a
+	out (external.memory.page.d),a
+	ld a,high.memory.external
+@no.megabyte.1:
 	out (high.memory.page.register),a
+	
 	ld hl,32768
 	ld de,mod.header-32768
 	ld bc,1084
 	ldir
 
-	ld a,sq.page
+	ld a,page.sequencer
 	out (high.memory.page.register),a
 	ld hl,demo
-	ld (sq.demo),hl
+	ld (sq.pointer.addr.demo),hl
 	xor a
-	ld (sq.demo.p),a
+	ld (sq.pointer.page.demo),a	
 	ex af,af'
 	ld (sq.octaves),a
+	ld a,(demo.external.ram)
+	ld (sq.external.ram),a
+	or a
+	ld a,page.mod
+	jr z,@no.megabyte
+	ld a,page.mod.megabyte
+@no.megabyte:
+	ld (sq.pointer.page.mod),a	
 
 seq.setup:
 	ld a,0
@@ -115,7 +87,7 @@ test.3:
 	; ld a,0
     ; out (254),a
 
-	ld a,bp.page
+	ld a,page.burstplayer
 	out (high.memory.page.register),a
 
 	call burst.player
@@ -178,7 +150,8 @@ col.samples:
 ;this is the routine that is running in "foreground mode"
 
 demo:
-	ld bc,15 * 256 + color.look.up.table
+
+	ld bc,256 * 15 + color.look.up.table
 	xor a
 black:
 	out (c),a
@@ -194,14 +167,14 @@ black:
 ; create a fast print routine for hex digits
 
 	ld ix,char.list
-	ld de,( "0" - " " ) * 5 + font
+	ld de,( "0" - " " ) * 5 + loader.font + 32768
 	ld hl,build.font
 	ld b,10+6
 build.blp:
 	ld a,b
 	cp 6
 	jr nz,$+5
-	ld de,( "A" - " " ) * 5 + font
+	ld de,( "A" - " " ) * 5 + loader.font + 32768
 
 	ld (ix+0),l
 	ld (ix+1),h
@@ -242,8 +215,8 @@ build.clp:
 	djnz build.blp
 
 	ld ix,line.table
-	ld hl,video.memory.attributes
-	ld de,192
+	ld hl,video.memory.high.attributes
+	ld de,video.memory.32.rows
 	ld b,32
 b.line:
 	ld (ix),l
@@ -279,13 +252,14 @@ skip.intro:
 	call z,show.summary
 	dec a
 	call z,show.burst
-
+	
 	ld hl,(enable.burst)
 	ld (mk.enable+1),hl
 mk.enable:
-	CALL 0
+	call 0
 
 demo.loop:
+
 trackon:
 	ld a,0
 	cp 2
@@ -294,7 +268,7 @@ trackon:
 	jr nc,skip.patpos
 
 	ld b,32						;for print routine
-	ld hl,0 * 256 + 24 + video.memory
+	ld hl,video.memory.24.rows * 0 + 24 + video.memory.high
 	ld a,(song.pos)
 	ld c,a
 	call print.hi.nibble
@@ -319,7 +293,7 @@ skip.patpos:
 	cp 4
 	jr nz,skip.speed
 
-	ld hl,1 * 256 + 18 + video.memory
+	ld hl,video.memory.24.rows * 1 + 18 + video.memory.high
 	ld a,(speed)
 	ld c,a
 	call print.hi.nibble
@@ -336,11 +310,11 @@ skip.patpos:
 	adc hl,bc
 	ld b,h
 	ld c,l
-	ld hl,1 * 256 + 29 + video.memory
+	ld hl,video.memory.24.rows * 1 + 29 + video.memory.high
 	call do.percent
 
 skip.speed:
-	ld bc, 255 * 256 + keyboard.register
+	ld bc, 256 * 255 + keyboard.register
 	in c,(c)
 	bit 3,c
 	jr nz,not.left
@@ -380,7 +354,7 @@ wait.right:
 	jr nz,wait.right
 not.right:
 
-	ld bc,247 * 256 + keyboard.register ;12345
+	ld bc,256 * 247 + keyboard.register ;12345
 	in c,(c)
 	xor a
 	bit 0,c
@@ -451,7 +425,7 @@ not.key.4:
 
 key.p:
 	xor a
-	ld bc,223 * 256 + keyboard.register
+	ld bc,256 * 223 + keyboard.register
 	in c,(c)
 	bit 0,c
 	jr nz,not.key.p
@@ -480,7 +454,7 @@ still.p:
 	ld hl,trackon+1
 	ld a,(hl)
 
-	ld bc,254 * 256 + status.register
+	ld bc,256 * 254 + status.register
 	in c,(c)
 	bit 5,c
 	jr nz,not.f1
@@ -506,7 +480,7 @@ not.f2:
 	call show.sizes
 	jr skip.f
 not.f3:
-	ld bc,253 * 256 + status.register
+	ld bc,256 * 253 + status.register
 	in c,(c)
 	bit 5,c
 	jr nz,not.f4
@@ -541,7 +515,7 @@ still.l:
 	or a
 	jr nz,not.l
 	ld a,(disable.pos)
-	XOR  1
+	xor  1
 	ld (disable.pos),a
 	call pr.loop.st
 	ld a,1
@@ -565,16 +539,16 @@ still.c:
 not.c:
 	ld (still.c+1),a
 
-	ld a,%11111110    ;shift pressed
+	ld a,keyboard.shift
 	in a,(keyboard.register)
-	and %00000001
+	and %00000001	; shift
 	ld bc,64
 	jr nz,$+5
 	ld bc,256
 
-	ld a,%11101111    ;+
+	ld a,keyboard.plus_minus
 	in a,(status.register)
-	and %01000000
+	and %01000000	; +
 	jr nz,not.plus
 
 	ld hl,(amp.fac+1)
@@ -589,9 +563,9 @@ not.c:
 	call z,pr.amp.fac
 not.plus:
 
-	ld a,%11101111    ;-
+	ld a,keyboard.plus_minus
 	in a,(status.register)
-	and %00100000
+	and %00100000	; -
 	jr nz,not.minus
 	ld hl,(amp.fac+1)
 	sbc hl,bc
@@ -603,18 +577,18 @@ not.plus:
 	call z,pr.amp.fac
 not.minus:
 	ld bc,0
-	ld a,247
-	in a,(status.register)        ;escape
-	and 32
+	ld a,keyboard.caps_esc
+	in a,(status.register)
+	and %00100000
 	jr z,exit
 
 	ld a,(mstatus)    ;1=music stopped
 	dec a
 	jr z,exit
 
-	ld a,251
+	ld a,keyboard.f9
 	in a,(status.register)
-	and 128
+	and %10000000
 	jr nz,not.f9
 	inc bc             ;bc <> 0
 exit:
@@ -627,40 +601,41 @@ exit:
 	ld hl,(exit.burst)
 	jp (hl)
 not.f9:
-	ld a,247
+	ld a,keyboard.caps_esc
 	in a,(status.register)
-	and 128            ;caps
-	jr nz,not.reset2
-	ld a,255
+	and %10000000			; caps
+	jr nz,@not.reset
+	ld a,keyboard.cursors_ctrl
 	in a,(keyboard.register)
-	and 1              ;control
-	jr nz,not.reset2
-	ld a,191
+	and %00000001			; control
+	jr nz,@not.reset
+	ld a,keyboard.edit
 	in a,(status.register)
-	and 128            ;edit
-	jr nz,not.reset2
+	and %10000000			; edit
+	jr nz,@not.reset
 
 	di
 	xor a
 	out (video.memory.page.register),a
 still.res2:
-	ld a,247
+	ld a,keyboard.caps_esc
 	in a,(status.register)
-	and 128            ;caps
+	and %10000000			; caps
 	jr z,still.res2
-	ld a,255
+	ld a,keyboard.cursors_ctrl
 	in a,(keyboard.register)
-	and 1              ;control
+	and %00000001			; control
 	jr z,still.res2
-	ld a,191
+	ld a,keyboard.edit
 	in a,(status.register)
-	and 128            ;edit
+	and %10000000			; edit
 	jr z,still.res2
 reset:
 	xor a
 	out (low.memory.page.register),a
 	rst 0
-not.reset2:
+	
+@not.reset:
 
 	jp demo.loop
 
@@ -672,7 +647,7 @@ set.palette:
 	jr z,$+5
 	ld hl,demo.palette.two
 
-	ld de,palette.tab
+	ld de,frame.palette
 	ld bc,16
 	ldir
 	ret
@@ -704,17 +679,17 @@ pr.set:
 	ret nz
 	ld (pr.set+1),a
 print12:
-	ld hl,3 * 256 + 3 + video.memory
+	ld hl,video.memory.24.rows * 3 + 3 + video.memory.high
 print.pos:
 	ld a,0
 	add h
 	ld h,a
 
 	ld b,32					; used
-	ld ix,current.row
+	ld ix,mod.current.row
 	call print.channel
 	
-	ld ix,current.row + 4
+	ld ix,mod.current.row + 4
 	ld l,18
 	call print.channel
 	
@@ -775,7 +750,7 @@ pp.skipleft:
 	ld (hl),%00000001
 pp.skiprite:
 	ld a,h
-	sub C
+	sub c
 	dec a
 	and 7
 	add c
@@ -832,11 +807,11 @@ print43:
 	
 	ld b,32
 	
-	ld ix,current.row+8
+	ld ix,mod.current.row+8
 	call print.channel
 	
 	ld l,3
-	ld ix,current.row+12
+	ld ix,mod.current.row+12
 	call print.channel
 	
 	ld hl,c4.on
@@ -1056,7 +1031,7 @@ unprintable:
 	add hl,hl
 	add hl,hl
 	add hl,bc
-	ld bc,font-160    ;-" "*5
+	ld bc,loader.font - 160 + 32768	; -" "*5
 	add hl,bc
 	ld b,5
 pr.chr.blp:
@@ -1080,7 +1055,7 @@ print.screen:
 	ld a,6
 	call colour.scrn
 
-	ld hl,video.memory
+	ld hl,video.memory.high
 	pop de
 	ld c,32
 wel.all:
@@ -1097,7 +1072,7 @@ pr.scr.blp:
 end.of.line:
 	pop hl
 	ld a,l
-	add 192
+	add video.memory.32.rows
 	ld l,a
 	jr nc,$+3
 	inc h
@@ -1112,11 +1087,11 @@ show.help:
 ; F1
 ;------------------------------------------------------------------------------
 
-	ld a,255
+	ld a,-1
 	ld (int.rtn.pag),a
 	call cls
 	ld ix,col.help
-	ld de,help.page
+	ld de,txt.help
 	jp print.screen
 
 ;------------------------------------------------------------------------------
@@ -1125,11 +1100,11 @@ show.summary:
 ; F5
 ;------------------------------------------------------------------------------
 
-	ld a,255
+	ld a,-1
 	ld (int.rtn.pag),a
 	call cls
 	ld ix,col.pro
-	ld de,prosummary
+	ld de,txt.prosummary
 	jp print.screen
 
 ;------------------------------------------------------------------------------
@@ -1149,22 +1124,22 @@ show.burst:
 	and 3
 	ld (hl),a
 sb.no.inc:
-	ld a,255
+	ld a,-1
 	ld (int.rtn.pag),a
 	call cls
 	ld ix,col.burst
 	ld a,8
 	call colour.scrn
 
-	ld de,burst
-	ld hl,0 * 256 + 0 + video.memory
+	ld de,txt.burst
+	ld hl,video.memory.24.rows * 0 + 0 + video.memory.high
 	ld b,32
 	call print.de.b
-	ld hl,1 * 256 + 0 + video.memory
+	ld hl,video.memory.24.rows * 1 + 0 + video.memory.high
 	ld b,23
 	call print.de.b
 
-	ld hl,3 * 256 + 0 + video.memory
+	ld hl,video.memory.24.rows * 3 + 0 + video.memory.high
 	ld b,8
 	call print.de.b
 burst.num:
@@ -1172,61 +1147,78 @@ burst.num:
 	add "1"
 	call print.chr
 
-	ld hl,4 * 256 + 0 + video.memory
+	ld hl,video.memory.24.rows * 4 + 0 + video.memory.high
 	ld b,21
 	call print.de.b
 
-	ld hl,bp.sequence+1
-	ld de,12
+	ld hl,bp.pointers.sample 
+	ld de,bp.pointers.length
 	ld a,(burst.num+1)
-	inc a
+	or a
+	jr z,@ok	
 	ld b,a
-bu.get.bi:
+@loop:
 	add hl,de
-	djnz bu.get.bi
-
+	djnz @loop
+@ok:
 	ld e,(hl)
 	inc l
 	ld d,(hl)
 	inc l
-	ld (bi.page+1),DE
+	ld (bi.page+1),de
 	ld e,(hl)
 	inc l
 	ld d,(hl)
 	inc l
-	ld (bi.offs2+1),DE
+	ld (bi.offs2+1),de
 	inc de
-	ld (bi.offs1+1),DE
+	ld (bi.offs1+1),de
 	ld e,(hl)
 	inc l
 	ld d,(hl)
 	inc l
-	ld (bi.vol+1),DE
+	ld (bi.vol+1),de
 	ld e,(hl)
 	inc l
 	ld d,(hl)
 	inc l
-	ld (bi.slo+1),DE
+	ld (bi.slo+1),de
 	ld e,(hl)
 	inc l
 	ld d,(hl)
-	ld (bi.shi+1),DE
+	ld (bi.shi+1),de
 
 
 	ld hl,burst.int
 	ld (int.routine),hl
+	
+	ld a,(demo.external.ram)
+	or a
+	jr z,@no.megabyte.2
+	
+	ld a,page.burstplayer	; ???
+	ld a,0					; ???
+
+	jr @continue.2
+	
+@no.megabyte.2:	
+	
 	in a,(high.memory.page.register)
+
+@continue.2:
+	
 	ld (int.rtn.pag),a
-	ld a,255
+	ld a,-1
 	ret
 
 burst.int:
+
 	ld a,(counter)
 	or a
 	ret nz
 
 burst.pr.pos:
-	ld hl,5 * 256 + 2 + video.memory 
+	ld hl,video.memory.24.rows * 5 + 2 + video.memory.high 
 	ld b,32
 bi.page:
 	ld a,(0)
@@ -1286,7 +1278,7 @@ show.pattern:
 ; F4
 ;------------------------------------------------------------------------------
 
-	ld a,255
+	ld a,-1
 	ld (int.rtn.pag),a
 	xor a
 	ld (print.pos+1),a
@@ -1296,7 +1288,7 @@ show.pattern:
 	ld a,8
 	call colour.scrn
 
-	ld hl,256 * 3 + 1 + video.memory.attributes
+	ld hl,video.memory.24.rows * 3 + 1 + video.memory.high.attributes
 	ld c,24 - 3 - 3
 	ld de,29
 col.lp2:
@@ -1324,46 +1316,46 @@ normal:
 
 	call pr.title
 
-	ld de,volume
-	ld hl,1 * 256 + 0 + video.memory
+	ld de,txt.volume
+	ld hl,video.memory.24.rows * 1 + 0 + video.memory.high
 	ld b,32
 	call print.de.b
 
 	call pr.amp.fac
 
-	ld de,keys
-	ld hl,22 * 256 + 0 + video.memory
+	ld de,txt.keys
+	ld hl,video.memory.24.rows * 22 + 0 + video.memory.high
 	ld b,32
 	call print.de.b
 
-	ld de,author
-	ld hl,23 * 256 + 0 + video.memory
+	ld de,txt.author
+	ld hl,video.memory.24.rows * 23 + 0 + video.memory.high
 	ld b,32
 	call print.de.b
 
-	ld de,channel
-	ld hl,2 * 256 + 1 + video.memory
+	ld de,txt.channel
+	ld hl,video.memory.24.rows * 2 + 1 + video.memory.high
 	ld b,8
 	call print.de.b
 	ld a,"1"
 	call print.chr
 
-	ld de,channel
-	ld hl,2 * 256 + 22 + video.memory
+	ld de,txt.channel
+	ld hl,video.memory.24.rows * 2 + 22 + video.memory.high
 	ld b,8
 	call print.de.b
 	ld a,"2"
 	call print.chr
 
-	ld de,channel
-	ld hl,12 * 256 + 1 + video.memory
+	ld de,txt.channel
+	ld hl,video.memory.24.rows * 12 + 1 + video.memory.high
 	ld b,8
 	call print.de.b
 	ld a,"4"
 	call print.chr
 
-	ld de,channel
-	ld hl,12 * 256 + 22 + video.memory
+	ld de,txt.channel
+	ld hl,video.memory.24.rows * 12 + 22 + video.memory.high
 	ld b,8
 	call print.de.b
 	ld a,"3"
@@ -1376,10 +1368,25 @@ normal:
 
 	ld hl,printer
 	ld (int.routine),hl
+
+	ld a,(demo.external.ram)
+	or a
+	jr z,@no.megabyte.3
+		
+	ld a,page.burstplayer	; ???
+	ld a,0					; ???
+
+	jr @continue.3
+	
+@no.megabyte.3:	
+
 	in a,(high.memory.page.register)
+
+@continue.3:
+
 	ld (int.rtn.pag),a
 
-	ld a,255
+	ld a,-1
 	ret
 
 pr.loop.st:
@@ -1391,7 +1398,7 @@ pr.loop.st:
 	ld a,"Y"
 	jr z,$+4
 	ld a,"N"
-	ld hl,256 * 22 + 31 + video.memory
+	ld hl,video.memory.24.rows * 22 + 31 + video.memory.high
 	jp print.chr
 
 
@@ -1463,10 +1470,25 @@ pr.next.ins:
 set.samp.int:
 	ld hl,instr.point
 	ld (int.routine),hl
+	
+	ld a,(demo.external.ram)
+	or a
+	jr z,@no.megabyte.4
+		
+	ld a,page.burstplayer	; ???
+	ld a,0					; ???
+	
+	jr @continue.4
+
+@no.megabyte.4:
+	
 	in a,(high.memory.page.register)
+
+@continue.4:
+
 	ld (int.rtn.pag),a
 
-	ld a,255
+	ld a,-1
 	ret
 
 set.show.smp:
@@ -1483,7 +1505,7 @@ set.show.smp:
 	ld a,6
 	call colour.scrn
 
-	ld hl,192 * 1 + 0 + video.memory.attributes
+	ld hl,video.memory.32.rows * 1 + 0 + video.memory.high.attributes
 	ld b,31 * 6
 	ld de,31
 	xor a
@@ -1494,7 +1516,7 @@ ss.col.lp1:
 	inc hl
 	djnz ss.col.lp1
 
-	ld hl,192 * 1 + 0 + video.memory
+	ld hl,video.memory.32.rows * 1 + 0 + video.memory.high
 	ld c,31
 ss.pr.pntc:
 	ld ix,ss.pointer
@@ -1579,7 +1601,7 @@ pr.ins.exis2:
 
 	ld a,(de)
 	and &0F
-	bit 3,A
+	bit 3,a
 	jr z,tune.plus
 	ld a,"-"
 	call print.chr
@@ -1663,8 +1685,8 @@ pr.title:
 	call print.de.b
 	ret
 cls:
-	ld hl,video.memory
-	ld de,video.memory + 1
+	ld hl,video.memory.high
+	ld de,video.memory.high + 1
 	ld bc,6143
 	ld (hl),l
 	ldir
@@ -1694,7 +1716,7 @@ eop:
 colour.scrn:
 	ld (line.size+1),a
 
-	ld hl,video.memory.attributes
+	ld hl,video.memory.high.attributes
 col.loop:
 	ld c,(ix)
 	inc ix
@@ -1790,7 +1812,7 @@ col.blp2:
 	inc ix
 
 	ld a,h
-	cp ( video.memory.attributes + 6144 ) // 256
+	cp ( video.memory.high.attributes + 6144 ) // 256
 	jr nz,col.loop
 	ret
 
@@ -1824,7 +1846,7 @@ instr.point:
 	ld c,31
 	call nz,clr.point
 
-	ld hl,current.row
+	ld hl,mod.current.row
 	ld a,(hl)
 	and &10
 	ld c,a
@@ -2043,8 +2065,9 @@ col.point2:
 
 ;---------------------------------------------------------------
 
-help.page:
-	defm "SAM MOD player             v2.20"
+txt.help:
+	defm "SAM MOD player             v"
+	defb version.major, ".", version.minor.1, version.minor.2
 	defm "(C) 2018 Stefan Drissen"
 	defb 0,0
 	defm "           HELP PAGE"
@@ -2080,8 +2103,9 @@ help.page:
 col.help:
 	defb 3,2,2,4,5,1,2,3,2,1,2,3,2,1,2,3,5,1,3,3,4,1
 
-prosummary:
-	defm "SAM MOD player             v2.20"
+txt.prosummary:
+	defm "SAM MOD player             v"
+	defb version.major, ".", version.minor.1, version.minor.2	
 	defm "(C) 2018 Stefan Drissen"
 	defb 0,0
 	defm " SUMMARY OF PROTRACKER EFFECTS"
@@ -2123,8 +2147,9 @@ prosummary:
 col.pro:
 	defb 3,2,2,4,17,1,2,4,8,3
 
-burst:
-	defm "SAM MOD player             v2.20"
+txt.burst:
+	defm "SAM MOD player             v"
+	defb version.major, ".", version.minor.1, version.minor.2	
 	defm "(C) 2018 Stefan Drissen"
 	defm "CHANNEL "
 	defm "Page Offs Vol SLo SHi"
@@ -2140,21 +2165,16 @@ colours:
 	defb 10+56,11+56,12+56,11+56,10+56,0,0,0;4 red
 	defb 13+56,14+56,6,14+56,13+56,0,0,0    ;5 yellow
 
-channel:	defm "Channel "
+txt.channel:	defm "Channel "
 
-volume:		defm "Vol: 000%  Speed: 00  Tempo: 000"
-keys:		defm "F1-F6 1234 C <> P ESC -+ Loop:  "
-author:		defm "(C) 2018 Stefan Drissen    v2.20"
-
-;font is already used in load routine - if it looks funny make
-;sure to check that the values are the same!
-
-font:	equ 21412 + 32768
-	; mdat "font"
+txt.volume:		defm "Vol: 000%  Speed: 00  Tempo: 000"
+txt.keys:		defm "F1-F6 1234 C <> P ESC -+ Loop:  "
+txt.author:		defm "(C) 2018 Stefan Drissen    v"
+				defb version.major, ".", version.minor.1, version.minor.2
 
 
 pr.amp.fac:
-	ld hl,256 * 1 + 5 + video.memory
+	ld hl,video.memory.24.rows * 1 + 5 + video.memory.high
 	ld bc,(amp.fac+1)
 
 ;convert &xx.xx to %
@@ -2196,6 +2216,7 @@ do.percent:
 ;---------------------------------------------------------------
 
 tables:
+
 	ld a,(demo.device)
 	ld hl,bits.per.dev
 	add a,l
@@ -2209,17 +2230,14 @@ include "volume.i"
 ;===============================================================
 bits.per.dev:
 
-	defb 6	; clut
 	defb 3	; saa	
 	defb 7	; samdac
-	defb 7	; samdac 2
 	defb 6	; dac
-	defb 6	; dac 2
 	defb 6	; blue alpha
 	defb 8	; quazar surround
+	defb 6	; clut
 
-
-length: equ $-57344
+length: equ $-addr.demo
 
 mod.header:	defs 1084
 

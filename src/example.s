@@ -1,185 +1,84 @@
-;SAM MOD player - EXAMPLE routine for BURST+SEQUENCER
+; SAM MOD player - EXAMPLE routine for BURST+SequENCER
 
-;(C) 1996-2018 Stefan Drissen
+; (C) 1996-2018 Stefan Drissen
 
-;Contents:
-;              "BURST" routine (make burstplayer)
-;              "BURSTPLAYER"
-;              "SEQ" routine (sequencer)
+	include "memory.i"
+	include "ports.i"
 
-;the page variables are:
-;              mb.page             location of make burst
-;              bp.page             where to build burstplayer
-;              sq.page             location of SEQuencer
-;              mod.page            location of mod file
+; Contents:
+;	"BURST" routine (make burstplayer)
+;	"BURSTPLAYER"
+;	"SEQ" routine (sequencer)
 
+;================================================================
+; VARIABLES FOR MAKE BURST PLAYER ROUTINE: "BURST"
 
-;===============================================================
-;VARIABLES FOR MAKE BURST PLAYER ROUTINE: "BURST"
+; page in which the "BURST" code is located, this routine will
+; build up a BURSTPLAYER routine for the selected sound device.
+; Since the various sound devices have different sound drivers
+; and each sound driver has a different length in bytes and time
+; the lengths of the BURSTPLAYER vary.  The SAMdac routine costs
+; the most memory, the Soundchip routine costs the most time.
+; The make burstplayer routine only needs to be called once, the
+; routine may then be wiped from memory.
 
-;page in which the "BURST" code is located, this routine will
-;build up a BURSTPLAYER routine for the selected sound device.
-;Since the various sound devices have different sound drivers
-;and each sound driver has a different length in bytes and time
-;the lengths of the BURSTPLAYER vary.  The SAMdac routine costs
-;the most memory, the Soundchip routine costs the most time.
-;The make burstplayer routine only needs to be called once, the
-;routine may then be wiped from memory.
-
-mb.page:       EQU  5              ;set this yourself
-make.burst:    EQU  32768
+make.burst:	equ 32768
 
 ;set the following address with the desired sound device
 
-device:        EQU  32771
-clut:          EQU  0
-saa:           EQU  1
-samdac1:       EQU  2
-samdac2:       EQU  3
-dac1:          EQU  4
-dac2:          EQU  5
-balpha:        EQU  6
-quasar:        EQU  7
+device:		equ 32771
+	clut:		equ 0
+	saa:		equ 1
+	samdac1:	equ 2
+	samdac2:	equ 3
+	dac1:		equ 4
+	dac2:		equ 5
+	balpha:		equ 6
+	quazar:		equ 7
 
 ;set the following address with the desired Amiga speed
 
-amiga:         EQU  32772
-pal:           EQU  0
-ntsc:          EQU  1
+amiga:		equ 32772
+	pal:		equ 0
+	ntsc:		equ 1
 
 ;set the following address with the page at which to build
 
-burst:         EQU  32773
+burst:		equ 32773
 
-;===============================================================
-;VARIABLES FOR BURSTPLAYER ROUTINE: as made by "BURST"
+page.example:	equ  1
 
-bp.page:       EQU  2              ;set this yourself!
-burst.player:  EQU  32768
+	dump page.example,0
+	org 32768
 
-current.row:   EQU  256    ;16 bytes of current row being played
-palette.tab:   EQU  256+16 ;16 byte palette set at start frame
-framescreen:   EQU  256+32 ;screen page (+mode) set at start of
-                           ;frame, 0 = no change
+	di
+	in a,(low.memory.page.register)
+	ld (st.lmpr+1),a
+	in a,(high.memory.page.register)
+	and high.memory.page.mask
+	or low.memory.ram.0
+	out (low.memory.page.register),a
+	ld (st.stpr+1),sp
+	ld sp,16384
+	jp @low
 
-int.routine:   EQU  256+33 ;address (>32k) or interrupt routine
-int.rtn.pag:   EQU  256+35 ;255=no interrupt else page
+	org $-32768
+@low:
+	ld a,(seq.setup+1) ;don't build if already done
+	or a
+	jr nz,already.made
 
-c1.on:         EQU  256+36 ;channel on/off
-c2.on:         EQU  256+37 ;   "      "
-c3.on:         EQU  256+38 ;   "      "
-c4.on:         EQU  256+39 ;   "      "
-vol.update:    EQU  256+40 ;when set do xtra burst volume update
-                           ;to ensure burstplayer acts on
-                           ;changed value of c?.on.
+	ld a,page.create.burstplayer
+	out (high.memory.page.register),a
 
-countint:      EQU  256+41 ;user frame counter
-counter.fract: EQU  256+42 ;1/256 frame counter for sequencer
-counter:       EQU  256+43 ;frame counter for sequencer
-speed:         EQU  256+44 ;song speed in frames
-tempo:         EQU  256+45 ;bpm speed (relative to 125)
-song.pos:      EQU  256+47 ;position in songtable (0-127)
-pattern.num:   EQU  256+48 ;pattern being played (0-255)
-pattern.pos:   EQU  256+49 ;row being played (0-63)
-enable.burst:  EQU  256+50 ;start burstplayer
-exit.burst:    EQU  256+52 ;stop burstplayer and exit
-disable.pos:   EQU  256+54 ;disable "B" command (jump) + looping
-mstatus:       EQU  256+55 ;0=playing, 1=stopped
+	ld a,samdac1
+	ld (device),a
+	ld a,pal
+	ld (amiga),a
+	ld a,page.burstplayer
+	ld (burst),a
 
-buffer:        EQU  256+128 ;used by far.ldir, can be used for
-                            ;other purposes if far.ldir not used
-                            ;max 128 bytes, volume tables follow
-
-far.call:      EQU  10794 ;CALL to upper page C, address HL
-;              IN   A,(251)
-;              LD   (fc.st.page),A
-;              LD   A,C
-;              OUT  (251),A
-;              LD   (call.hl+1),HL
-;call.hl:      CALL 0
-;fc.st.page:   LD   A,0
-;              OUT  (251),A
-;              RET
-
-
-far.ldir.1:    EQU  10813 ;copy BHL to buffer, C bytes (max128)
-;far block move 1 - copies C bytes (max 128) to buffer
-;              IN   A,(251)
-;              LD   (fm1.st.page+1),A
-;              LD   A,B
-;              OUT  (251),A
-;              LD   DE,buffer
-;              LD   B,0
-;              LDIR
-;fm1.st.page:  LD   A,0
-;              OUT  (251),A
-;              RET
-
-
-
-
-far.ldir.2:    EQU  10833 ;copy buffer to BDE, C bytes (max128)
-;far block move 2 - copies C bytes (max 128) from buffer
-;              IN   A,(251)
-;              LD   (fm2.st.page+1),A
-;              LD   A,B
-;              OUT  (251),A
-;              LD   HL,buffer
-;              LD   B,0
-;              LDIR
-;fm2.st.page:  LD   A,0
-;              OUT  (251),A
-;              RET
-
-;===============================================================
-;VARIABLES FOR SEQUENCER: "SEQ"
-
-sq.page:       EQU  4     ;set this yourself!
-mod.page:      EQU  6     ;set this yourself!
-
-init.seq:      EQU  32768 ;initialse sequencer routine
-install.mod:   EQU  32771 ;install mod by adding "runways"
-
-sq.demo:       EQU  32774 ;address of foreground program (>32k)
-sq.demo.p:     EQU  32776 ;page of foreground program
-sq.modpage:    EQU  32777 ;page mod loaded in at (at 32k)
-sq.octaves:    EQU  32778 ;3 or 5 octave mode
-
-;===============================================================
-
-ex.page:       EQU  1
-
-               ORG  32768
-               DUMP ex.page,0
-
-               DI
-               IN   A,(250)
-               LD   (st.lmpr+1),A
-               IN   A,(251)
-               AND  31
-               OR   32
-               OUT  (250),A
-               LD   (st.stpr+1),SP
-               LD   SP,16384
-               JP   low
-
-               ORG  $-32768
-low:
-               LD   A,(seq.setup+1) ;don't build if already done
-               OR   A
-               JR   NZ,already.made
-
-               LD   A,mb.page
-               OUT  (251),A
-
-               LD   A,samdac1
-               LD   (device),A
-               LD   A,pal
-               LD   (amiga),A
-               LD   A,bp.page
-               LD   (burst),A
-
-               CALL make.burst
+	call make.burst
 already.made:
 
 ;put the address (and page) of the foreground routine into the
@@ -187,16 +86,16 @@ already.made:
 ;after the BURSTPLAYER has set up interrupts and initialised the
 ;sound device.
 
-               LD   A,sq.page
-               OUT  (251),A
-               LD   HL,demo.rtn
-               LD   (sq.demo),HL
-               LD   A,demo.rtn.page
-               LD   (sq.demo.p),A
-               LD   A,mod.page
-               LD   (sq.modpage),A
-               LD   A,3            ;5 for 5 octave mode
-               LD   (sq.octaves),A
+	ld a,page.sequencer
+	out (high.memory.page.register),a
+	ld hl,demo.rtn
+	ld (sq.demo),hl
+	ld a,demo.rtn.page
+	ld (sq.demo.p),a
+	ld a,page.mod
+	ld (sq.modpage),a
+	ld a,3				; 5 for 5 octave mode
+	ld (sq.octaves),a
 
 ;the INITialise.SEQuencer routine only needs to be called once
 ;after the BURSTPLAYER has been built so that it can fill in the
@@ -204,15 +103,16 @@ already.made:
 ;variables are at different addresses depending on the sound
 ;driver being used.
 
-seq.setup:     LD   A,0
-               OR   A
-               CALL Z,init.seq
-               LD   A,1
-               LD   (seq.setup+1),A
+seq.setup:	 
+	ld a,0
+	or a
+	call z,init.seq
+	ld a,1
+	ld (seq.setup+1),a
 
 ;each sample needs a "runway" after it since the buffer being
 ;used is 208 bytes.  208 bytes a frame times 50 frames a second
-;equals 10400HZ.  In 3 octave mode the runway is 768 bytes per
+;equals 10400 Hz.  In 3 octave mode the runway is 768 bytes per
 ;sample, in 5 octave mode (which allows one octave higher) the
 ;runway is twice the size at 1536 bytes.  Samples with a loop
 ;smaller than the runway require three times the runway to be
@@ -220,86 +120,92 @@ seq.setup:     LD   A,0
 ;required by a mod by adding runway times X to the original mod
 ;length.
 
-               LD   A,mod.page
-               OUT  (251),A
-               LD   A,(32768)
-               CP   255
-               JR   Z,already.inst
+	ld a,page.mod
+	out (high.memory.page.register),a
+	ld a,(32768)
+	cp 255
+	jr z,already.inst
 
-               LD   A,255
-               LD   (32768),A
+	ld a,255
+	ld ( 32768 ),a
 
-               LD   A,sq.page
-               OUT  (251),A
+	ld a,page.sequencer
+	out (high.memory.page.register),a
 
-               CALL install.mod    ;add gaps between samples
+	call install.mod	;add gaps between samples
 already.inst:
-               LD   A,bp.page
-               OUT  (251),A
+	ld a,page.burstplayer
+	out (high.memory.page.register),a
 
-               CALL burst.player
+	call burst.player
 test:
-               IN   A,(250)
-               AND  31
-               OUT  (251),A
-               JP   high
+	in a,(low.memory.page.register)
+	and low.memory.page.mask
+	out (high.memory.page.register),a
+	jp high
 
-               ORG  $+32768
+	org  $+32768
 high:
-st.lmpr:       LD   A,0
-               OUT  (250),A
-st.stpr:       LD   SP,0
-               EI
-               RET
+st.lmpr:
+	ld a,0
+	out (low.memory.page.register),a
+st.stpr:
+	ld sp,0
+	ei
+	ret
 
 ;===============================================================
-;demo is the program that runs in "foreground" mode
-;     the sequencer is called by the burst routine every frame
-;the foreground program must be located in the upper memory
-;blocks (CD), and can be any page (not used that is!)
-;PLEASE NOTE: your code is NOT allowed to use the alternate
-;             registers since these are used by the BURSTPLAYER.
-;             If you page the BURSTPLAYER out of lower memory
-;             then the music will also stop, make sure you have
-;             an interrupt routine at address 56 of the new page
+; demo is the program that runs in "foreground" mode
+;	the sequencer is called by the burst routine every frame
+; the foreground program must be located in the upper memory
+; blocks (CD), and can be any page (not used that is!)
+; PLEASE NOTE: 
+;	your code is NOT allowed to use the alternate registers 
+;	since these are used by the BURSTPLAYER.
+;   If you page the BURSTPLAYER out of lower memory
+;   then the music will also stop, make sure you have
+;   an interrupt routine at address 56 of the new page
 
-demo.rtn.page: EQU  ex.page
+demo.rtn.page: equ page.example
+	
 demo.rtn:
-               LD   HL,(enable.burst)
-               LD   (mk.enable+1),HL
-mk.enable:     CALL 0              ;enable the burstplayer
+	ld hl,(enable.burst)
+	ld (mk.enable+1),hl
+mk.enable:
+	call 0				; enable the burstplayer
 
-               CALL interrupt.on
+	call interrupt.on
 
-               LD   HL,my.palette  ;the palette is set by the
-               LD   DE,palette.tab ;burstplayer at the start of
-               LD   BC,16          ;a frame
-               LDIR
+	ld hl,my.palette	; the palette is set by the burstplayer at the start of a frame
+	ld de,frame.palette
+	ld bc,16
+	ldir
 
-demo.loop:
-               LD   BC,248
-               LD   A,R
-               OUT  (C),A
+@demo.loop:
+	ld bc,color.look.up.table
+	ld a,r
+	out (c),a
 
-               LD   BC,0
-               LD   A,247
-               IN   A,(249)        ;escape key
-               AND  32
-               JR   Z,exit
+	ld bc,0
+	ld a,247
+	in a,(status.register)	; escape key
+	and 32
+	jr z,@exit
 
-               LD   A,(mstatus)    ;1=music stopped
-               DEC  A
-               JR   Z,exit
+	ld a,(mstatus)			; 1=music stopped
+	dec a
+	jr z,@exit
 
-               JP   demo.loop
+	jp @demo.loop
 
-exit:
-               LD   HL,(exit.burst)
-               JP   (HL)
+@exit:
+	ld hl,(exit.burst)
+	jp (hl)
 
 
-my.palette:    DEFB 0,16,32,48,64,80,96,112
-               DEFB 8,17,34,51,68,85,102,119
+my.palette:
+	defb 0,16,32,48,64,80,96,112
+	defb 8,17,34,51,68,85,102,119
 
 ;if the value of int.rtn.pag is 255 then no user interrupts are
 ;called.  A value of not 255 is the page of the interrupt
@@ -313,21 +219,21 @@ my.palette:    DEFB 0,16,32,48,64,80,96,112
 ;no alternate registers allowed! (EXX, EX AF,AF')
 
 interrupt.on:
-               LD   HL,example.int
-               LD   (int.routine),HL
-               IN   A,(251)
-               LD   (int.rtn.pag),A
-               RET
+	ld hl,example.int
+	ld (int.routine),hl
+	in a,(high.memory.page.register)
+	ld (int.rtn.pag),a
+	ret
 
 interrupt.off:
-               LD   A,255
-               LD   (int.rtn.pag),A
-               RET
+	ld a,255
+	ld (int.rtn.pag),a
+	ret
 
 example.int:
-               LD   A,R
-               AND  7
-               OUT  (254),A
-               RET
+	ld a,r
+	and 7
+	out (254),a
+	ret
 
-length:        EQU  $-32768
+length:	equ $-32768

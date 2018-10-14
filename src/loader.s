@@ -2,22 +2,39 @@
 
 ;(C) 1996-2018 Stefan Drissen
 
+include "memory.i"
 include "ports.i"
 
-load.page:	equ 5
 load.offs:	equ 32768
 
+	dump page.loader,0
+	
 	org 32768
-	dump 1,0
 
 	jp go.loader
 
 	org $-16384
 
-loader.device:		defb 2
-loader.speed:		defb 0	;0=pal, 1=ntsc
-drive.1.steprate:	defb 2	;0=6ms, 1=12ms, 2=2ms, 3=3ms
-drive.2.steprate:	defb 1
+
+loader.device:			defb device.samdac	; [0-5]
+
+	device.saa:			equ 0
+	device.samdac:		equ 1
+	device.dac:			equ 2
+	device.bluealpha:	equ 3
+	device.quazar:		equ 4
+	device.clut:		equ 5
+	
+loader.device.port:		defb 0	; [0-1]
+loader.speed:			defb 0	; [0-1]
+
+	speed.pal:			equ 0
+	speed.ntsc:			equ 1
+	
+loader.external.ram:	defb 0	; [0-4]
+
+drive.1.steprate:		defb 2	; 0=6ms, 1=12ms, 2=2ms, 3=3ms
+drive.2.steprate:		defb 1
 
 	org $+16384
 
@@ -26,11 +43,16 @@ go.loader:
 ;---------------------------------------------------------------
 
 	di
-	ld a,32
+	ld a,low.memory.ram.0
 	out (low.memory.page.register),a
 	jp loader.low
 
 	org $-16384
+
+;---------------------------------------------------------------
+loader.font:
+;---------------------------------------------------------------
+	mdat "../res/font.bin"
 
 ;---------------------------------------------------------------
 loader.low:
@@ -48,12 +70,67 @@ loader.low:
 	ld (steprate.1+1),a
 	ld a,(drive.2.steprate)
 	ld (steprate.2+1),a
+	
+	ld a,high.memory.external
+	out (high.memory.page.register),a
+	
+	ld hl,32768
+	ld b,0
 
-	ld de,device.scrn
-	ld ix,col.device
+@scan.megs:
+
+	ld a,b
+	out (external.memory.page.c),a
+
+	xor a
+	ld (hl),a
+	cp (hl)
+	jr nz,@not.ram
+	dec a
+	ld (hl),a
+	cp (hl)
+	jr nz,@not.ram
+
+	ld a,b
+	add 64
+	ld b,a
+	jr nc,@scan.megs
+	
+	ld a,4
+	jr @4mb	
+
+@not.ram:
+
+	ld a,b
+	rlca
+	rlca
+	or a
+	jr z,@no.megabyte.1
+@4mb:	
+	ld (loader.external.ram),a
+
+	ld hl,device.screen.memory
+	add a,"0"
+	ld (hl),a
+	inc hl
+	ld (hl)," "
+	inc hl
+	ld (hl),"M"
+	inc hl
+	ld (hl),"B"
+	inc hl
+	ld (hl)," "
+	inc hl
+	ld (hl)," "
+	inc hl
+	
+@no.megabyte.1:
+
+	ld de,device.screen
+	ld ix,device.attributes
 	call print.screen
 
-	ld hl,5 * 192
+	ld hl,video.memory.32.rows * row.device
 	ld (curs.offs+1),hl
 
 	ld a,(loader.device)
@@ -61,13 +138,13 @@ loader.low:
 	add a,a
 	add a,c
 	add a,a
-	ld c,a
+	ld c,a					; c = loader.device * 6
 	ld (old.cursor+1),a
 	xor a
 	ld (curs.blink+1),a
 	call print.cursor
 
-	ld hl,20 * 192
+	ld hl,video.memory.32.rows * row.speed
 	ld (curs.offs+1),hl
 
 	ld a,(loader.speed)
@@ -84,28 +161,38 @@ loader.low:
 ;---------------------------------------------------------------	
 select.device:
 
-	ld hl,5 * 192
+	ld hl,video.memory.32.rows * row.device
 	ld (curs.offs+1),hl
-	ld a,7
+	ld a,5
 	ld (max.select+1),a
 
 	ld a,(loader.device)
+
 	ld c,a
 	add a,a
 	add a,c
 	add a,a
 	ld (old.cursor+1),a
 @loop:
+
 	call cursor.select
 
 	ld a,c
-	ld (loader.device),a
+	
+	cp device.samdac
+	jr c,@no.port
+	cp device.dac + 1
+	jr nc,@no.port
+	
+	call scan.keyboard.left.right
+	ld a,c
+	
+@no.port:	
+	
+	call print.device.details
 
-	call scan.return
-	jr z,selected
-
-	call scan.space
-	jr nc,@loop
+	call scan.keyboard.return
+	jr z,@loop
 
 	xor a
 	ld (curs.blink+1),a
@@ -121,12 +208,13 @@ select.device:
 ;---------------------------------------------------------------
 select.speed:
 
-	ld hl,20 * 192
+	ld hl,video.memory.32.rows * row.speed
 	ld (curs.offs+1),hl
 	ld a,1
 	ld (max.select+1),a
 
 	ld a,(loader.speed)
+	call print.speed.details
 	ld c,a
 	add a,a
 	add a,c
@@ -136,13 +224,13 @@ select.speed:
 	call cursor.select
 
 	ld a,c
-	ld (loader.speed),a
+	call speed.details
 
-	call scan.return
-	jr z,selected
+	call scan.keyboard.return
+	jr nz,selected
 
-	call scan.space
-	jr nc,@loop
+	call scan.escape
+	jr z,@loop
 
 	xor a
 	ld (curs.blink+1),a
@@ -159,25 +247,156 @@ selected:
 
 	call cls
 
-	ld a,load.page	;load.page=burst.page
+	ld a,page.create.burstplayer
 	out (high.memory.page.register),a
-	ld hl,0
+	
 	ld a,(loader.device)
-	ld (32771),a
+	ld hl,@device.mapping
+	add a,l
+	ld l,a
+	jr nc,@nc
+	inc h
+@nc:
+	ld a,(hl)
+	ld hl,loader.device.port
+	add a,(hl)
+		
+	ld (burstplayer.device),a
 	ld a,(loader.speed)
-	ld (32772),a
+	ld (burstplayer.speed),a
+	ld a,(loader.external.ram)
+	ld (burstplayer.external.ram),a
 	
 	call 32768		;make burst
 
 	jp loader
+	
+; map new loader screen to burstplayer device numbers - fix burstplayer later on
+@device.mapping:
+	defb 1	; soundchip	
+	defb 2	; samdac
+	defb 4	; dac
+	defb 6	; blue alpha
+	defb 7	; quazar
+	defb 0	; screen 	
 
+;---------------------------------------------------------------
+	
+print.device.details:
+	
+	push af
+	ld hl,device.details
+	add a
+	ld e,a
+	ld d,0
+	add hl,de
+	ld a,(hl)
+	add "0"
+	push hl
+	ld hl,video.memory.32.rows * 30 
+	call print.chr
+	ld de,text.bits
+	ld b,7
+	call print.de.b
+	pop hl
+	inc hl
+	ld a,(hl)
+	add a
+	ld e,a
+	ld d,0
+	ld hl,device.texts
+	add hl,de
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	ld b,32 - 8
+	ld hl,video.memory.32.rows * 30 + 8
+	call print.de.b
+
+	pop af
+	push af
+
+	ld hl,video.memory.32.rows * 30 + 26
+	ld b,6
+	ld de,text.blank
+	
+	cp device.samdac
+	jr c,@no.port
+	cp device.dac+1
+	jr nc,@no.port
+
+	ld de,text.port
+	
+	ld a,(loader.device.port)
+	add "1"
+	ld (text.port+5),a	
+@no.port:				
+	call print.de.b
+	
+	pop af
+	
+@same:	
+		
+	ld (loader.device),a
+	ret
+
+text.bits:	
+	defm " bits, "
+	defb 0
+	
+text.port:
+	defm "port x"
+text.blank:		
+	defb 0
+	
+	
+
+;---------------------------------------------------------------
+speed.details:
+
+	ld hl,loader.speed
+	cp (hl)
+	ret z
+
+	ld (hl),a
+	
+print.speed.details:
+	
+	push af
+	
+	ld hl,text.speed
+	add a,a
+	add a,l
+	ld l,a
+	jr nc,@nc
+	inc h
+@nc:
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+		
+	ld b,32
+	ld hl,video.memory.32.rows * 30 
+	call print.de.b
+	
+	pop af
+	
+	ret	
+	
+text.speed:			defw text.speed.pal,text.speed.ntsc	
+	
+text.speed.pal: 	defm "7.0937892 MHz"
+					defb 0
+text.speed.ntsc:	defm "7.1590905 MHz"
+					defb 0
+	
 ;---------------------------------------------------------------
 cursor.select:
 
-;selection routine
-;C = current position
-;min selection = 0
-;max selection = (max.selec+1)
+; selection routine
+; C = current position
+; min selection = 0
+; max selection = (max.selec+1)
 
 	push bc
 	ld a,c
@@ -188,22 +407,21 @@ cursor.select:
 	call print.cursor
 	pop bc
 
-	ld a,255
+	ld a,keyboard.cursors_ctrl
 	in a,(keyboard.register)
-	ld b,a
-	bit 1,b
-	call z,curs.up
-	bit 2,b
-	call z,curs.dn
+	bit 1,a
+	jr z,curs.up
+	bit 2,a
+	jr z,curs.dn
 
-	ld a,%11101111
+	ld a,keyboard.67890
 	in a,(keyboard.register)
-	ld b,a
-	bit 1,b
-	call z,curs.up
-	bit 2,b
-	call z,curs.dn
+	bit 1,a
+	jr z,curs.up
+	bit 2,a
+	jr z,curs.dn
 	ret
+	
 curs.up:
 	ld a,c
 	or a
@@ -246,28 +464,103 @@ sd.curs.dn:
 	inc c
 	ret
 
-scan.space:
-	ld a,127
-	in a,(keyboard.register)
-	or a
-	bit 0,a
-	ret nz
-sd.stillspc:
-	ld a,127
-	in a,(keyboard.register)
-	bit 0,a
-	jr z,sd.stillspc
-	scf
+scan.escape:
+	ld a,keyboard.caps_esc
+	in a,(status.register)
+	and %00100000 
+	jr z,@still.esc
+	
+	xor a 
 	ret
-scan.return:
-	ld a,%10111111	;RETURN
-	in a,(keyboard.register)
-	and 1
-	ret z
-	ld a,%11101111	;0
-	in a,(keyboard.register)
-	and 1
+	
+@still.esc:
+	ld a,keyboard.caps_esc
+	in a,(status.register)
+	and %00100000
+	jr z,@still.esc
 	ret
+
+scan.keyboard.return:
+	ld a,keyboard.hjkl_return
+	in a,(keyboard.register)
+	and %00001
+	jr z,@still.return
+	
+	ld a,keyboard.67890
+	in a,(keyboard.register)
+	and %00001
+	jr z,@still.0
+	
+	xor a	
+	ret
+
+@still.return:
+	ld a,keyboard.hjkl_return
+	in a,(keyboard.register)
+	and %00001
+	jr z,@still.return
+	ret
+
+@still.0:	
+	ld a,keyboard.67890
+	in a,(keyboard.register)
+	and %00001
+	jr z,@still.0
+	ret
+
+scan.keyboard.left.right:
+
+	ld a,keyboard.cursors_ctrl
+	in a,(keyboard.register)
+	bit 3,a
+	jr z,@still.cursor.left
+	bit 4,a
+	jr z,@still.cursor.right
+	
+	ld a,keyboard.67890
+	in a,(keyboard.register)
+	bit 4,a
+	jr z,@still.6
+	bit 3,a
+	jr z,@still.7
+	
+	xor a 
+	ret	
+
+@still.cursor.left:
+	ld a,keyboard.cursors_ctrl
+	in a,(keyboard.register)
+	bit 3,a
+	jr z,@still.cursor.left
+	jr @change.port
+
+@still.cursor.right:
+	ld a,keyboard.cursors_ctrl
+	in a,(keyboard.register)
+	bit 4,a
+	jr z,@still.cursor.right
+	jr @change.port
+
+@still.6:
+	ld a,keyboard.67890
+	in a,(keyboard.register)
+	bit 4,a
+	jr z,@still.6
+	jr @change.port
+
+@still.7:
+	ld a,keyboard.67890
+	in a,(keyboard.register)
+	bit 3,a
+	jr z,@still.7
+
+@change.port:
+	ld a,(loader.device.port)
+	xor 1
+	ld (loader.device.port),a
+		
+	ret
+	
 
 ;===============================================================
 
@@ -322,7 +615,7 @@ loader.palette:
 set.palette.black:
 ;---------------------------------------------------------------
 
-	ld bc,15 * 256 + color.look.up.table
+	ld bc,256 * 15 + color.look.up.table
 	xor a
 @loop:
 	out (c),a
@@ -337,7 +630,7 @@ show.screen:
 	call cls
 
 	ld de,load.screen
-	ld ix,col.load
+	ld ix,load.attributes
 	call print.screen
 	ret
 
@@ -533,9 +826,9 @@ pl.skip:
 
 cnv.sam:
 	push de
-	ld ix,col.black
+	ld ix,black.attributes
 	ld a,6
-	call colour.scrn
+	call set.attributes
 
 ;first read in SAM directory
 	ld de,1
@@ -584,7 +877,7 @@ cs.notfirst:
 
 	ld bc,16
 	ld e,l
-	ld d,H
+	ld d,h
 	ex de,hl
 	add hl,bc
 	ex de,hl
@@ -798,7 +1091,7 @@ converted:
 	ld bc,11
 	ldir
 
-	ld hl,192 * 3
+	ld hl,video.memory.32.rows * 3
 	ld de,mes.drive
 	ld b,9+11
 	call print.de.b
@@ -809,7 +1102,7 @@ converted:
 	ld a,24
 	ld c,a
 	ld de,loader.dir
-	ld hl,192 * 4 + 1
+	ld hl,video.memory.32.rows * 4 + 1
 le.loop:
 	push de
 	push hl
@@ -819,7 +1112,7 @@ le.loop:
 	ld b,20
 	call print.de.b
 	pop hl
-	ld de,192
+	ld de,video.memory.32.rows
 	add hl,de
 	pop de
 	ld a,e
@@ -831,13 +1124,9 @@ le.loop:
 	dec c
 	jr nz,le.loop
 
-still.esc:
-	ld a,247				;to prevent immediate exit
-	in a,(status.register)	;when escape used to exit
-	bit 5,a					;"DEMO"
-	jr z,still.esc
+	call @still.esc	; to prevent immediate exit when escape used to exit "DEMO"
 
-	ld hl,4 * 192
+	ld hl,video.memory.32.rows * 4
 	ld (curs.offs+1),hl
 	ld a,(load.entries)
 	dec a
@@ -884,7 +1173,7 @@ gm.is.8:
 	pop de
 
 	ld b,32
-	ld hl,29 * 192
+	ld hl,video.memory.32.rows * 29
 	call print.de.b
 
 	ld hl,mes.size
@@ -901,7 +1190,7 @@ gm.len.100:
 	call cnv.a.to.de
 
 	ld l,(ix+36)
-	ld H,(ix+37)
+	ld h,(ix+37)
 
 	ld bc,100
 	ld a,"0"-1
@@ -953,7 +1242,7 @@ gm.got.date:
 	jr normal.mess
 
 disc.mess:
-	ld hl,29 * 192
+	ld hl,video.memory.32.rows * 29
 	ld b,32
 blnk.line:
 	ld a," "
@@ -961,22 +1250,22 @@ blnk.line:
 	djnz blnk.line
 normal.mess:
 	ld b,32
-	ld hl,30 * 192
+	ld hl,video.memory.32.rows * 30
 	call print.de.b
 
 	call cursor.select
 
-	ld a,247
+	ld a,keyboard.caps_esc
 	in a,(status.register)
 	bit 5,a
 	jr z,loader.quit
 
-	call scan.return
-	jp z,select.key
+	call scan.keyboard.return
+	jp nz,select.key
 
-	ld a,%11011111
+	ld a,keyboard.yuiop
 	in a,(keyboard.register)
-	bit 1,a
+	and %00010
 	ld a,0
 	jr nz,not.o
 still.o:
@@ -993,7 +1282,7 @@ not.o.nc:
 	jp cursor.lp
 
 print.oct:
-	ld hl,192+26
+	ld hl,video.memory.32.rows * 1 + 26
 	ld de,mes.oct
 	ld b,5
 	call print.de.b
@@ -1148,7 +1437,7 @@ fc.sam:
 	and %00000011
 	rrca
 	rrca
-	add D
+	add d
 	ld d,a
 	ld a,(temp.spc-9+7)
 	jr nc,$+4
@@ -1182,7 +1471,7 @@ select.key:
 
 	ld de,mes.load
 	ld b,10
-	ld hl,192 * 31
+	ld hl,video.memory.32.rows * 31
 	call print.de.b
 	push ix
 	pop de
@@ -1230,17 +1519,55 @@ select.key:
 	ld e,(ix+26)
 	ld d,(ix+27)
 
-	ld a,load.page
+	ld a,(loader.external.ram)
+	or a
+	jr z,@no.megabyte.2
+
+	ld a,high.memory.external
 	out (high.memory.page.register),a
+	ld a,page.mod.megabyte
+	out (external.memory.page.c),a
+	inc a
+	out (external.memory.page.d),a
+	ld (@external+1),a
+	
+	jr @continue.2
+	
+@no.megabyte.2:
+
+	ld a,page.mod
+	out (high.memory.page.register),a
+	
+@continue.2:	
+	
 	ld hl,load.offs
 pc.load.all:
 	call readcluster
-	in a,(high.memory.page.register)
 	bit 6,h
 	res 6,h
-	jr z,$+3
+	jr z,@page.ok
+	
+	ld a,(loader.external.ram)
+	or a
+	jr z,@no.megabyte.3
+
+@external:
+	ld a,0
+	out (external.memory.page.c),a
+	inc a
+	out (external.memory.page.d),a
+	ld (@external+1),a
+	
+	jr @page.ok
+		
+@no.megabyte.3:
+
+	in a,(high.memory.page.register)
 	inc a
 	out (high.memory.page.register),a
+	
+@page.ok:
+
 	call getfatentry
 	ld a,d
 	cp 15
@@ -1310,8 +1637,27 @@ sam.match.blp:
 	ld hl,6144
 	call rdphysec
 
-	ld a,load.page
+	ld a,(loader.external.ram)
+	or a
+	jr z,@no.megabyte.4
+
+	ld a,high.memory.external
 	out (high.memory.page.register),a
+	ld a,page.mod.megabyte
+	out (external.memory.page.c),a
+	inc a
+	out (external.memory.page.d),a
+	ld (@external+1),a
+				
+	jr @continue.4				
+				
+@no.megabyte.4:
+
+	ld a,page.mod
+	out (high.memory.page.register),a
+	
+@continue.4:
+	
 	ld hl,6144+9
 	ld de,load.offs
 	ld bc,510-9
@@ -1330,12 +1676,31 @@ sam.load.lp:
 	ld a,e
 	or d
 	jr z,file.loaded
-	in a,(high.memory.page.register)
 	bit 6,h
 	res 6,h
-	jr z,$+3
+	jr z,@page.ok
+
+	ld a,(loader.external.ram)
+	or a
+	jr z,@no.megabyte.5
+
+@external:
+	ld a,0
+	out (external.memory.page.c),a
+	inc a
+	out (external.memory.page.d),a
+	ld (@external+1),a
+	
+	jr @page.ok
+	
+@no.megabyte.5:
+
+	in a,(high.memory.page.register)
 	inc a
 	out (high.memory.page.register),a
+	
+@page.ok:
+	
 	jr sam.load.lp
 
 sam.no.match:
@@ -1349,8 +1714,29 @@ file.loaded:
 	jp z,no.decompress
 decompress:
 	ld c,a
-	ld a,load.page
+
+	ld a,(loader.external.ram)
+	or a
+	jr z,@no.megabyte.6
+
+	ld a,high.memory.external
 	out (high.memory.page.register),a
+	ld a,page.mod.megabyte
+	out (external.memory.page.c),a
+	inc a
+	out (external.memory.page.d),a
+	dec a
+
+	jr @continue.6				
+
+@no.megabyte.6:
+
+	ld a,page.mod
+	out (high.memory.page.register),a
+	
+@continue.6:
+	ld (@page.mod+1),a	
+
 	ld a,c
 	res 6,a
 
@@ -1378,7 +1764,9 @@ dc.not.noise:
 	add hl,de
 
 	ld b,a
-	ld e,load.page
+@page.mod:	
+	ld e,page.mod
+	
 convallppats:
 	ld a,h
 	add 4
@@ -1404,7 +1792,7 @@ loader.instruments:
 
 	ld hl,0
 	xor a
-gsmp.blp:
+@loop:
 	ld d,(ix+22)
 	ld e,(ix+23)
 	add hl,de
@@ -1412,7 +1800,7 @@ gsmp.blp:
 	add 4
 	ld de,30
 	add ix,de
-	djnz gsmp.blp
+	djnz @loop
 
 	bit 7,h
 	res 7,h
@@ -1455,8 +1843,26 @@ loop2:
 	or c
 	jr z,end2
 
+	ld a,(loader.external.ram)
+	or a
+	
 	ld a,d
+	
+	jr z,@no.megabyte.7
+
+	out (external.memory.page.c),a
+	inc a
+	out (external.memory.page.d),a
+	dec a
+	
+	jr @continue.7
+	
+@no.megabyte.7:
+
 	out (high.memory.page.register),a
+	
+@continue.7:
+	
 	ld a,(hl)
 	rlca
 	rlca
@@ -1465,15 +1871,53 @@ loop2:
 	exx
 
 	ex af,af'
+	
+	ld a,(loader.external.ram)
+	or a
+	
 	ld a,d
+	
+	jr z,@no.megabyte.8
+	
+	out (external.memory.page.c),a
+	inc a
+	out (external.memory.page.d),a
+	dec a
+	
+	jr @continue.8
+	
+@no.megabyte.8:
+
 	out (high.memory.page.register),a
+	
+@continue.8:
+	
 	ex af,af'
 	and %11110000
 	ld (hl),a
 	inc hl
 	exx
+	
+	ld a,(loader.external.ram)
+	or a
+	
 	ld a,d
+	
+	jr z,@no.megabyte.9
+
+	out (external.memory.page.c),a
+	inc a
+	out (external.memory.page.d),a
+	dec a
+	
+	jr @continue.9
+	
+@no.megabyte.9:
+
 	out (high.memory.page.register),a
+	
+@continue.9:
+
 	ld a,(hl)
 	and %11110000
 	ld (hl),a
@@ -1501,11 +1945,14 @@ end2:
 no.decompress:
 	call cls
 	in a,(low.memory.page.register)
-	and 31
+	and %00011111
 	out (high.memory.page.register),a
+	ld a,(loader.external.ram)
+	ld c,a
+	
 loader.octaves:
-	ld a,3				;3 or 5 octave
-	call 57344			;demo
+	ld a,3				; 3 or 5 octave
+	call addr.demo		; demo
 	ld a,c
 	dec a
 	jp nz,converted
@@ -1563,7 +2010,7 @@ curs.blink:
 	ld (old.cursor+1),a
 
 	call get.pos
-	ld ix, colours + ( 4 * 8 ) 
+	ld ix, colours + ( colour.purple * 8 ) 
 	ld de,32
 	ld (hl),%10000000
 	ld a,(ix)
@@ -1602,7 +2049,7 @@ curs.blink:
 
 get.pos:
 curs.offs:
-	ld hl,3 * 192
+	ld hl,video.memory.32.rows * 3
 	ld de,32
 	or a
 get.pos.lp:
@@ -1649,7 +2096,7 @@ loader.dir:
 	defm "20 char module title"
 	defb 0			;module type 0=noise, 1=pro, 2=star +64 = 4 bit compressed
 	defb 0			;length in patterns
-	defm "010195"	;date stamp
+	defm "100672"	;date stamp
 	defw 0			;total size in k
 	defb 0			;number of samples (len>1)
 
@@ -1712,7 +2159,7 @@ unprintable:
 	add hl,hl
 	add hl,hl
 	add hl,bc
-	ld bc,font - 160	;-" "*5
+	ld bc,loader.font - 160	;-" "*5
 	add hl,bc
 	ld b,5
 pr.chr.blp:
@@ -1731,56 +2178,67 @@ pr.chr.blp:
 	inc l
 	ret
 
+;---------------------------------------------------------------	
 print.screen:
+;---------------------------------------------------------------	
 	push de
 	ld a,6
-	call colour.scrn
+	call set.attributes
 
-	ld hl,0
+	ld hl,video.memory.low
 	pop de
 	ld c,32
-wel.all:
+@wel.all:
 	ld b,32
 	push hl
 
-pr.scr.blp:
+@pr.scr.blp:
 	ld a,(de)
 	inc de
 	or a
-	jr z,end.of.line
+	jr z,@end.of.line
 	call print.chr
-	djnz pr.scr.blp
-end.of.line:
+	djnz @pr.scr.blp
+@end.of.line:
 	pop hl
 	ld a,l
-	add 192
+	add video.memory.32.rows
 	ld l,a
 	jr nc,$+3
 	inc h
 	dec c
-	jr nz,wel.all
+	jr nz,@wel.all
 	ld a,255
 	ret
+	
+;---------------------------------------------------------------	
 cls:
-	ld hl,0
-	ld de,1
+
+; clear mode 2 screen in lower memory
+;---------------------------------------------------------------	
+	ld hl,video.memory.low
+	ld de,video.memory.low + 1
 	ld bc,6143
 	ld (hl),l
 	ldir
 
-	ld hl,8192
-	ld de,8193
+	ld hl,video.memory.low.attributes
+	ld de,video.memory.low.attributes + 1
 	ld bc,6143
 	ld (hl),l
 	ldir
 
 	ld hl,loader.palette + 15
-	ld bc,16 * 256 + color.look.up.table
+	ld bc,256 * 16 + color.look.up.table
 	otdr
 
 	ret
 
+;---------------------------------------------------------------	
 print.de.b:
+
+; print text at DE, with padded out to B characters 
+;---------------------------------------------------------------	
 	ld a,(de)
 	inc de
 	or a
@@ -1796,10 +2254,14 @@ eop:
 	ret
 
 
-colour.scrn:
+;---------------------------------------------------------------	
+set.attributes:
+
+; apply attributes to mode 2 screen in lower memory
+;---------------------------------------------------------------	
 	ld (line.size+1),a
 
-	ld hl,8192
+	ld hl,video.memory.low.attributes
 col.loop:
 	ld c,(ix)
 	inc ix
@@ -1895,15 +2357,112 @@ col.blp2:
 	inc ix
 
 	ld a,h
-	cp ( 8192 + 6144 ) // 256
+	cp ( video.memory.low.attributes + 6144 ) // 256
 	jr nz,col.loop
 	ret
 
 
 ;---------------------------------------------------------------
 
+colours:
+colour.black:	equ 0
+	defb 0,0,0,0,0,0,0,0
+	
+colour.blue:	equ 1
+	defb 1,2,3,2,1,0,0,0
+	
+colour.orange:	equ 2	
+	defb 4,5,6,5,4,0,0,0
+	
+colour.green:	equ 3	
+	defb 7,9+56,3,9+56,7,0,0,0
+	
+colour.purple:	equ 4	
+	defb 10+56,11+56,12+56,11+56,10+56,0,0,0
+	
+colour.yellow:	equ 5	
+	defb 13+56,14+56,6,14+56,13+56,0,0,0
+
+;---------------------------------------------------------------
+
+
+device.screen:
+	defm "SAM MOD player             v"
+	defb version.major, ".", version.minor.1, version.minor.2	
+	defm "(C) 2018 Stefan Drissen"
+	defb 0,0
+row.device:	equ 5	
+	defm " SOUND DEVICE"
+	defb 0,0
+	defm " Soundchip"
+	defb 0
+	defm " SAMdac"
+	defb 0
+	defm " DAC"
+	defb 0
+	defm " Blue Alpha Sampler"
+	defb 0
+	defm " Quazar Soundcard"
+	defb 0
+	defm " Screen"
+	defb 0,0
+row.speed:	equ 14
+	defm " AMIGA SPEED"
+	defb 0,0
+	defm " PAL"
+	defb 0
+	defm " NTSC"
+	defb 0,0
+	defm "Memory: "
+device.screen.memory:	
+	defm "512 KB"
+	defb 0,0	
+	defb 0,0,0,0,0,0,0,0,0,0,0,0
+	defm "Use CURSORS + RETURN or JOYSTICK"
+	defb 0
+
+device.attributes:	
+	defb 3,colour.orange
+	defb 2,colour.purple
+	defb 6,colour.blue
+	defb 2,colour.purple
+	defb 3,colour.blue
+	defb 2,colour.green
+	defb 13,colour.green	
+	defb 1,colour.yellow
+
+device.details:
+	defb 3, stereo
+	defb 7, stereo
+	defb 6, mono 
+	defb 6, mono 
+	defb 8, surround 
+	defb 7, visual
+
+	visual:		equ 0
+	mono:		equ 1
+	stereo:		equ 2
+	surround:	equ 3		
+
+device.texts:	defw text.visual,text.mono,text.stereo,text.surround
+
+text.visual:
+	defm "visual"
+	defb 0
+text.mono:
+	defm "mono"
+	defb 0
+text.stereo:
+	defm "stereo"
+	defb 0
+text.surround:
+	defm "surround"
+	defb 0
+
+
 load.screen:
-	defm "SAM MOD player             v2.20"
+	defm "SAM MOD player             v"
+	defb version.major, ".", version.minor.1, version.minor.2	
 	defm "(C) 2018 Stefan Drissen"
 	defb 0,0,0,0,0,0,0
 	defb 0,0,0,0,0,0,0,0
@@ -1912,60 +2471,18 @@ load.screen:
 	defm "Use CURSORS + RETURN or JOYSTICK"
 
 
-col.load:
-	defb 3,2,1,3,25,1,2,3,1,5
+load.attributes:
+	defb 3,colour.orange
+	defb 1,colour.green
+	defb 25,colour.blue
+	defb 2,colour.green
+	defb 1,colour.yellow
 
-device.scrn:
-	defm "SAM MOD player             v2.20"
-	defm "(C) 2018 Stefan Drissen"
-	defb 0,0
-	defm "       SELECT SOUND DEVICE"
-	defb 0,0
-	defm " Colour Look Up Table     (test)"
-	defm " Soundchip       (3 bits stereo)"
-	defm " SAMdac on port 1(7 bits stereo)"
-	defm " SAMdac on port 2"
-	defb 0
-	defm " DAC on port 1     (6 bits mono)"
-	defm " DAC on port 2"
-	defb 0
-	defm " Blue Alpha Sampler(6 bits mono)"
-	defm " Quazar Soundcard (8 bits surr.)"
-	defb 0
-	defm "The (SAM)DAC can be connected to"
-	defm "parallel printer port 1 or 2."
-	defb 0,0,0
-	defm "       SELECT AMIGA SPEED"
-	defb 0,0
-	defm " PAL  (7.0937892 MHz)"
-	defb 0
-	defm " NTSC (7.1590905 MHz)"
-	defb 0,0
-	defm "This will only make a           "
-	defm "noticeable difference if a MOD  "
-	defm "consists of very long samples.  "
-	defb 0,0
-	defm "Use the CURSORS to make a       "
-	defm "selection, press SPACE to toggle"
-	defm "between DEVICE and SPEED, press "
-	defm "RETURN to continue."
-	defb 0
-
-col.device:	defb 3,2,2,4,8,1,5,3,2,4,3,1,5,3,4,5
-
-col.black:	defb 2,2,27,0,2,3,1,5
-
-colours:
-	defb 0,0,0,0,0,0,0,0						;0
-	defb 1,2,3,2,1,0,0,0						;1
-	defb 4,5,6,5,4,0,0,0						;2
-	defb 7,9+56,3,9+56,7,0,0,0					;3
-	defb 10+56,11+56,12+56,11+56,10+56,0,0,0	;4
-	defb 13+56,14+56,6,14+56,13+56,0,0,0		;5
-
-
-font:
-	MDAT "../res/font.bin"
+black.attributes:
+	defb 2,colour.orange
+	defb 27,colour.black
+	defb 2,colour.green
+	defb 1,colour.yellow
 
 ;---------------------------------------------------------------
 ;directory stuff
@@ -2091,7 +2608,7 @@ chdir:
 
 
 findfile:
-	ld (save.sam.sp+1),SP
+	ld (save.sam.sp+1),sp
 
 	ld de,matchfile
 	ld bc,11
@@ -2441,7 +2958,7 @@ prlabel:
 	ld b,11
 	ld de,m.vollabel
 prlabblp:
-	LD a,(hl)
+	ld a,(hl)
 	ld (de),a
 	inc hl
 	inc de
@@ -2646,7 +3163,7 @@ ccdiv:
 	rr l
 	jr ccdiv
 ccdonediv:
-	ld c,L
+	ld c,l
 	ld b,h
 	ret
 
@@ -2927,9 +3444,9 @@ rbcalcsz:
 	ld hl,(bsrootentries)
 	ld (direntries),hl
 
-	ld ix,col.black
+	ld ix,black.attributes
 	ld a,6
-	jp colour.scrn
+	jp set.attributes
 
 notpcdisc:
 	xor a

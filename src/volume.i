@@ -3,15 +3,13 @@
 ; initially calculated by burstplayer
 ; recalculated with amplification by demo 
 
-volume.tab:	equ 512
-
 ;---------------------------------------------------------------
 ;create volume tables for burstplayer (Amiga samples)
 ;B = number of bits
 
-make.vol.tab:
+populate.volume.table:
 
-	ld ix,volume.tab
+	ld ix,volume.table
 	push ix
 
 	ld a,b
@@ -180,6 +178,7 @@ cv.max.tables:
 cv.no.double:
 	ret					; NOP if SAA
 
+;------------------------------------------------------------------------------	
 ;copy tables with stereo flip for SAA1099
 
 	ld d,h
@@ -204,7 +203,9 @@ cv.saa.one:
 	jr nz,cv.saa.one
 	ret
 
+;------------------------------------------------------------------------------	
 cv.bc.div.de:
+
 	ld a,b			; divide BC by DE
 	ld b,16			; result in BC
 	ld hl,0			; DE is unchanged

@@ -4,81 +4,41 @@
 
 ;first execute "BURST" and install "DEMO"
 
+include "memory.i"
 include "ports.i"
 
-bp.page:					; found by searching for "BUR" at 00053
-sq.page:		equ 4		; only used for assembly - relocatable
-bp.sequence:	equ 105		; offset list located in burst page
-mod.page:		equ 5
-
-get.patt:		equ 10752	; copies AHL -> current.row, 16 bytes
-gp.ret.p:		equ 10790	; set with return page
-
-far.call:		equ 10794	; call CHL
-
-far.ldir.1:		equ 10813	; copy BHL to buffer, C bytes (max128)
-far.ldir.2:		equ 10833	; copy buffer to BDE, C bytes (max128)
-							; buffer size = 128 bytes
-
-;now follow variables which are located in the burst page
-;this way they can also be read by the extra routines
-
-current.row:	equ 256		; 16 bytes
-palette.tab:	equ 256+16	; 16 bytes
-framescreen:	equ 256+32	;  1 byte
-
-int.routine:	equ 256+33
-int.rtn.pag:	equ 256+35
-
-c1.on:			equ 256+36
-c2.on:			equ 256+37
-c3.on:			equ 256+38
-c4.on:			equ 256+39
-vol.update:		equ 256+40
-
-countint:		equ 256+41
-counter.fract:	equ 256+42	; fraction part of counter
-counter:		equ 256+43	; integer part of counter
-speed:			equ 256+44
-tempo:			equ 256+45
-song.pos:		equ 256+47
-pattern.num:	equ 256+48
-pattern.pos:	equ 256+49
-enable.burst:	equ 256+50	; word
-exit.burst:		equ 256+52	; word
-disable.pos:	equ 256+54	; disable position jumps
-mstatus:		equ 256+55	; 0=playing, 1=stopped
-
-buffer:			equ 256+128	;used by far.ldir, can be used for other purposes if far.ldir not used
-
-	;volume tables start at 512
-
+;===============================================================
 	org 32768
-	dump sq.page,0
+	dump page.sequencer,0
+;---------------------------------------------------------------
 
-	jp init.seq
-	jp install.mod
+	jp @init.seq
+	jp @install.mod
 
-demo.loc:		defw 0				; offset
-				defb 0				; & page of demo (foreground)
-mp.peek:		defb mod.page		; page mod loaded in at
-octaves:		defb 3				; number of octaves (3 or 5)
-gap:			defb 0
-instruments:	defb 0
+sq.pointer.addr.demo:	defw 0				; offset
+sq.pointer.page.demo:	defb 0				; & page of demo (foreground)
 
-	DEFM "MOD SEQUENCER 2.20 (C) 2018 Stefan Drissen"
-	DEFM " Needs BURST to run, also (C) 2018 S.D. "
+sq.pointer.page.mod:	defb page.mod		; page mod loaded in at
+sq.octaves:				defb 3				; number of octaves (3 or 5)
+sq.external.ram:		defb 0				; [0-4]
+sq.gap:					defb 0
+sq.instruments:			defb 0
 
-init.seq:
+	defm "MOD SEQUENCER " 
+	defb version.major, ".", version.minor.1, version.minor.2
+	defm "(C) 2018 Stefan Drissen"
+	defm " Needs BURST to run, also (C) 2018 S.D. "
+
+@init.seq:
 	di
-	in a,(low.memory.page.register)
-	ld (is.lmpr+1),a
-	ld c,31
+	in a,(low.memory.page.register)	
+	ld (is.lmpr + 1),a
+	ld c,low.memory.ram.0 - 1
 find.burst:
 	inc c
 	ld a,c
 
-	cp 32 + 32 + 1
+	cp low.memory.ram.0 + 32 + 1
 	jr c,fb.pageok
 
 	xor a
@@ -87,7 +47,7 @@ find.burst:
 	
 fb.pageok:
 	out (low.memory.page.register),a
-	ld hl,53
+	ld hl,bp.id
 	ld a,(hl)
 	cp "B"
 	jr nz,find.burst
@@ -101,6 +61,7 @@ fb.pageok:
 	jr nz,find.burst
 
 	ld a,c
+	and low.memory.page.mask
 	ld (rs.bp.page+1),a
 
 ;---------------------------------------------------------------
@@ -171,7 +132,7 @@ reloc.4chan:
 done.all:
 	ld hl,c1+mk.cur.pat+1
 	ld bc,routine.len - 1
-	ld de,current.row				; where pat data is dumped to
+	ld de,mod.current.row
 	ld a,4
 mk.cur.lp:
 	ld (hl),e
@@ -197,8 +158,8 @@ mk.c.on.lp:
 	dec a
 	jr nz,mk.c.on.lp
 
-	ld iy,bp.sequence
-	ld a,(iy+00)				; device
+	ld iy,bp.device
+	ld a,(iy)
 	ld hl,is.normvol
 	dec a						; a=1 -> SAA
 	jr nz,$+5
@@ -224,39 +185,42 @@ mk.c.on.lp:
 	ldi
 	ldi
 
-	ld iy,bp.sequence
-	ld l,(iy+01)
-	ld h,(iy+02)					;sequencer call
+	ld iy,bp.pointers
+	
+	ld l,(iy + bp.pointer.addr.sequencer - bp.pointers)
+	ld h,(iy + bp.pointer.addr.sequencer - bp.pointers + 1)
 	ld (hl),sequencer \ 256
 	inc hl
 	ld (hl),sequencer // 256
-	ld l,(iy+03)
-	ld h,(iy+04)
-	in a,(high.memory.page.register)
-	ld (hl),a						;sequencer page
-	ld l,(iy+05)
-	ld h,(iy+06)					;demo call
-	ld de,(demo.loc)
+	
+	ld a,page.sequencer
+	ld l,(iy + bp.pointer.page.sequencer - bp.pointers)
+	ld h,(iy + bp.pointer.page.sequencer - bp.pointers + 1)
+	ld (hl),a
+	
+	ld de,(sq.pointer.addr.demo)
+	ld l,(iy + bp.pointer.addr.demo - bp.pointers)
+	ld h,(iy + bp.pointer.addr.demo - bp.pointers + 1)
 	ld (hl),e
 	inc hl
 	ld (hl),d
-	ld l,(iy+07)
-	ld h,(iy+08)
-	ld a,(demo.loc+2)
-	ld (hl),a						;demo page
-	ld l,(iy+09)
-	ld h,(iy+10)					;enable player
+	
+	ld a,(sq.pointer.page.demo)
+	ld l,(iy + bp.pointer.page.demo - bp.pointers)
+	ld h,(iy + bp.pointer.page.demo - bp.pointers + 1)
+	ld (hl),a
+	
+	ld l,(iy + bp.pointer.addr.enable - bp.pointers)
+	ld h,(iy + bp.pointer.addr.enable - bp.pointers + 1)
 	ld (enable.burst),hl
 
-	in a,(high.memory.page.register)
-	ld (gp.ret.p),a					;return page for get.patt
-
-	ld l,(iy+11)
-	ld h,(iy+12)
+	ld l,(iy + bp.pointer.addr.exit - bp.pointers)
+	ld h,(iy + bp.pointer.addr.exit - bp.pointers + 1)
 	ld (exit.burst),hl
 
-	ld bc,13
-	add iy,bc
+	; copy pointers (6) to sequencer code for 4 channels
+	
+	ld iy,bp.pointers.sample
 
 	ld ix,conv.list
 	ld b,6 * 4
@@ -306,53 +270,96 @@ is.saavol:
 	add 3
 	and %01111110
 	add 2
+	
 conv.list:
-	defw c1+mk.pag1+1,c1+mk.pag2+1,c1+mk.pag3+1
-	defw c1+mk.pag4+1,c1+mk.pag5+1,c1+mk.pag6+1
-	defw c1+mk.pag7+1,c1+mk.pag8+1
+
+	defw c1+mk.pag1+1
+	defw c1+mk.pag2+1
+	defw c1+mk.pag3+1
+	defw c1+mk.pag4+1
+	defw c1+mk.pag5+1
+	defw c1+mk.pag6+1
+	defw c1+mk.pag7+1
+	defw c1+mk.pag8+1
 	defw c1.mk.pag9+1,0
-	defw c1+mk.off1+1,c1+mk.off2+1,c1+mk.off3+1
-	defw c1+mk.off4+1,c1+mk.off5+1,c1+mk.off6+1
-	defw c1+mk.off7+1,c1+mk.off8+1
+	defw c1+mk.off1+1
+	defw c1+mk.off2+1
+	defw c1+mk.off3+1
+	defw c1+mk.off4+1
+	defw c1+mk.off5+1
+	defw c1+mk.off6+1
+	defw c1+mk.off7+1
+	defw c1+mk.off8+1
 	defw c1.mk.off9+1,0
 	defw c1+mk.tab+1,0
 	defw c1+mk.slo+1,0
 	defw c1+mk.shi+1,0
-	defw c1+mk.spfr+1,c1+mk.spfr2+1,0
+	defw c1+mk.spfr+1
+	defw c1+mk.spfr2+1,0
 
-	defw c2+mk.pag1+1,c2+mk.pag2+1,c2+mk.pag3+1
-	defw c2+mk.pag4+1,c2+mk.pag5+1,c2+mk.pag6+1
-	defw c2+mk.pag7+1,c2+mk.pag8+1
+	defw c2+mk.pag1+1
+	defw c2+mk.pag2+1
+	defw c2+mk.pag3+1
+	defw c2+mk.pag4+1
+	defw c2+mk.pag5+1
+	defw c2+mk.pag6+1
+	defw c2+mk.pag7+1
+	defw c2+mk.pag8+1
 	defw c2.mk.pag9+1,0
-	defw c2+mk.off1+1,c2+mk.off2+1,c2+mk.off3+1
-	defw c2+mk.off4+1,c2+mk.off5+1,c2+mk.off6+1
-	defw c2+mk.off7+1,c2+mk.off8+1
+	defw c2+mk.off1+1
+	defw c2+mk.off2+1
+	defw c2+mk.off3+1
+	defw c2+mk.off4+1
+	defw c2+mk.off5+1
+	defw c2+mk.off6+1
+	defw c2+mk.off7+1
+	defw c2+mk.off8+1
 	defw c2.mk.off9+1,0
 	defw c2+mk.tab+1,0
 	defw c2+mk.slo+1,0
 	defw c2+mk.shi+1,0
 	defw c2+mk.spfr+1,c2+mk.spfr2+1,0
 
-	defw c3+mk.pag1+1,c3+mk.pag2+1,c3+mk.pag3+1
-	defw c3+mk.pag4+1,c3+mk.pag5+1,c3+mk.pag6+1
-	defw c3+mk.pag7+1,c3+mk.pag8+1
+	defw c3+mk.pag1+1
+	defw c3+mk.pag2+1
+	defw c3+mk.pag3+1
+	defw c3+mk.pag4+1
+	defw c3+mk.pag5+1
+	defw c3+mk.pag6+1
+	defw c3+mk.pag7+1
+	defw c3+mk.pag8+1
 	defw c3.mk.pag9+1,0
-	defw c3+mk.off1+1,c3+mk.off2+1,c3+mk.off3+1
-	defw c3+mk.off4+1,c3+mk.off5+1,c3+mk.off6+1
-	defw c3+mk.off7+1,c3+mk.off8+1
+	defw c3+mk.off1+1
+	defw c3+mk.off2+1
+	defw c3+mk.off3+1
+	defw c3+mk.off4+1
+	defw c3+mk.off5+1
+	defw c3+mk.off6+1
+	defw c3+mk.off7+1
+	defw c3+mk.off8+1
 	defw c3.mk.off9+1,0
 	defw c3+mk.tab+1,0
 	defw c3+mk.slo+1,0
 	defw c3+mk.shi+1,0
 	defw c3+mk.spfr+1,c3+mk.spfr2+1,0
 
-	defw c4+mk.pag1+1,c4+mk.pag2+1,c4+mk.pag3+1
-	defw c4+mk.pag4+1,c4+mk.pag5+1,c4+mk.pag6+1
-	defw c4+mk.pag7+1,c4+mk.pag8+1
+	defw c4+mk.pag1+1
+	defw c4+mk.pag2+1
+	defw c4+mk.pag3+1
+	defw c4+mk.pag4+1
+	defw c4+mk.pag5+1
+	defw c4+mk.pag6+1
+	defw c4+mk.pag7+1
+	defw c4+mk.pag8+1
 	defw c4.mk.pag9+1,0
-	defw c4+mk.off1+1,c4+mk.off2+1,c4+mk.off3+1
-	defw c4+mk.off4+1,c4+mk.off5+1,c4+mk.off6+1
-	defw c4+mk.off7+1,c4+mk.off8+1
+	defw c4+mk.off1+1
+	defw c4+mk.off2+1
+	defw c4+mk.off3+1
+	defw c4+mk.off4+1
+	defw c4+mk.off5+1
+	defw c4+mk.off6+1
+	defw c4+mk.off7+1
+	defw c4+mk.off8+1
 	defw c4.mk.off9+1,0
 	defw c4+mk.tab+1,0
 	defw c4+mk.slo+1,0
@@ -410,36 +417,52 @@ build.list:
 
 ;------------- install mod -------------------------------------
 
-;put code in section AB to manipulate data in section CD
+; put code in section AB to manipulate data in section CD
 
-install.mod:
+@install.mod:
 	di
 	in a,(low.memory.page.register)
 	ld (im.lmpr+1),a
-	ld (im.stsp+1),SP
+	ld (im.stsp+1),sp
 	in a,(high.memory.page.register)
-	and 31
-	or 32
+	and low.memory.page.mask
+	or low.memory.ram.0
 	out (low.memory.page.register),a
 	jp im.low
 
+;===============================================================
 	org $-32768
-
+;---------------------------------------------------------------
 im.low:
 	ld sp,16384
 
-do.it:
-	ld a,(mp.peek-32768)
+	ld a,(sq.external.ram - 32768)
+	or a
+	jr z,@no.megabyte
+	
+	ld a,high.memory.external
 	out (high.memory.page.register),a
+
+@no.megabyte:
+
+	ld a,(sq.pointer.page.mod - 32768)
+	ld (@page.mod.1+1),a
+	ld (@page.mod.2+1),a
+	ld (@page.mod.3+1),a
+	ld (@page.mod.4+1),a	
+	ld (@page.mod.5+1),a	
+	ld (@page.mod.6+1),a	
+	
+	call set.high.memory.a
 
 ;give gap correct value, 3 for 3 octaves, 6 for 5 octaves
 
-	ld a,(octaves-32768)
+	ld a,(sq.octaves - 32768)
 	cp 5
 	ld a,3
 	jr nz,$+3
 	rlca
-	ld (gap-32768),a
+	ld (sq.gap-32768),a
 
 ;clear sample table
 
@@ -464,12 +487,12 @@ findmk:
 	jr z,set.instr
 	ld a,15
 set.instr:
-	ld (instruments - 32768),a
+	ld (sq.instruments - 32768),a
 	ld hl,32768 + 20
 
 ;get start address of song table
 
-	ld de,30				; each sample takes 30 bytes
+	ld de,30				; each sample entry takes 30 bytes
 getpat:
 	add hl,de
 	dec a
@@ -505,12 +528,12 @@ getpat:
 
 ;get start address of first pattern
 
-	ld a,(instruments-32768)
+	ld a,(sq.instruments-32768)
 	cp 31
 	ld de,4					;4 bytes extra for tag field
-	jr z,m.k.
+	jr z,@m.k.
 	ld e,0
-m.k.:
+@m.k.:
 	add hl,de
 	ld a,h
 	ld (origpat.offsh-32767),a
@@ -522,7 +545,8 @@ m.k.:
 ;each pattern = 1024 bytes
 
 	ld e,a
-	in a,(high.memory.page.register)
+@page.mod.1:
+	ld a,page.mod
 	ld b,a
 
 	ld a,e
@@ -553,7 +577,7 @@ get.samp.add:
 ;- fill in loop type (0=none, 1=big, 2=small)
 
 
-	ld a,(instruments-32768)
+	ld a,(sq.instruments-32768)
 	ld c,a
 convall:
 	ld (iy+st.start+0),l
@@ -565,12 +589,13 @@ convall:
 	ld (iy+st.finetune),a
 
 	ld a,(ix+25)		; for volume
-	cp 64				; !!! sure?
-	jr c,$+4
-	ld a,63
+	cp &40
+	jr c,@volume.ok
+	ld a,&3F			; volume tables only go to &3F
+@volume.ok:	
 	ld (iy+st.vol),a
 
-	ld d,(ix+22)		; sample length
+	ld d,(ix+22)		; sample length in WORDS
 	ld e,(ix+23)
 
 	ld a,d
@@ -587,7 +612,7 @@ convall:
 	rl h
 	ld a,1
 	jr c,nc.gotloop   ;bigloop
-	ld a,(gap-32768)
+	ld a,(sq.gap-32768)
 	dec a              ;new in 2.03
 	cp h              ;this is needed cos it should
 	ld a,1            ;be big if >= 3 and not > 3
@@ -636,7 +661,7 @@ nc.gotloop:	;A: 0=noloop, 1=bigloop, 2=smallloop
 
 	ld ix,sample.table-32768
 	ld bc,smp.tab.len
-	ld a,(instruments-32768)
+	ld a,(sq.instruments-32768)
 	ld d,a
 	ld e,0
 calct:
@@ -665,22 +690,29 @@ calctnosmp:
 
 	ld b,e
 
-shift.all:
+@shift.all:
 	push bc
 
 	push bc
 
 	ld l,(ix+st.start+0)
 	ld h,(ix+st.start+1)
-	ld b,(ix+st.start+2)
+	ld b,(ix+st.start+2)	; BHL=address last byte of sample +1
 
 	ld a,b
-	out (high.memory.page.register),a	; BHL=address last byte of sample +1
+	call set.high.memory.a
+
 	push hl
+@page.mod.2:	
+	cp page.mod
+	jr z,@nz	
+	
 	set 6,h
-	dec hl
-	ld (source.lo+1),hl
 	dec a
+@nz:	
+	dec hl
+	
+	ld (source.lo+1),hl
 	ld (source.hi+1),a
 	pop hl								; source is AHL in block D last byte of sample
 	push hl
@@ -689,33 +721,33 @@ shift.all:
 	ld c,(ix-(min.start+0))				; 
 	xor a
 	sbc hl,de
-	jr nc,nooverflow
+	jr nc,@nooverflow
 	ld de,16384
 	add hl,de
 	scf
-nooverflow:
+@nooverflow:
 	ld a,b
 	sbc c
 	ld (result.lo+1),hl ;number of bytes to be
 	ld (result.hi+1),a  ;copied put in result
 	pop hl
 
+	ld a,b
 	pop bc
-
-	in a,(high.memory.page.register)
+	
 	ld e,a
 
-	ld a,(gap-32768)
+	ld a,(sq.gap-32768)
 	ld c,a
 im.new.start:
 	ld a,b			;bytes to be shifted (* 256)
 	add a,h
 	ld h,a
-	jr nc,nopinc1
+	jr nc,@nopinc1
 	inc e
 	inc e
 	set 7,h
-nopinc1:
+@nopinc1:
 	dec c
 	jr nz,im.new.start
 
@@ -723,51 +755,64 @@ nopinc1:
 	res 6,h
 	jr z,$+3
 	inc e
+	
 	ld a,e
-	out (high.memory.page.register),a
+	call set.high.memory.a	
 
 	ld (ix+st.start+0),l ;new start address of
 	ld (ix+st.start+1),h ;sample at shifted
 	ld (ix+st.start+2),a ;position
+@page.mod.3:	
+	cp page.mod
+	jr z,@bottom.page
 
 	dec a
-	out (high.memory.page.register),a
+	ld (@page+1),a
+	call set.high.memory.a
+	
 	set 6,h
+@bottom.page:	
 	dec hl
 
 	ld a,(ix-min.sample)	;st.sample-16
 	or a
-	jr z,noaddgap
+	jr z,@noaddgap
 
 ; how much gap needed behind sample
 
 	ld a,(ix-min.loop)		;-16+st.loop
 	cp 2
-	ld a,(gap-32768)
-	jr nz,gp.only1
+	ld a,(sq.gap-32768)
+	jr nz,@only1
 	ld c,a
 	add a,a
-	add a,c					;3*gap
-gp.only1:
+	add a,c					; 3 * gap
+@only1:
 
 ; clear needed gap * 256 to no sound
 
 	ld c,a
-	xor a					;0=no volume
+	xor a					; 0=no volume
 	ld b,a
-clearend:
+@clearend:
 	ld (hl),a
 	dec hl
-	djnz clearend
+	djnz @clearend
 	dec c
-	jr nz,clearend
-noaddgap:
-	in a,(high.memory.page.register)
+	jr nz,@clearend
+@noaddgap:
+
+@page:
+	ld a,0
+@page.mod.4:	
+	cp page.mod
+	jr z,@nz
+	
 	bit 6,h
 	set 6,h
-	jr nz,$+3
+	jr nz,@nz
 	dec a
-
+@nz:
 ; now pointing to address before gap
 
 	ld (target.lo+1),hl
@@ -805,14 +850,20 @@ source.lo:
 	ld hl,0
 source.hi:
 	ld a,0
-	out (high.memory.page.register),a
+	call set.high.memory.a	
+	
 	ld de,move.spc+move.size-1
 	push bc
 	lddr
+@page.mod.5:	
+	cp page.mod
+	jr z,@nz
+	
 	bit 6,h
 	set 6,h
-	jr nz,$+3
+	jr nz,@nz
 	dec a
+@nz:	
 	ld (source.hi+1),a
 	ld (source.lo+1),hl
 
@@ -821,13 +872,19 @@ target.lo:
 	ld de,0
 target.hi:
 	ld a,0
-	out (high.memory.page.register),a
+	call set.high.memory.a
+	
 	pop bc
 	lddr
+@page.mod.6:	
+	cp page.mod
+	jr z,@nz
+	
 	bit 6,d
 	set 6,d
-	jr nz,$+3
+	jr nz,@nz
 	dec a
+@nz:	
 	ld (target.hi+1),a
 	ld (target.lo+1),de
 nocopy:
@@ -858,7 +915,7 @@ nosamplegap:
 	ld a,b				;update how much to move
 	sub e
 	ld b,a
-	jp nz,shift.all
+	jp nz,@shift.all
 
 ;check ALL samples for Noisetracker bug
 ;-> loop offset in bytes instead of in words
@@ -870,10 +927,12 @@ nosamplegap:
 
 	ld iy,sample.table-32768
 	ld ix,32768+20
-	ld a,(instruments-32768)
+	ld a,(sq.instruments-32768)
 	ld b,a
-	ld a,(mp.peek-32768)
-	out (high.memory.page.register),a
+	
+	ld a,(sq.pointer.page.mod - 32768)
+	call set.high.memory.a
+	
 find.bug.lp:
 	push bc
 	ld a,(iy+st.loop)
@@ -932,7 +991,7 @@ found.bugged:	;A=0 -> normal looping
 	ld iy,sample.table-32768
 	ld ix,32768+20
 
-	ld a,(instruments-32768)
+	ld a,(sq.instruments-32768)
 	ld c,a
 nc.fillend:
 	ld l,(iy+st.start+0)
@@ -964,9 +1023,11 @@ nc.normal:
 	ld e,(ix+27)
 	call add.bhl.de
 	jr nc.contnorm
+	
 nc.noisebug:
 	ld d,(ix+26)			;loop offs (in bytes!)
 	ld e,(ix+27)
+	
 nc.contnorm:
 	call add.bhl.de
 	ld d,(ix+28)			;loop len (in words)
@@ -991,12 +1052,13 @@ nc.got.gap:
 
 	ld iy,sample.table-32768
 	ld ix,32768+20
-	ld a,(instruments-32768)
+	ld a,(sq.instruments-32768)
 	ld b,a
 conv.looping:
 	push bc
-	ld a,(mp.peek-32768)
-	out (high.memory.page.register),a
+	
+	ld a,(sq.pointer.page.mod - 32768)
+	call set.high.memory.a
 
 	ld a,(iy+st.loop)
 	or a
@@ -1050,7 +1112,7 @@ loop.ok:					;DE = loop offset
 ;to get new position. - follow that?  It took me a while to
 ;think that one up... 8-)
 
-	ld a,(gap-32768)
+	ld a,(sq.gap-32768)
 	ld d,a
 	add a,a
 	add a,d
@@ -1066,7 +1128,8 @@ loop.ok:					;DE = loop offset
 	sla c
 	rl b
 
-	out (high.memory.page.register),a
+	call set.high.memory.a
+	
 	ld (sm.lp.src+1),hl
 
 	;  push bc
@@ -1088,7 +1151,7 @@ loop.ok:					;DE = loop offset
 	ld hl,0				; at least gap size
 sm.loop.big:
 	add hl,bc			; -> possibly 2 * ( gap - 1 )
-	ld a,(gap-32768)
+	ld a,(sq.gap-32768)
 	cp h
 	jr nc,sm.loop.big
 	pop af
@@ -1135,10 +1198,11 @@ bigloop:
 ; copy start of loop to gap after end loop for gap bytes
 
 	ld a,b
-	out (high.memory.page.register),a
+	call set.high.memory.a
+	
 	ld de,move.spc
 	ld c,0
-	ld a,(gap-32768)
+	ld a,(sq.gap-32768)
 	ld b,a
 	push bc
 	ldir
@@ -1146,7 +1210,8 @@ bigloop:
 	ld e,(iy+st.end+0)
 	ld d,(iy+st.end+1)
 	ld a,(iy+st.end+2)
-	out (high.memory.page.register),a
+	call set.high.memory.a
+
 	ld hl,move.spc
 	pop bc
 	ldir					;copy to beginloop
@@ -1168,17 +1233,17 @@ conv.donelp:
 ;increase sample start with two bytes (Amiga wierdo)
 
 upfirst:
-	; LD   E,(hl)
-    ; INC  HL
-    ; LD   D,(hl)
-    ; INC  DE
-    ; INC  DE             ; or maybe not?
-    ; LD   (hl),D
-    ; DEC  HL
-    ; LD   (hl),E
-    ; ADD  HL,BC
-    ; DEC  A
-    ; JR   NZ,upfirst
+	; ld e,(hl)
+    ; inc hl
+    ; ld d,(hl)
+    ; inc de
+    ; inc de		; or maybe not?
+    ; ld (hl),d
+    ; dec hl
+    ; ld (hl),e
+    ; add hl,bc
+    ; dec a
+    ; jr nz,upfirst
 exit.install:
 
 ;create an empty sample if necessary
@@ -1186,59 +1251,68 @@ exit.install:
 	ld b,31
 	ld iy,sample.table-32768
 	ld de,16
-ce.findblank:
+@ce.findblank:
 	ld a,(iy+st.sample)
 	or a
-	jr z,ce.nosample		; no sample -> no gap
+	jr z,@ce.nosample		; no sample -> no gap
 	ld a,(iy+st.loop)
 	or a
-	jr nz,ce.nosample		; looped -> no gap
+	jr nz,@ce.nosample		; looped -> no gap
+	
 	ld l,(iy+st.end+0)
 	ld h,(iy+st.end+1)
 	ld c,(iy+st.end+2)
-	jr ce.gotblank
-ce.nosample:
+	jr @ce.gotblank
+	
+@ce.nosample:
 	add iy,de
-	djnz ce.findblank
+	djnz @ce.findblank
 	ld l,(iy+st.start+0)
 	ld h,(iy+st.start+1)
 	ld c,(iy+st.start+2)
+	
 	ld a,c
-	out (high.memory.page.register),a
-	ld a,(gap-32768)
+	call set.high.memory.a
+	ld e,a
+	
+	push hl	; added to make sense of comment below
+	
+	ld a,(sq.gap-32768)
 	ld c,a
 	ld b,0
-ce.dosilence:
+@ce.dosilence:
 	ld (hl),0				; create silent sample
 	inc hl					; at postion after all other
-	djnz ce.dosilence		; samples
+	djnz @ce.dosilence		; samples
 	dec c
-	jr nz,ce.dosilence
-	in a,(high.memory.page.register)
-	ld c,a
+	jr nz,@ce.dosilence
+
+	ld c,e
+	pop hl	; added to make sense of comment below
 
 ;now CHL is address of silent sound gap
 ;replace all blank samples with address for silence
 
-ce.gotblank:
-	ld iy,sample.table-32768
+@ce.gotblank:
 	ld b,31
-fs.blp:
+	ld iy,sample.table-32768
+	ld de,16	
+@fs.blp:
 	ld a,(iy+st.sample)
 	or a
-	jr nz,fs.issamp
+	jr nz,@fs.issamp
 	ld (iy+st.start+0),l
 	ld (iy+st.start+1),h
 	ld (iy+st.start+2),c
 	ld (iy+st.end+0),l
 	ld (iy+st.end+1),h
 	ld (iy+st.end+2),c
-fs.issamp:
+@fs.issamp:
 	add iy,de
-	djnz fs.blp
+	djnz @fs.blp
 
 	in a,(low.memory.page.register)
-	and 31
+	and low.memory.page.mask
 	out (high.memory.page.register),a
 
 	jp fs.high
@@ -1288,12 +1362,42 @@ add.bhl.de2:
 	pop de
 	ret
 
+;---------------------------------------------------------------
+set.high.memory.a:
 
+;	a = page high memory
+
+;---------------------------------------------------------------
+
+	push af
+	
+	ld a,(sq.external.ram - 32768)
+	or a
+	
+	jr z, @no.megabyte
+
+	pop af	
+	out (external.memory.page.c),a
+	inc a
+	out (external.memory.page.d),a
+	dec a
+	
+	ret	
+	
+@no.megabyte:	
+	
+	pop af
+	out (high.memory.page.register),a
+	
+	ret
+
+;===============================================================
 	org $+32768
+;---------------------------------------------------------------
 fs.high:
 rs.bp.page:
 	ld a,0		;burst page
-	or 32
+	or low.memory.ram.0
 	out (low.memory.page.register),a
 	ld sp,32768
 
@@ -1304,24 +1408,40 @@ c1.mk.pag9:
 	ld (0),a				; 2e34
 	ld (c1+len+1),hl		; 9f87
 	ld (c1+page.len+1),a	; 9f84
+	
+	ld (c1+smp.page+1),a
+	ld (c1+smp.offs+1),hl
+	
 c2.mk.off9:
 	ld (0),hl
 c2.mk.pag9:
 	ld (0),a
 	ld (c2+len+1),hl
 	ld (c2+page.len+1),a
+	
+	ld (c2+smp.page+1),a
+	ld (c2+smp.offs+1),hl
+	
 c3.mk.off9:
 	ld (0),hl
 c3.mk.pag9:
 	ld (0),a
 	ld (c3+len+1),hl
 	ld (c3+page.len+1),a
+	
+	ld (c3+smp.page+1),a
+	ld (c3+smp.offs+1),hl
+	
 c4.mk.off9:
 	ld (0),hl
 c4.mk.pag9:
 	ld (0),a
 	ld (c4+len+1),hl
 	ld (c4+page.len+1),a
+
+	ld (c4+smp.offs+1),hl	
+	ld (c4+smp.page+1),a
+
 
 	ld hl,31 * 16 + sample.table-1
 	ld de,32 * 16 + sample.table-1
@@ -1332,12 +1452,14 @@ c4.mk.pag9:
 	ld bc,smp.tab.len-1
 	ld (hl),b
 	ldir
+	ld a,-1
+	ld (sample.table+2),a	; page of no instrument
 
 ;put correct maximum & minimum periods into sequencer
 
 	ld hl,113
 	ld de,856
-	ld a,(octaves)
+	ld a,(sq.octaves)
 	cp 5
 	jr nz,mm.per.3
 	ld hl,56
@@ -1813,7 +1935,7 @@ get.new.note:
 	rlca
 	rlca
 	ld c,a
-	ld a,(mp.peek)			;mod page
+	ld a,(sq.pointer.page.mod)
 	add c
 	ld c,a
 
@@ -1832,8 +1954,8 @@ origpat.offsl:
 	inc c
 
 	ld a,(pattern.pos)
-	add A
-	add A
+	add a
+	add a
 	ld h,0
 	ld l,a
 	add hl,hl
@@ -1841,7 +1963,7 @@ origpat.offsl:
 	add hl,de
 	ld a,c
 
-	call get.patt			;in lower memory
+	call get.pattern		;in lower memory
 
 	call c1+play.voice
 	call c2+play.voice
@@ -1925,7 +2047,13 @@ posjump.flag:
 
 ;---------------------------------------------------------------
 routines:
+
+; this routines is copied four times so that there is one for each channel
+; the burst player addresses are put in by conv.list
+
+;===============================================================
 	org 0
+;---------------------------------------------------------------
 
 ;tables for command parsing
 
@@ -2060,7 +2188,7 @@ play.voice:
 mk.cur.pat:
 	ld hl,0
 
-	ld a,(hl)         ;HL = d
+	ld a,(hl)			; HL = d
 	inc l
 	and %00001111
 	ld d,a
@@ -2068,31 +2196,33 @@ mk.cur.pat:
 	dec l
 r2.001:
 	ld (note+1),de
-	or e				;if no period given then use
+	or e				; if no period given then use
 r1.004:
-	call z,per.nop		;last given period
+	call z,per.nop		; last given period
 
-	ex de,hl			;DE = d
+	ex de,hl			; DE = d
 
 	ld h,sample.table // 256
 	ld a,(de)
 	and &10
-	jr z,$+3
+	jr z,@sample.lt.16
 	inc h
+@sample.lt.16:	
 	inc e
 	inc e
 	ld a,(de)
 	and &F0
 	ld l,a
-	                    ;DE = d + 2
+						; DE = d + 2
 	ld c,(hl)
 	inc l
 	ld b,(hl)
 	inc l
 	ld a,(hl)
-	or a
+	inc a
 r1.005:
-	jp z,set.regs     ;if no page -> no ins
+	jp z,set.regs		; page -1 -> no instrument
+	dec a
 	inc l
 r2.002:
 	ld (smp.offs+1),bc
@@ -2100,7 +2230,7 @@ r1.006:
 	ld (smp.page+1),a
 
 	ld a,l
-	XOR  H
+	xor h
 r1.007:
 	ld (new.ins+1),a
 
@@ -2115,7 +2245,7 @@ r2.003:
 r1.008:
 	ld (page.len+1),a
 
-	ld a,(hl)         ;repeat type
+	ld a,(hl)			; repeat type
 	inc l
 
 	dec a
@@ -2174,10 +2304,10 @@ r1.016:
 	ld (finetune+1),a
 
 set.regs:
-	ex de,hl          ;HL = d + 2
+	ex de,hl			; HL = d + 2
 
 	ld a,(hl)
-	inc l              ;HL = d + 3
+	inc l				; HL = d + 3
 	and &0F
 r1.017:
 	ld (command+1),a
@@ -2196,13 +2326,13 @@ r1.019:
 
 	ld a,b
 	and &F0
-	or c              ;hi = param, lo = command
-	cp &5E            ;E5 = fine tune
+	or c				; hi = param, lo = command
+	cp &5E				; E5 = fine tune
 	jr z,do.fine
-	ld a,c            ;only command now
-	cp 3              ;3 = tone portamento
+	ld a,c				; only command now
+	cp 3				; 3 = tone portamento
 	jr z,chk.tone
-	cp 5              ;5 = tone port + vol slide
+	cp 5				; 5 = tone port + vol slide
 	jr z,chk.tone
 	jr set.per
 do.fine:
@@ -2249,7 +2379,7 @@ r1.025:
 	ld (period+1),hl
 	ld a,b
 r1.026:
-	ld (note.num+1),a ;0-71, 255=unknown
+	ld (note.num+1),a	;0-71, 255=unknown
 
 r1.027:
 	ld a,(cmdlo+1)
@@ -2258,24 +2388,24 @@ r1.027:
 r1.028:
 	ld a,(command+1)
 	or c
-	cp &DE            ;ED = note delay
+	cp &DE				;ED = note delay
 	jr z,chkmorefx
 
 wav.cntrl:
 	ld c,0
 	xor a
-	BIT  2,C            ;-> retrigger vibrato
+	bit 2,c				;-> retrigger vibrato
 	jr z,vibnoc
 r1.029:
 	ld (vibr.pos+1),a
 vibnoc:
-	bit 6,C            ;-> retrigger tremolo
+	bit 6,c				;-> retrigger tremolo
 	jr z,trenoc
 r1.030:
 	ld (trem.pos+1),a
 trenoc:
 smp.offs:
-	ld hl,0
+	ld hl,0	 
 smp.page:
 	ld a,0
 mk.pag5:
@@ -2340,7 +2470,7 @@ command:
 cmdlo:
 	ld a,0
 	or c
-	jr z,per.nop   ;no command - use old period in case of arpeg
+	jr z,per.nop		;no command - use old period in case of arpeg
 r1.039:
 	ld hl,checkfx.tab
 	ld a,c
@@ -3345,7 +3475,9 @@ c4:		equ 3 * routine.len + routines
 
 	defs ( 4 - 1 ) * routine.len
 
+;===============================================================
 	org ( 4 * routine.len ) + routines - 32768
+;---------------------------------------------------------------
 
 move.size:	equ 6 * 256		;move size = gap size
 move.spc:	defs move.size	;for octave 4 -> 6 (5 oct)
