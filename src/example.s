@@ -89,11 +89,11 @@ already.made:
 	ld a,page.sequencer
 	out (high.memory.page.register),a
 	ld hl,demo.rtn
-	ld (sq.demo),hl
+	ld (sq.pointer.addr.demo),hl
 	ld a,demo.rtn.page
-	ld (sq.demo.p),a
+	ld (sq.pointer.page.demo),a
 	ld a,page.mod
-	ld (sq.modpage),a
+	ld (sq.pointer.page.mod),a
 	ld a,3				; 5 for 5 octave mode
 	ld (sq.octaves),a
 
