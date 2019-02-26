@@ -44,7 +44,7 @@ amiga:		equ 32772
 
 ;set the following address with the page at which to build
 
-burst:		equ 32773
+burst:		equ 32774
 
 page.example:	equ  1
 
