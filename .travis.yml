@@ -10,7 +10,7 @@ before_install:
   
 script:
 
-  - ant create-disk -Dpython=python -Dpyz80=pyz80.py
+  - ant create-disk -Dpython=python -Dpyz80=pyz80.py -Dmapfile=false
   
 deploy:
 
