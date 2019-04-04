@@ -1,10 +1,14 @@
 ;SAM MOD player - MAKE burstplayer 
 
-;(C) 1995-2018 Stefan Drissen
+;(C) 1995-2019 Stefan Drissen
+
+;---------------------------------------------------------------
 
 include "memory.i"
 include "ports.i"
 include "opcodes.i"
+
+;---------------------------------------------------------------
 
 ;samdac routine uses most memory!
 ;quazar needs largest playback buffers
@@ -12,10 +16,15 @@ include "opcodes.i"
 count:		equ 255		;number of outs before border change
 linetest:	equ 0
 
-	org 32768
-	dump page.create.burstplayer,0
+;---------------------------------------------------------------
 
-	jp go.burst
+	org &8000
+
+;---------------------------------------------------------------
+
+burstplayer.create:	jp @go.burst
+
+;---------------------------------------------------------------
 
 burstplayer.device:		defb 0	; [0-7]
 
@@ -35,29 +44,29 @@ burstplayer.speed:		defb 0	; [0-1]
 
 burstplayer.external.ram:	defb 0	; [0-4]
 
-bp.page:				defb page.burstplayer
+burstplayer.page:		defb page.burstplayer
 
 	defm "                         "
-	defm "MAKEBURST (C)2018 Stefan Drissen"
+	defm "MAKEBURST (C)2019 Stefan Drissen"
 	defm "Thanks to Edwin Blink for the   "
 	defm "original burst idea and code...."
 
 ;---------------------------------------------------------------
-go.burst:
+@go.burst:
 ;---------------------------------------------------------------
 	di
-	in a,(low.memory.page.register)
+	in a,(port.lmpr)
 	ld (@lmpr+1),a
 
-	ld a,(bp.page)
+	ld a,(burstplayer.page)
 	or low.memory.ram.0
-	out (low.memory.page.register),a
+	out (port.lmpr),a
 	ld (@sp+1),sp
 	ld sp,49152
 	call maker
 @lmpr:
 	ld a,0
-	out (low.memory.page.register),a
+	out (port.lmpr),a
 @sp:
 	ld sp,0
 	; ei
@@ -94,11 +103,13 @@ not.qss.pt:
 	ld (no.function+1),hl
 	ex af,af'
 
-	ld hl,device.list
+	ld hl,device.list	
+	add a,a
+	ld e,a
 	add a,a
 	add a,a
 	add a,a
-	add a,a
+	add a,e		; * 18
 	add a,l
 	ld l,a
 	jr nc,$+3
@@ -136,10 +147,26 @@ not.qss.pt:
 	ld d,(hl)
 	inc hl
 	ld (sample.ctrl+1),de
+
+	ld a,(burstplayer.external.ram)
+	or a
+	jr z,@no.megabyte
+	
+	inc hl
+	inc hl
+	ld e,(hl)
+	inc hl
+	ld d,(hl)
+	jr @ok
+		
+@no.megabyte:
 	
 	ld e,(hl)
 	inc hl
 	ld d,(hl)
+	inc hl
+	inc hl
+@ok:	
 	inc hl
 	ld (mk.timing+2),de
 	
@@ -176,30 +203,30 @@ not.qss.pt:
 ;interrupt routine (00056)
 interrupt:
 	ld hl,00056
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
-	ld (hl),opcode_exx
+	ld (hl),opcode.exx
 	inc hl
 	call insert.outs
-	ld (hl),opcode_cp_n
+	ld (hl),opcode.cp_n
 	inc hl
 	ld (hl),191 - 3		
 	inc hl
-	ld (hl),opcode_jr_z_n
+	ld (hl),opcode.jr_z_n
 	inc hl
 	ld (mk.sto1+1),hl		;jr z,prep.bord.play
 	ld (mk.sto1.1+1),hl
 	ld (mk.recjradd+1),hl
 	inc hl
-	ld (hl),opcode_add_a_n
+	ld (hl),opcode.add_a_n
 	inc hl
 	ld (hl),3
 	inc hl
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),line.interrupt.register
+	ld (hl),port.line_interrupt
 	inc hl
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 	ld (mk.sto2+1),hl		;jp no.function
 	inc hl
@@ -213,11 +240,11 @@ mk.sto1.1:
 	ld a,l
 	pop hl
 	ld (mk.stojr188+1),a
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (mk.recjr191+1),hl
 	inc hl
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 mk.recjradd:
 	ld de,0
@@ -225,11 +252,11 @@ mk.recjradd:
 	inc hl
 	ld (hl),d         ;ld (jr+1),a
 	inc hl
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (hl),191
 	inc hl
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	dec de
 	dec de
@@ -238,11 +265,11 @@ mk.recjradd:
 	ld (hl),d         ;ld (cp191+1),a
 	inc hl
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),line.interrupt.register
+	ld (hl),port.line_interrupt
 	inc hl
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 	ld (mk.sto2.1+1),hl ;jp nofunction2
 	inc hl
@@ -262,7 +289,7 @@ sound.driver.reset.length:
 	ldir
 ro.no.silence:
 	ex de,hl
-	ld (hl),opcode_ret
+	ld (hl),opcode.ret
 	inc hl
 
 ;---------------------------------------------------------------
@@ -279,65 +306,65 @@ mk.recjr191:
 	ld hl,0
 	ld (hl),e
 	pop hl             ;prep.bord.play:
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 mk.stojr188:
 	ld (hl),0		;ld a,jr188
 	inc hl
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld de,(mk.recjradd+1)
 	ld (hl),e
 	inc hl
 	ld (hl),d         ;ld (jradd+1),a
 	inc hl
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (hl),188
 	inc hl
 	dec de
 	dec de
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld (hl),e
 	inc hl
 	ld (hl),d         ;ld (cp188+1),a
 	inc hl
 
-	ld (hl),opcode_in_a_n
+	ld (hl),opcode.in_a_n
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld (mk.sto3+1),hl			;ld (prog.p+1),a
 	inc hl
 	inc hl
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
-	ld (hl),opcode_exx
+	ld (hl),opcode.exx
 	inc hl
-	ld (hl),opcode_push_af
+	ld (hl),opcode.push_af
 	inc hl
-	ld (hl),opcode_push_bc
+	ld (hl),opcode.push_bc
 	inc hl
-	ld (hl),opcode_push_de
+	ld (hl),opcode.push_de
 	inc hl
-	ld (hl),opcode_push_hl
+	ld (hl),opcode.push_hl
 	inc hl
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_push_ix
+	ld (hl),opcode.push_ix
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_ld_nn_sp
+	ld (hl),opcode.ld_nn_sp
 	inc hl
 	ld (mk.sto4+1),hl			;ld (prog.sp+1),sp
 	inc hl
 	inc hl
 	ld (mk.rec2+1),hl ;playerselect:
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 	ld (mk.sto5+1),hl ;jp borderplay1
 	inc hl
@@ -364,20 +391,20 @@ output.bits:
 	or a
 	jr z,@no.megabyte.1
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl	
-	ld (hl),external.memory.page.c
+	ld (hl),port.xmpr.c
 	inc hl
 	
-	ld (hl),opcode_inc_a
+	ld (hl),opcode.inc_a
 	inc hl
 	
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),external.memory.page.d
+	ld (hl),port.xmpr.d
 	inc hl
 	
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (hl),high.memory.external
 	inc hl
@@ -392,12 +419,12 @@ output.bits:
 	
 @continue.1:
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl	
-	ld (hl),high.memory.page.register	
+	ld (hl),port.hmpr	
 	inc hl
 
-	ld (hl),opcode_ld_de_nn
+	ld (hl),opcode.ld_de_nn
 	inc hl
 	ld (hl),mod.current.row \ 256
 	inc hl
@@ -406,29 +433,29 @@ output.bits:
 	
 	ld b,15
 @mk.gp.blp:
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_ldi
+	ld (hl),opcode.ldi
 	inc hl
 	djnz @mk.gp.blp
 	
-	ld (hl),opcode_ld_a_hl
+	ld (hl),opcode.ld_a_hl
 	inc hl
 	
-	ld (hl),opcode_ld_de_a
+	ld (hl),opcode.ld_de_a
 	inc hl
 	
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (hl),page.sequencer
 	inc hl
 	
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 	
-	ld (hl),opcode_ret
+	ld (hl),opcode.ret
 	
 	add hl,de
 	
@@ -437,12 +464,12 @@ get.pattern.size:	equ 49
 ;---------------------------------------------------------------
 ;call far routine, C=page, HL=address
 
-	ld (hl),opcode_in_a_n
+	ld (hl),opcode.in_a_n
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 	
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld de,12 
 	ex de,hl
@@ -453,15 +480,15 @@ get.pattern.size:	equ 49
 	ld (hl),d
 	inc hl
 	
-	ld (hl),opcode_ld_a_c
+	ld (hl),opcode.ld_a_c
 	inc hl
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 	
-	ld (hl),opcode_ld_nn_hl
+	ld (hl),opcode.ld_nn_hl
 	inc hl
 	ld de,3
 	ex de,hl
@@ -472,22 +499,22 @@ get.pattern.size:	equ 49
 	ld (hl),d								;ld (call+1),hl
 	inc hl
 	
-	ld (hl),opcode_call_nn
+	ld (hl),opcode.call_nn
 	inc hl
 	inc hl									;call hl
 	inc hl
 	
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	; ld (hl),page.sequencer
 	inc hl
 	
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 	
-	ld (hl),opcode_ret
+	ld (hl),opcode.ret
 	inc hl
 
 far.call.size:	equ 19
@@ -500,37 +527,37 @@ far.call.size:	equ 19
 ; B  = source page
 ; HL = source address
 
-	ld (hl),opcode_in_a_n
+	ld (hl),opcode.in_a_n
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 	
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld (@ldir.from.far.page+1),hl
 	inc hl
 	inc hl
-	ld (hl),opcode_ld_a_b
+	ld (hl),opcode.ld_a_b
 	inc hl
 
 	ld a,(burstplayer.external.ram)
 	or a
 	jr z,@no.megabyte.2
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),external.memory.page.c
-	inc hl
-	
-	ld (hl),opcode_inc_a
+	ld (hl),port.xmpr.c
 	inc hl
 	
-	ld (hl),opcode_out_n_a
-	inc hl
-	ld (hl),external.memory.page.d
+	ld (hl),opcode.inc_a
 	inc hl
 	
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.out_n_a
+	inc hl
+	ld (hl),port.xmpr.d
+	inc hl
+	
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (hl),high.memory.external
 	inc hl
@@ -545,28 +572,28 @@ far.call.size:	equ 19
 	
 @continue.2: 
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 
-	ld (hl),opcode_ld_de_nn
+	ld (hl),opcode.ld_de_nn
 	inc hl
 	ld (hl),ldir.far.buffer \ 256
 	inc hl
 	ld (hl),ldir.far.buffer // 256
 	inc hl
 	
-	ld (hl),opcode_ld_b_n
+	ld (hl),opcode.ld_b_n
 	inc hl
 	inc hl
 	
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_ldir
+	ld (hl),opcode.ldir
 	inc hl
 	
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ex de,hl
 @ldir.from.far.page:
@@ -577,12 +604,12 @@ far.call.size:	equ 19
 	ex de,hl
 	inc hl
 	
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 	
-	ld (hl),opcode_ret
+	ld (hl),opcode.ret
 	
 	add hl,bc
 
@@ -595,65 +622,65 @@ ldir.from.far.size:	equ 27
 ; B  = target page, 
 ; DE = target address
 
-	ld (hl),opcode_in_a_n
+	ld (hl),opcode.in_a_n
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 	
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld (@ldir.to.far.page+1),hl
 	inc hl
 	inc hl
-	ld (hl),opcode_ld_a_b
+	ld (hl),opcode.ld_a_b
 	inc hl
 	
 	ld a,(burstplayer.external.ram)
 	or a
 	jr z,@no.megabyte.3
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),external.memory.page.c
-	inc hl
-	
-	ld (hl),opcode_inc_a
+	ld (hl),port.xmpr.c
 	inc hl
 	
-	ld (hl),opcode_out_n_a
-	inc hl
-	ld (hl),external.memory.page.d
+	ld (hl),opcode.inc_a
 	inc hl
 	
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.out_n_a
+	inc hl
+	ld (hl),port.xmpr.d
+	inc hl
+	
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (hl),high.memory.external
 	inc hl
 	
 @no.megabyte.3:
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 
-	ld (hl),opcode_ld_hl_nn
+	ld (hl),opcode.ld_hl_nn
 	inc hl
 	ld (hl),ldir.far.buffer \ 256
 	inc hl
 	ld (hl),ldir.far.buffer // 256
 	inc hl
 	
-	ld (hl),opcode_ld_b_n
+	ld (hl),opcode.ld_b_n
 	inc hl
 	inc hl
 	
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_ldir
+	ld (hl),opcode.ldir
 	inc hl
 	
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ex de,hl
 @ldir.to.far.page:
@@ -664,12 +691,12 @@ ldir.from.far.size:	equ 27
 	ex de,hl
 	inc hl
 	
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 	
-	ld (hl),opcode_ret
+	ld (hl),opcode.ret
 	inc hl
 	
 ldir.to.far.size:	equ 27
@@ -702,7 +729,7 @@ no.func.wait:
 ins.nf.nop:
 	cp 3
 	jr c,ins.nf.notjr
-	ld (hl),opcode_jr_n
+	ld (hl),opcode.jr_n
 	inc hl
 	; ld (hl),0		;jr $+2
 	inc hl
@@ -712,7 +739,7 @@ ins.nf.notjr:
 	or a
 	jr z,ins.nf.all
 ins.nf.lp:
-	; ld (hl),opcode_nop
+	; ld (hl),opcode.nop
 	inc hl
 	dec a
 	jr nz,ins.nf.lp
@@ -723,13 +750,13 @@ ins.nf.all:
     ; call nz,timeline
 
 	call insert.outs
-	ld (hl),opcode_exx
+	ld (hl),opcode.exx
 	inc hl
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
-	ld (hl),opcode_ei
+	ld (hl),opcode.ei
 	inc hl
-	ld (hl),opcode_ret
+	ld (hl),opcode.ret
 	inc hl
 
 no.function2:
@@ -754,7 +781,7 @@ no.func.wait2:
 ins.nf.nop2:
 	cp 3
 	jr c,ins.nf.notjr2
-	ld (hl),opcode_jr_n
+	ld (hl),opcode.jr_n
 	inc hl
 	; ld (hl),0		;jr $+2
 	inc hl
@@ -764,7 +791,7 @@ ins.nf.notjr2:
 	or a
 	jr z,ins.nf.all2
 ins.nf.lp2:
-	; ld (hl),opcode_nop
+	; ld (hl),opcode.nop
 	inc hl
 	dec a
 	jr nz,ins.nf.lp2
@@ -775,15 +802,15 @@ ins.nf.all2:
 	; call nz,timeline
 
 	call insert.outs
-	ld (hl),opcode_exx
+	ld (hl),opcode.exx
 	inc hl
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
-	ld (hl),opcode_ei
+	ld (hl),opcode.ei
 	inc hl
-	ld (hl),opcode_halt
+	ld (hl),opcode.halt
 	inc hl
-	ld (hl),opcode_ret
+	ld (hl),opcode.ret
 	inc hl
 
 
@@ -792,8 +819,12 @@ ins.nf.all2:
 border.play.1:
 
 mk.timing:
-	ld ix,0
-	ld a,(ix)
+	ld ix,0					; IX = timing.<device>
+	
+	ld a,opcode.nop
+	ld (insert.xout),a
+	
+	ld a,(ix)				; A = number of operations until sample out
 	inc ix
 
 	ex de,hl				; borderplay1:
@@ -804,14 +835,14 @@ mk.sto5:
 	ld (hl),d
 	ex de,hl
 	ld (mk.rec32+1),hl
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_ld_ix_nn
+	ld (hl),opcode.ld_ix_nn
 	inc hl
 	ld (mk.sto10+1),hl		; ld ix,bord.pl11
 	inc hl
 	inc hl
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 	ld (mk.sto24+1),hl
 	inc hl					; jp get.c1.data
@@ -840,7 +871,7 @@ mk.sto24:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (bp.c1.page),hl	;c1.page:
 	inc hl
@@ -849,7 +880,7 @@ mk.sto24:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_hl_nn
+	ld (hl),opcode.ld_hl_nn
 	inc hl
 	ld (bp.c1.offs),hl	;c1.off:
 	inc hl
@@ -861,16 +892,16 @@ mk.sto24:
 	call c,insert.xout
 	sub 4
 	
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl	
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl	
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_d_n			; d -> volume.table
+	ld (hl),opcode.ld_d_n			; d -> volume.table
 	inc hl
 	ld (bp.c1.vol),hl ;c1.tab:
 	inc hl
@@ -879,7 +910,7 @@ mk.sto24:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_c_n
+	ld (hl),opcode.ld_c_n
 	inc hl
 	ld (bp.c1.speedlo),hl
 	inc hl
@@ -888,7 +919,7 @@ mk.sto24:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_sp_nn
+	ld (hl),opcode.ld_sp_nn
 	inc hl
 	ld (bp.c1.speedhi),hl ;c1.speedhi:
 	inc hl
@@ -898,7 +929,7 @@ mk.sto24:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (bp.c1.sp.frct),hl ;c1.sp.frct:
 	inc hl
@@ -907,9 +938,9 @@ mk.sto24:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_jp_ix
+	ld (hl),opcode.jp_ix
 	inc hl
 
 ;=====----- end get channel 1 data
@@ -935,9 +966,9 @@ mk.sto10:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_ld_ix_nn
+	ld (hl),opcode.ld_ix_nn
 	inc hl
 	ld (mk.sto11+1),hl ;ld ix,bord.pl14
 	inc hl
@@ -947,7 +978,7 @@ mk.sto10:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 	ld (mk.sto25+1),hl
 	inc hl              ;jp get.c4.data
@@ -970,7 +1001,7 @@ mk.sto25:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (bp.c4.page),hl ;c4.pag:
 	inc hl
@@ -979,7 +1010,7 @@ mk.sto25:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_hl_nn
+	ld (hl),opcode.ld_hl_nn
 	inc hl
 	ld (bp.c4.offs),hl ;c4.off:
 	inc hl
@@ -991,16 +1022,16 @@ mk.sto25:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl	
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_d_n
+	ld (hl),opcode.ld_d_n
 	inc hl
 	ld (bp.c4.vol),hl ;c4.tab:
 	; ld (hl),32         ;ld d,32
@@ -1010,7 +1041,7 @@ mk.sto25:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_c_n
+	ld (hl),opcode.ld_c_n
 	inc hl
 	ld (bp.c4.speedlo),hl ;c4.speedlo:
 	inc hl
@@ -1019,7 +1050,7 @@ mk.sto25:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_sp_nn
+	ld (hl),opcode.ld_sp_nn
 	inc hl
 	ld (bp.c4.speedhi),hl ;c4.speedhi:
 	inc hl
@@ -1029,7 +1060,7 @@ mk.sto25:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (bp.c4.sp.frct),hl ;c4.sp.frct:
 	inc hl
@@ -1038,9 +1069,9 @@ mk.sto25:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_jp_ix
+	ld (hl),opcode.jp_ix
 	inc hl
 
 ;=====----- end get channel 4 data
@@ -1066,9 +1097,9 @@ mk.sto11:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_ld_ix_nn
+	ld (hl),opcode.ld_ix_nn
 	inc hl
 	ld (mk.sto12+1),hl ;ld ix,bordpl1f
 	inc hl
@@ -1078,7 +1109,7 @@ mk.sto11:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 	ld (mk.paltabsel+1),hl
 	inc hl              ;jp paltabselect
@@ -1101,7 +1132,7 @@ mk.paltabsel:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_hl_nn
+	ld (hl),opcode.ld_hl_nn
 	inc hl
 	ld (hl),( frame.palette + 15 ) \ 256
 	inc hl
@@ -1112,45 +1143,57 @@ mk.paltabsel:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_bc_nn
+	ld (hl),opcode.ld_bc_nn
 	inc hl
-	ld (hl),color.look.up.table
+	ld (hl),port.clut
 	inc hl
-	ld (hl),16					; ld bc,16*256+color.look.up.table
+	ld (hl),16					; ld bc,16*256+port.clut
 	inc hl
+
 	ld b,16
-mk.outd.1:
+
+	push af
+	ld a,(burstplayer.device)
+	cp device.clut
+	jr nz,@not.clut
+	dec b						; palette 0 = sample output, so do not set
+	 
+@not.clut:
+	pop af		
+		
+@mk.outd:
+
 	cp 6
 	call c,insert.xout
 	sub 6
 
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_outd			; outd (16*)
+	ld (hl),opcode.outd			; outd (16*)
 	inc hl
-	djnz mk.outd.1
+	djnz @mk.outd
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_in_a_n
+	ld (hl),opcode.in_a_n
 	inc hl
-	ld (hl),video.memory.page.register
+	ld (hl),port.vmpr
 	inc hl
 
 	cp 1
 	call c,insert.xout
 	sub 1
 
-	ld (hl),opcode_ld_e_a
+	ld (hl),opcode.ld_e_a
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_a_nn
+	ld (hl),opcode.ld_a_nn
 	inc hl
 	ld (hl),frame.screen \ 256
 	inc hl
@@ -1161,31 +1204,31 @@ mk.outd.1:
 	call c,insert.xout
 	sub 1+3
 
-	ld (hl),opcode_and_a
+	ld (hl),opcode.and_a
 	inc hl
-	ld (hl),opcode_jr_nz_n
+	ld (hl),opcode.jr_nz_n
 	inc hl
 	ld (hl),1				;jr nz,$+3
 	inc hl
-	ld (hl),opcode_ld_a_e
+	ld (hl),opcode.ld_a_e
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),video.memory.page.register
+	ld (hl),port.vmpr
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_jp_ix
+	ld (hl),opcode.jp_ix
 	inc hl
 
 ;=====----- end paltabselect
@@ -1209,9 +1252,9 @@ mk.sto12:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_ld_ix_nn
+	ld (hl),opcode.ld_ix_nn
 	inc hl
 	ld (mk.sto13+1),hl ;ld ix,bord.pl12
 	inc hl
@@ -1221,7 +1264,7 @@ mk.sto12:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 	ld (mk.sto26+1),hl
 	inc hl              ;jp get.c2.data
@@ -1244,7 +1287,7 @@ mk.sto26:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (bp.c2.page),hl ;c2.pag:
 	; ld (hl),4          ;ld a,4
@@ -1254,7 +1297,7 @@ mk.sto26:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_hl_nn
+	ld (hl),opcode.ld_hl_nn
 	inc hl
 	ld (bp.c2.offs),hl ;c2.off:
 	; ld (hl),0
@@ -1268,16 +1311,16 @@ mk.sto26:
 	call c,insert.xout
 	sub 4
 	
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl	
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_d_n
+	ld (hl),opcode.ld_d_n
 	inc hl
 	ld (bp.c2.vol),hl ;c2.tab:
 	; ld (hl),32         ;ld d,32
@@ -1287,7 +1330,7 @@ mk.sto26:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_c_n
+	ld (hl),opcode.ld_c_n
 	inc hl
 	ld (bp.c2.speedlo),hl ;c2.speedlo:
 	; ld (hl),128        ;ld c,128
@@ -1297,7 +1340,7 @@ mk.sto26:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_sp_nn
+	ld (hl),opcode.ld_sp_nn
 	inc hl
 	ld (bp.c2.speedhi),hl ;c2.speedhi:
 	; ld (hl),1
@@ -1309,7 +1352,7 @@ mk.sto26:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (bp.c2.sp.frct),hl ;c2.sp.frct:
 	; ld (hl),0          ;ld a,0
@@ -1319,9 +1362,9 @@ mk.sto26:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_jp_ix
+	ld (hl),opcode.jp_ix
 	inc hl
 
 ;=====----- end get channel 2 data
@@ -1347,9 +1390,9 @@ mk.sto13:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_ld_ix_nn
+	ld (hl),opcode.ld_ix_nn
 	inc hl
 	ld (mk.sto14+1),hl ;ld ix,bord.pl13
 	inc hl
@@ -1359,7 +1402,7 @@ mk.sto13:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 	ld (mk.sto27+1),hl
 	inc hl              ;jp get.c3.data
@@ -1382,7 +1425,7 @@ mk.sto27:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (bp.c3.page),hl ;c3.pag:
 	; ld (hl),4          ;ld a,4
@@ -1392,7 +1435,7 @@ mk.sto27:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_hl_nn
+	ld (hl),opcode.ld_hl_nn
 	inc hl
 	ld (bp.c3.offs),hl ;c3.off:
 	; ld (hl),0
@@ -1406,16 +1449,16 @@ mk.sto27:
 	call c,insert.xout
 	sub 4
 	
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl	
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_d_n
+	ld (hl),opcode.ld_d_n
 	inc hl
 	ld (bp.c3.vol),hl ;c3.tab:
 	; ld (hl),32         ;ld d,32
@@ -1425,7 +1468,7 @@ mk.sto27:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_c_n
+	ld (hl),opcode.ld_c_n
 	inc hl
 	ld (bp.c3.speedlo),hl ;c3.speedlo:
 	; ld (hl),128        ;ld c,128
@@ -1435,7 +1478,7 @@ mk.sto27:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_sp_nn
+	ld (hl),opcode.ld_sp_nn
 	inc hl
 	ld (bp.c3.speedhi),hl ;c3.speedhi:
 	; ld (hl),1
@@ -1447,7 +1490,7 @@ mk.sto27:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (bp.c3.sp.frct),hl ;c3.sp.frct:
 	; ld (hl),0          ;ld a,0
@@ -1457,9 +1500,9 @@ mk.sto27:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_jp_ix
+	ld (hl),opcode.jp_ix
 	inc hl
 
 ;=====----- end get channel 3 data
@@ -1485,7 +1528,7 @@ mk.sto14:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_hl_nn
+	ld (hl),opcode.ld_hl_nn
 	inc hl
 	ld (mk.sto15+1),hl ;ld hl,borderplay2
 	inc hl
@@ -1495,7 +1538,7 @@ mk.sto14:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_de_nn
+	ld (hl),opcode.ld_de_nn
 	inc hl
 qs.playtab2.1:
 	ld (hl),0
@@ -1508,7 +1551,7 @@ qs.playtab2.2:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 	ld (mk.sto16+1),hl ;jp player.rejoin
 	inc hl
@@ -1522,6 +1565,9 @@ border.play.2:
 	xor a
 	ld (@counter+1),a
 
+	ld a,opcode.nop
+	ld (insert.xout),a
+
 	ld ix,(mk.timing+2)
 	ld a,(ix)
 	inc ix
@@ -1533,14 +1579,14 @@ mk.sto15:
 	inc hl
 	ld (hl),d
 	ex de,hl
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_ld_ix_nn
+	ld (hl),opcode.ld_ix_nn
 	inc hl
 	ld (mk.sto17+1),hl ;ld ix,bord.pl21
 	inc hl
 	inc hl
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 mk.get.c1.data:
 	ld de,0
@@ -1570,9 +1616,9 @@ mk.a1:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_ld_ix_nn
+	ld (hl),opcode.ld_ix_nn
 	inc hl
 	ld (mk.sto18+1),hl ;ld ix,bord.pl24
 	inc hl
@@ -1582,7 +1628,7 @@ mk.a1:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 mk.getc4data:
 	ld de,0
@@ -1612,9 +1658,9 @@ mk.a4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_ld_ix_nn
+	ld (hl),opcode.ld_ix_nn
 	inc hl
 	ld (mk.sto19+1),hl ;ld ix,bordpl2f
 	inc hl
@@ -1624,7 +1670,7 @@ mk.a4:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 mk.paltabselr:
 	ld de,0
@@ -1654,9 +1700,9 @@ mk.sto19:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_ld_ix_nn
+	ld (hl),opcode.ld_ix_nn
 	inc hl
 	ld (mk.sto20+1),hl ;ld ix,bord.pl22
 	inc hl
@@ -1666,7 +1712,7 @@ mk.sto19:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 mk.getc2data:
 	ld de,0
@@ -1696,9 +1742,9 @@ mk.a2:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_ld_ix_nn
+	ld (hl),opcode.ld_ix_nn
 	inc hl
 	ld (mk.sto21+1),hl ;ld ix,bord.pl23
 	inc hl
@@ -1708,7 +1754,7 @@ mk.a2:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 mk.getc3data:
 	ld de,0
@@ -1738,7 +1784,7 @@ mk.a3:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_hl_nn
+	ld (hl),opcode.ld_hl_nn
 	inc hl
 mk.rec32:
 	ld de,0
@@ -1751,7 +1797,7 @@ mk.rec32:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_de_nn
+	ld (hl),opcode.ld_de_nn
 	inc hl
 	ld (hl),playtab1 \ 256
 	inc hl
@@ -1762,7 +1808,7 @@ mk.rec32:
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 	ld (mk.sto22+1),hl ;jp player.rejoin
 	inc hl
@@ -1788,7 +1834,7 @@ mk.sto22:
 	call c,insert.xout
 	sub 5
 
-	ld (hl),opcode_ld_nn_hl
+	ld (hl),opcode.ld_nn_hl
 	inc hl
 mk.rec2:
 	ld de,0
@@ -1802,9 +1848,9 @@ mk.rec2:
 	call c,insert.xout
 	sub 6
 
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_ld_nn_de
+	ld (hl),opcode.ld_nn_de
 	inc hl
 	ld (mk.sto23+1),hl ;ld (playtabselect+1),de
 	inc hl
@@ -1814,7 +1860,7 @@ mk.rec2:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (bp.pointer.page.sequencer),hl
 	; ld (hl),page.sequencer
@@ -1824,16 +1870,16 @@ mk.rec2:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 
 	cp 3
 	call c,insert.xout
 	sub 3
 
-	ld (hl),opcode_ld_sp_nn
+	ld (hl),opcode.ld_sp_nn
 	inc hl
 	ex de,hl
 mk.sto4:
@@ -1849,7 +1895,7 @@ mk.sto4:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 ras.start.1:
 	ld (hl),0          ;ld a,ras.start
@@ -1859,22 +1905,22 @@ ras.start.1:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),line.interrupt.register
+	ld (hl),port.line_interrupt
 	inc hl
 
 	call insert.xout
 	cp 255
 	call nz,insert.xout
 
-	ld (hl),opcode_exx
+	ld (hl),opcode.exx
 	inc hl
 
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
 
-	ld (hl),opcode_ld_hl_nn
+	ld (hl),opcode.ld_hl_nn
 	inc hl
 	ex de,hl
 mk.sto23:
@@ -1885,35 +1931,35 @@ mk.sto23:
 	ex de,hl           ;ld hl,00000
 	inc hl
 	inc hl
-	ld (hl),opcode_exx
+	ld (hl),opcode.exx
 	inc hl
 
-	ld (hl),opcode_ei
+	ld (hl),opcode.ei
 	inc hl
-	ld (hl),opcode_call_nn
+	ld (hl),opcode.call_nn
 	inc hl
 	ld (bp.pointer.addr.sequencer),hl
 	; ld (hl),0
 	inc hl
     ; ld (hl),0          ;call sequencer
 	inc hl
-	ld (hl),opcode_xor_a
+	ld (hl),opcode.xor_a
 	inc hl
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),color.look.up.table
+	ld (hl),port.clut
 	inc hl
-	ld (hl),opcode_ix
+	ld (hl),opcode.ix
 	inc hl
-	ld (hl),opcode_pop_ix
+	ld (hl),opcode.pop_ix
 	inc hl
-	ld (hl),opcode_pop_hl
+	ld (hl),opcode.pop_hl
 	inc hl
-	ld (hl),opcode_pop_de
+	ld (hl),opcode.pop_de
 	inc hl
-	ld (hl),opcode_pop_bc
+	ld (hl),opcode.pop_bc
 	inc hl
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ex de,hl
 mk.sto3:
@@ -1923,13 +1969,13 @@ mk.sto3:
 	ld (hl),d
 	ex de,hl           ;ld a,0
 	inc hl
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
-	ld (hl),opcode_pop_af
+	ld (hl),opcode.pop_af
 	inc hl
-	ld (hl),opcode_ret
+	ld (hl),opcode.ret
 	inc hl
 
 ;---------------------------------------------------------------
@@ -1937,38 +1983,38 @@ mk.sto3:
 enable:
 	ld (bp.pointer.addr.enable),hl		;enableplayer:
 
-	ld (hl),opcode_in_a_n
+	ld (hl),opcode.in_a_n
 	inc hl
-	ld (hl),status.register
+	ld (hl),port.status
 	inc hl
-	ld (hl),opcode_and_n
+	ld (hl),opcode.and_n
 	inc hl
 	ld (hl),frame.interrupt
 	inc hl
-	ld (hl),opcode_jr_nz_n
+	ld (hl),opcode.jr_nz_n
 	inc hl
 	ld (hl),-6         ;jr nz,$-4
 	inc hl
-	ld (hl),opcode_in_a_n
+	ld (hl),opcode.in_a_n
 	inc hl
-	ld (hl),status.register
+	ld (hl),port.status
 	inc hl
-	ld (hl),opcode_and_n
+	ld (hl),opcode.and_n
 	inc hl
 	ld (hl),frame.interrupt
 	inc hl
-	ld (hl),opcode_jr_z_n
+	ld (hl),opcode.jr_z_n
 	inc hl
 	ld (hl),-6         ;jr z,$-4
 	inc hl
-	ld (hl),opcode_ld_hl_nn
+	ld (hl),opcode.ld_hl_nn
 	inc hl
 	ld de,(mk.rec32+1)
 	ld (hl),e
 	inc hl
 	ld (hl),d          ;ld hl,borderplay1
 	inc hl
-	ld (hl),opcode_ld_nn_hl
+	ld (hl),opcode.ld_nn_hl
 	inc hl
 	ld de,(mk.rec2+1)
 	inc de
@@ -1976,11 +2022,11 @@ enable:
 	inc hl
 	ld (hl),d          ;ld (playerselect+1),hl
 	inc hl
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
-	ld (hl),opcode_exx
+	ld (hl),opcode.exx
 	inc hl
-	ld (hl),opcode_ld_bc_nn
+	ld (hl),opcode.ld_bc_nn
 	inc hl
 sample.port:
 	ld de,232			; unnecessary default?
@@ -1988,13 +2034,13 @@ sample.port:
 	inc hl
 	ld (hl),d          ;ld bc,sample.port
 	inc hl
-	ld (hl),opcode_ld_hl_nn
+	ld (hl),opcode.ld_hl_nn
 	inc hl
 	ld (hl),playtab1 \ 256
 	inc hl
 	ld (hl),playtab1 // 256 ;ld hl,playtab1
 	inc hl
-	ld (hl),opcode_ld_de_nn
+	ld (hl),opcode.ld_de_nn
 	inc hl
 sample.ctrl:
 	ld de,1
@@ -2002,41 +2048,41 @@ sample.ctrl:
 	inc hl
 	ld (hl),d          ;ld de,sample.ctrl
 	inc hl
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 ras.start.2:
 	ld (hl),0			; ld a,ras.start
 	inc hl
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),line.interrupt.register
+	ld (hl),port.line_interrupt
 	inc hl
-	ld (hl),opcode_exx
+	ld (hl),opcode.exx
 	inc hl
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
-	ld (hl),opcode_ei
+	ld (hl),opcode.ei
 	inc hl
-	ld (hl),opcode_ret
+	ld (hl),opcode.ret
 	inc hl
 
 ;---------------------------------------------------------------
 set.silence:
 
 	ld (mk.rec37+1),hl		; set.silence
-	ld (hl),opcode_ld_hl_nn
+	ld (hl),opcode.ld_hl_nn
 	inc hl
 	ld (hl),playtab1 \ 256
 	inc hl
 	ld (hl),playtab1 // 256	; ld hl,playtab1
 	inc hl
-	ld (hl),opcode_ld_d_h
+	ld (hl),opcode.ld_d_h
 	inc hl
-	ld (hl),opcode_ld_e_l
+	ld (hl),opcode.ld_e_l
 	inc hl
-	ld (hl),opcode_inc_de
+	ld (hl),opcode.inc_de
 	inc hl
-	ld (hl),opcode_ld_hl_n
+	ld (hl),opcode.ld_hl_n
 	inc hl
 	ld a,(burstplayer.device)
 	cp device.saa
@@ -2046,7 +2092,7 @@ set.silence:
 @is.saa:
 	ld (hl),a
 	inc hl
-	ld (hl),opcode_ld_bc_nn
+	ld (hl),opcode.ld_bc_nn
 	inc hl
 	ld de,8 * 208 - 1
 	ld a,(burstplayer.device)
@@ -2057,24 +2103,30 @@ set.silence:
 	inc hl
 	ld (hl),d         ;ld bc,4*208-1 (8* = QSS)
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_ldir
+	ld (hl),opcode.ldir
 	inc hl
-	ld (hl),opcode_ret
+	ld (hl),opcode.ret
 	inc hl
 
 ;---------------------------------------------------------------
 ;test
+;
+;	call sound.driver.reset
+;	call set.silence
+;	ld a,page.sequencer
+;	out (port.hmpr),a
+;	jp addr.demo
 
 	ld (run.program+1),hl
-	ld (hl),opcode_call_nn
+	ld (hl),opcode.call_nn
 	inc hl
 	ld (hl),sound.driver.reset \ 256
 	inc hl
 	ld (hl),sound.driver.reset // 256  ;call reset sound dev
 	inc hl
-	ld (hl),opcode_call_nn
+	ld (hl),opcode.call_nn
 	inc hl
 mk.rec37:
 	ld de,0
@@ -2083,16 +2135,16 @@ mk.rec37:
 	ld (hl),d				;call set.silence
 	inc hl
 
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (bp.pointer.page.demo),hl
 	; ld (hl),page.sequencer
 	inc hl
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
-	ld (hl),opcode_jp_nn
+	ld (hl),opcode.jp_nn
 	inc hl
 	ld (bp.pointer.addr.demo),hl
 	; ld (hl),0
@@ -2133,36 +2185,36 @@ select.page:
 	
 	pop af	
 
-;	cp 4
-;	call c,insert.xout
-;	sub 4
+	cp 4
+	call c,insert.xout
+	sub 4
 	
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl	
-	ld (hl),external.memory.page.c
+	ld (hl),port.xmpr.c
 	inc hl
 	
-;	cp 1
-;	call c,insert.xout
-;	sub 1
+	cp 1
+	call c,insert.xout
+	sub 1
 	
-	ld (hl),opcode_inc_a
+	ld (hl),opcode.inc_a
 	inc hl
 
-;	cp 4
-;	call c,insert.xout
-;	sub 4	
+	cp 4
+	call c,insert.xout
+	sub 4	
 
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),external.memory.page.d
+	ld (hl),port.xmpr.d
 	inc hl
 
-;	cp 2
-;	call c,insert.xout
-;	sub 2	
+	cp 2
+	call c,insert.xout
+	sub 2	
 	
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (hl),high.memory.external
 	inc hl
@@ -2278,9 +2330,11 @@ insert.xout:
 
 ; insert output commands for sound device, but with timing padding and exx 
 
+	ret
+
 	cp 3
 	jr c,ins.notjr
-	ld (hl),opcode_jr_n		;a = 3 or 4 or 5
+	ld (hl),opcode.jr_n		;a = 3 or 4 or 5
 	inc hl
 	ld (hl),0				;jr $+2
 	inc hl
@@ -2290,7 +2344,7 @@ ins.notjr:
 	or a
 	jr z,ins.allnop
 ins.noplp:
-	ld (hl),opcode_nop
+	ld (hl),opcode.nop
 	inc hl
 	dec a
 	jr nz,ins.noplp
@@ -2299,12 +2353,12 @@ ins.allnop:
 	and 1
 	call nz,time
 
-	ld (hl),opcode_exx
+	ld (hl),opcode.exx
 	inc hl
 	
 	call insert.outs
 	
-	ld (hl),opcode_exx
+	ld (hl),opcode.exx
 	inc hl
 
 	ld a,(maker+1)
@@ -2312,9 +2366,29 @@ ins.allnop:
 	call z,time
 
 	ld a,(ix)
+	or a
+	jr nz,@nz
+	
+	push af
+	ld a,opcode.ret
+	ld (insert.xout),a	; stop output when 0 encountered
+	pop af
+	
+@nz:		
+	inc a
+;	jr z,@bad.timing
+	dec a
+	
 	inc ix
 	scf
 	ret
+
+@bad.timing:
+
+	ld a,r
+	out (254),a
+	jr @bad.timing
+
 
 time:
 	push af
@@ -2325,18 +2399,18 @@ poke.count:
 	cp 0
 	jr nz,notborder
 
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 border.col:
 	ld (hl),&70       ;ld a,3
 	inc hl
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),color.look.up.table
+	ld (hl),port.clut
 	inc hl
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
 
 notborder:
@@ -2539,6 +2613,12 @@ mk.bp23:
 
 ;	d = volume.table
 
+;	hl = sample pointer
+;	a  = sample pointer fraction
+
+;	sp = pitch
+;	c  = pitch fraction
+
 ;	ld e,(hl)
 ;	add a,c
 ;	adc hl,sp
@@ -2584,57 +2664,57 @@ mk.bp.get1st:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_e_hl
+	ld (hl),opcode.ld_e_hl
 	inc hl
 
 	cp 1+4
 	call c,insert.xout
 	sub 1+4
 
-	ld (hl),opcode_add_a_c
+	ld (hl),opcode.add_a_c
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_adc_hl_sp
+	ld (hl),opcode.adc_hl_sp
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_b_hl
+	ld (hl),opcode.ld_b_hl
 	inc hl
 
 	cp 1+4
 	call c,insert.xout
 	sub 1+4
 
-	ld (hl),opcode_add_a_c
+	ld (hl),opcode.add_a_c
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_adc_hl_sp
+	ld (hl),opcode.adc_hl_sp
 	inc hl
 
 	cp 1
 	call c,insert.xout
 	sub 1
 
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_de
+	ld (hl),opcode.ld_a_de
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld (iy+0),l
 	ld (iy+1),h
@@ -2647,21 +2727,21 @@ mk.bp.get1st:
 	call c,insert.xout
 	sub 1
 
-	ld (hl),opcode_ld_e_b
+	ld (hl),opcode.ld_e_b
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_de
+	ld (hl),opcode.ld_a_de
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld (iy+0),l
 	ld (iy+1),h
@@ -2674,21 +2754,21 @@ mk.bp.get1st:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_e_hl
+	ld (hl),opcode.ld_e_hl
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_de
+	ld (hl),opcode.ld_a_de
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld (iy+0),l
 	ld (iy+1),h
@@ -2701,18 +2781,18 @@ mk.bp.get1st:
 	call c,insert.xout
 	sub 1
 
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
 
 	cp 1+4
 	call c,insert.xout
 	sub 1+4
 
-	ld (hl),opcode_add_a_c
+	ld (hl),opcode.add_a_c
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_adc_hl_sp
+	ld (hl),opcode.adc_hl_sp
 	inc hl
 
 	dec b
@@ -2724,25 +2804,25 @@ mk.bp.get1st:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_e_hl
+	ld (hl),opcode.ld_e_hl
 	inc hl
 
 	cp 1+4
 	call c,insert.xout
 	sub 1+4
 
-	ld (hl),opcode_add_a_c
+	ld (hl),opcode.add_a_c
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_adc_hl_sp
+	ld (hl),opcode.adc_hl_sp
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld bc,(mk.gd.spfr)
 	ld (hl),c
@@ -2754,14 +2834,14 @@ mk.bp.get1st:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_de
+	ld (hl),opcode.ld_a_de
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld (iy+0),l
 	ld (iy+1),h
@@ -2781,7 +2861,7 @@ mk.bp.get1st:
 	
 	pop af
 
-	ld (hl),opcode_ld_a_nn
+	ld (hl),opcode.ld_a_nn
 	inc hl
 	ld bc,(mk.gd.page)
 	ld (hl),c
@@ -2795,9 +2875,9 @@ mk.bp.get1st:
 
 	pop af
 
-	ld (hl),opcode_in_a_n
+	ld (hl),opcode.in_a_n
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 
 @continue.5:
@@ -2806,22 +2886,22 @@ mk.bp.get1st:
 	call c,insert.xout
 	sub 2+3
 
-	ld (hl),opcode_cb
+	ld (hl),opcode.cb
 	inc hl
-	ld (hl),opcode_bit_6_h
+	ld (hl),opcode.bit_6_h
 	inc hl
-	ld (hl),opcode_jr_z_n
+	ld (hl),opcode.jr_z_n
 	inc hl
 	ld (hl),1				; jr z,$+3
 	inc hl
-	ld (hl),opcode_inc_a
+	ld (hl),opcode.inc_a
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld bc,(mk.gd.page)
 	ld (hl),c
@@ -2833,16 +2913,16 @@ mk.bp.get1st:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_cb
+	ld (hl),opcode.cb
 	inc hl
-	ld (hl),opcode_res_6_h
+	ld (hl),opcode.res_6_h
 	inc hl
 
 	cp 5
 	call c,insert.xout
 	sub 5
 
-	ld (hl),opcode_ld_nn_hl
+	ld (hl),opcode.ld_nn_hl
 	inc hl
 	ld bc,(mk.gd.offs)
 	ld (hl),c
@@ -2905,57 +2985,57 @@ blp1.4:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_e_hl
+	ld (hl),opcode.ld_e_hl
 	inc hl
 
 	cp 1+4
 	call c,insert.xout
 	sub 1+4
 
-	ld (hl),opcode_add_a_c
+	ld (hl),opcode.add_a_c
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_adc_hl_sp
+	ld (hl),opcode.adc_hl_sp
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_b_hl
+	ld (hl),opcode.ld_b_hl
 	inc hl
 
 	cp 1+4
 	call c,insert.xout
 	sub 1+4
 
-	ld (hl),opcode_add_a_c
+	ld (hl),opcode.add_a_c
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_adc_hl_sp
+	ld (hl),opcode.adc_hl_sp
 	inc hl
 
 	cp 1
 	call c,insert.xout
 	sub 1
 
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_de
+	ld (hl),opcode.ld_a_de
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_add_a_n
+	ld (hl),opcode.add_a_n
 	inc hl
 	ex de,hl
 	ld l,(iy+0)
@@ -2972,7 +3052,7 @@ blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -2987,21 +3067,21 @@ blp1.4:
 	call c,insert.xout
 	sub 1
 
-	ld (hl),opcode_ld_e_b
+	ld (hl),opcode.ld_e_b
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_de
+	ld (hl),opcode.ld_a_de
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_add_a_n
+	ld (hl),opcode.add_a_n
 	inc hl
 	ex de,hl
 	ld l,(iy+0)
@@ -3018,7 +3098,7 @@ blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -3033,21 +3113,21 @@ blp1.4:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_e_hl
+	ld (hl),opcode.ld_e_hl
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_de
+	ld (hl),opcode.ld_a_de
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_add_a_n
+	ld (hl),opcode.add_a_n
 	inc hl
 	ex de,hl
 	ld l,(iy+0)
@@ -3064,7 +3144,7 @@ blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -3079,18 +3159,18 @@ blp1.4:
 	call c,insert.xout
 	sub 1
 
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
 
 	cp 1+4
 	call c,insert.xout
 	sub 1+4
 
-	ld (hl),opcode_add_a_c
+	ld (hl),opcode.add_a_c
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_adc_hl_sp
+	ld (hl),opcode.adc_hl_sp
 	inc hl
 
 	dec b
@@ -3102,25 +3182,25 @@ blp1.4:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_e_hl
+	ld (hl),opcode.ld_e_hl
 	inc hl
 
 	cp 1+4
 	call c,insert.xout
 	sub 1+4
 
-	ld (hl),opcode_add_a_c
+	ld (hl),opcode.add_a_c
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_adc_hl_sp
+	ld (hl),opcode.adc_hl_sp
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld bc,(mk.gd.spfr)
 	ld (hl),c
@@ -3132,14 +3212,14 @@ blp1.4:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_de
+	ld (hl),opcode.ld_a_de
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_add_a_n
+	ld (hl),opcode.add_a_n
 	inc hl
 	ex de,hl
 	ld l,(iy+0)
@@ -3156,7 +3236,7 @@ blp1.4:
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -3178,7 +3258,7 @@ blp1.4:
 	
 	pop af 
 
-	ld (hl),opcode_ld_a_nn
+	ld (hl),opcode.ld_a_nn
 	inc hl
 	ld bc,(mk.gd.page)
 	ld (hl),c
@@ -3192,9 +3272,9 @@ blp1.4:
 
 	pop af
 
-	ld (hl),opcode_in_a_n
+	ld (hl),opcode.in_a_n
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 
 @continue.6: 
@@ -3203,22 +3283,22 @@ blp1.4:
 	call c,insert.xout
 	sub 2+3
 
-	ld (hl),opcode_cb
+	ld (hl),opcode.cb
 	inc hl
-	ld (hl),opcode_bit_6_h
+	ld (hl),opcode.bit_6_h
 	inc hl
-	ld (hl),opcode_jr_z_n
+	ld (hl),opcode.jr_z_n
 	inc hl
 	ld (hl),1
 	inc hl
-	ld (hl),opcode_inc_a
+	ld (hl),opcode.inc_a
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld bc,(mk.gd.page)
 	ld (hl),c
@@ -3230,16 +3310,16 @@ blp1.4:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_cb
+	ld (hl),opcode.cb
 	inc hl
-	ld (hl),opcode_res_6_h
+	ld (hl),opcode.res_6_h
 	inc hl
 
 	cp 5
 	call c,insert.xout
 	sub 5
 
-	ld (hl),opcode_ld_nn_hl
+	ld (hl),opcode.ld_nn_hl
 	inc hl
 	ld bc,(mk.gd.offs)
 	ld (hl),c
@@ -3261,57 +3341,57 @@ q.blp1.4:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_e_hl
+	ld (hl),opcode.ld_e_hl
 	inc hl
 
 	cp 1+4
 	call c,insert.xout
 	sub 1+4
 
-	ld (hl),opcode_add_a_c
+	ld (hl),opcode.add_a_c
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_adc_hl_sp
+	ld (hl),opcode.adc_hl_sp
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_b_hl
+	ld (hl),opcode.ld_b_hl
 	inc hl
 
 	cp 1+4
 	call c,insert.xout
 	sub 1+4
 
-	ld (hl),opcode_add_a_c
+	ld (hl),opcode.add_a_c
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_adc_hl_sp
+	ld (hl),opcode.adc_hl_sp
 	inc hl
 
 	cp 1
 	call c,insert.xout
 	sub 1
 
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_de
+	ld (hl),opcode.ld_a_de
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -3328,21 +3408,21 @@ q.blp1.4:
 	call c,insert.xout
 	sub 1
 
-	ld (hl),opcode_ld_e_b
+	ld (hl),opcode.ld_e_b
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_de
+	ld (hl),opcode.ld_a_de
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -3359,21 +3439,21 @@ q.blp1.4:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_e_hl
+	ld (hl),opcode.ld_e_hl
 	inc hl
 
 	cp 2
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_de
+	ld (hl),opcode.ld_a_de
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -3390,18 +3470,18 @@ q.blp1.4:
 	call c,insert.xout
 	sub 1
 
-	ld (hl),opcode_ex_af_af
+	ld (hl),opcode.ex_af_af
 	inc hl
 
 	cp 1+4
 	call c,insert.xout
 	sub 1+4
 
-	ld (hl),opcode_add_a_c
+	ld (hl),opcode.add_a_c
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_adc_hl_sp
+	ld (hl),opcode.adc_hl_sp
 	inc hl
 
 	dec b
@@ -3413,25 +3493,25 @@ q.blp1.4:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_e_hl
+	ld (hl),opcode.ld_e_hl
 	inc hl
 
 	cp 1+4
 	call c,insert.xout
 	sub 1+4
 
-	ld (hl),opcode_add_a_c
+	ld (hl),opcode.add_a_c
 	inc hl
-	ld (hl),opcode_ed
+	ld (hl),opcode.ed
 	inc hl
-	ld (hl),opcode_adc_hl_sp
+	ld (hl),opcode.adc_hl_sp
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld bc,(mk.gd.spfr)
 	ld (hl),c
@@ -3443,14 +3523,14 @@ q.blp1.4:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_ld_a_de
+	ld (hl),opcode.ld_a_de
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld de,(mk.playtab)
 	ld (hl),e
@@ -3469,7 +3549,7 @@ q.blp1.4:
 	
 	pop af
 
-	ld (hl),opcode_ld_a_nn
+	ld (hl),opcode.ld_a_nn
 	inc hl
 	ld bc,(mk.gd.page)
 	ld (hl),c
@@ -3483,9 +3563,9 @@ q.blp1.4:
 
 	pop af
 
-	ld (hl),opcode_in_a_n
+	ld (hl),opcode.in_a_n
 	inc hl
-	ld (hl),high.memory.page.register
+	ld (hl),port.hmpr
 	inc hl
 
 @continue.7:
@@ -3494,22 +3574,22 @@ q.blp1.4:
 	call c,insert.xout
 	sub 2+3
 
-	ld (hl),opcode_cb
+	ld (hl),opcode.cb
 	inc hl
-	ld (hl),opcode_bit_6_h
+	ld (hl),opcode.bit_6_h
 	inc hl
-	ld (hl),opcode_jr_z_n
+	ld (hl),opcode.jr_z_n
 	inc hl
 	ld (hl),1			; jr z,$+3
 	inc hl
-	ld (hl),opcode_inc_a
+	ld (hl),opcode.inc_a
 	inc hl
 
 	cp 4
 	call c,insert.xout
 	sub 4
 
-	ld (hl),opcode_ld_nn_a
+	ld (hl),opcode.ld_nn_a
 	inc hl
 	ld bc,(mk.gd.page)
 	ld (hl),c
@@ -3521,16 +3601,16 @@ q.blp1.4:
 	call c,insert.xout
 	sub 2
 
-	ld (hl),opcode_cb
+	ld (hl),opcode.cb
 	inc hl
-	ld (hl),opcode_res_6_h
+	ld (hl),opcode.res_6_h
 	inc hl
 
 	cp 5
 	call c,insert.xout
 	sub 5
 
-	ld (hl),opcode_ld_nn_hl
+	ld (hl),opcode.ld_nn_hl
 	inc hl
 	ld bc,(mk.gd.offs)
 	ld (hl),c
@@ -3545,17 +3625,17 @@ q.blp1.4:
 if defined(testing)
 
 timeline:
-	ld (hl),opcode_ld_e_a
+	ld (hl),opcode.ld_e_a
 	inc hl
-	ld (hl),opcode_ld_a_n
+	ld (hl),opcode.ld_a_n
 	inc hl
 	ld (hl),&70
 	inc hl
-	ld (hl),opcode_out_n_a
+	ld (hl),opcode.out_n_a
 	inc hl
-	ld (hl),color.look.up.table
+	ld (hl),port.clut
 	inc hl
-	ld (hl),opcode_ld_a_e
+	ld (hl),opcode.ld_a_e
 	inc hl
 	ret
 	
@@ -3570,92 +3650,17 @@ mk.gd.offs:	defw 0
 
 mk.store:	defs 208 * 2	; stores adresses
 
-;---------------------------------------------------------------
-; timing tables for sound devices
-; last byte in table is delay during line interrupt
-
-
-timing.clut:
-	defb 033,121,121,121,121,121,121,121,121,121  ; 1
-	defb 121,121,121,121,121,121,121,121,121,121  ; 2
-	defb 121,121,121,121,121,122,121,121,121,121  ; 3
-	defb 121,121,121,121,121,121,121,121,121,121  ; 4
-	defb 121,121,121,121,121,121,121,121,121,121  ; 5
-	defb 121,121,121,122,123,121,121,121,121,121  ; 6
-	defb 121,121,121,121,121,121,121,121,121,121  ; 7
-	defb 121,121,121,121,121,121,121,121,121,122  ; 8
-	defb 110,076,079,076,078,076,079,077,082,077  ; 9
-	defb 080,075,079,076,078,076,079,077,082,077  ;10
-	defb 080,075,079,076,078,076,079,077,082,077  ;11
-	defb 080,075,079,076,078,076,079,077,082,077  ;12
-	defb 080,075,080,090,097,255,255,255,255,083  ;13
-timing.saa:
-	defb 028,119,119,119,119,119,119,119,119,119  ; 1
-	defb 119,119,119,119,119,119,119,119,119,119  ; 2
-	defb 119,119,119,119,119,119,119,119,119,119  ; 3
-	defb 119,119,119,119,119,119,119,119,119,119  ; 4
-	defb 119,119,119,119,119,119,119,119,119,119  ; 5
-	defb 119,119,119,119,121,119,119,119,119,119  ; 6
-	defb 119,119,119,119,119,119,119,119,119,119  ; 7
-	defb 119,119,119,119,119,119,119,119,119,119  ; 8
-	defb 107,076,081,075,080,074,079,073,078,075  ; 9
-	defb 077,075,079,076,081,075,080,074,079,073  ;10
-	defb 078,075,077,075,079,076,081,075,080,074  ;11
-	defb 079,073,078,075,077,075,079,076,081,075  ;12
-	defb 080,074,079,073,080,089,095,255,255,078  ;13
-timing.samdac:
-	defb 032,122,122,122,122,122,122,122,122,122  ; 1
-	defb 122,122,122,122,122,122,122,122,122,122  ; 2
-	defb 122,122,122,122,122,122,122,122,122,122  ; 3
-	defb 122,122,122,122,122,122,122,122,122,122  ; 4
-	defb 122,122,122,122,122,122,122,122,122,122  ; 5
-	defb 122,122,122,123,124,122,122,122,122,122  ; 6
-	defb 122,122,122,122,122,122,122,122,122,122  ; 7
-	defb 122,122,122,122,122,122,122,122,122,123  ; 8
-	defb 109,080,080,081,081,078,080,078,078,081  ; 9
-	defb 082,079,079,078,078,080,080,081,081,078  ;10
-	defb 080,078,078,081,082,079,079,078,078,080  ;11
-	defb 080,081,081,078,080,078,078,081,082,079  ;12
-	defb 081,092,097,255,255,255,255,255,255,083  ;13
-timing.dac:
-	defb 040,129,129,129,129,129,129,129,129,129  ; 1
-	defb 129,129,129,129,129,129,129,129,129,129  ; 2
-	defb 129,129,129,129,129,129,129,129,129,129  ; 3
-	defb 129,129,129,129,129,129,129,129,129,129  ; 4
-	defb 129,129,129,129,129,129,129,129,129,129  ; 5
-	defb 130,129,130,129,129,129,129,129,129,129  ; 6
-	defb 129,129,129,129,129,129,129,129,129,129  ; 7
-	defb 129,129,129,129,129,129,129,129,129,129  ; 8
-	defb 118,084,085,084,088,084,085,084,088,084  ; 9
-	defb 085,084,088,084,085,084,088,084,085,084  ;10
-	defb 088,084,085,084,088,084,085,084,088,084  ;11
-	defb 085,083,089,255,255,255,255,255,255,255  ;12
-	defb 255,255,255,255,255,255,255,255,255,093  ;13
-timing.qss:
-	defb 032,121,121,121,121,121,121,121,121,121  ; 1
-	defb 121,121,121,121,121,121,121,121,121,121  ; 2
-	defb 121,121,121,121,121,121,121,121,121,121  ; 3
-	defb 121,121,121,121,121,121,121,121,121,121  ; 4
-	defb 121,121,121,121,121,121,121,121,121,121  ; 5
-	defb 121,123,122,121,121,121,121,121,121,121  ; 6
-	defb 121,121,121,121,121,121,121,121,121,121  ; 7
-	defb 121,121,121,121,121,121,122,121,121,121  ; 8
-	defb 109,081,078,081,080,080,081,079,080,080  ; 9
-	defb 078,081,080,080,081,079,080,080,078,081  ;10
-	defb 080,080,081,079,080,080,078,081,080,080  ;11
-	defb 081,079,093,255,255,255,255,255,255,255  ;12
-	defb 255,255,255,255,255,255,255,255,255,083  ;13
-
 ;===============================================================
 device.list:
 
 	;clut
 	defw 0,0					; init, length             	     
 	defw sd.clut,10				; sound driver, length
-	defw color.look.up.table	; output port
+	defw port.clut	; output port
 	defw &1734                	; control
 	defw timing.clut          	; timing table
-	defb 22 * 3 + 2           	; rasi
+	defw timing.clut.megabyte	; timing table
+	defb 22 * 3 + 2           	; raster interrupts - related to count to 0 in timing.<device>
 	defb 6                    	; number of bits
 	
 	;saa
@@ -3664,43 +3669,48 @@ device.list:
 	defw 511
 	defw &0205
 	defw timing.saa
+	defw timing.saa.megabyte
 	defb 23 * 3 + 2
 	defb 3
 	
 	;samdac
 	defw 0,0
 	defw sd.samdac,12
-	defw printer.port.1
+	defw port.printer_1
 	defw &0001
 	defw timing.samdac
+	defw timing.samdac.megabyte
 	defb 21 * 3 + 2
 	defb 7
 
 	;samdac 2
 	defw 0,0
 	defw sd.samdac,12
-	defw printer.port.2
+	defw port.printer_2
 	defw &0001
 	defw timing.samdac
+	defw timing.samdac.megabyte
 	defb 21 * 3 + 2
 	defb 7
 
 	;dac
 	defw 0,0
 	defw sd.dac,8
-	defw printer.port.1
+	defw port.printer_1
 	defw 0
 	defw timing.dac
-	defb 16 * 3 + 2
+	defw timing.dac.megabyte
+	defb 17 * 3 + 2
 	defb 6
 
 	;dac 2
 	defw 0,0
 	defw sd.dac,8
-	defw printer.port.2
+	defw port.printer_2
 	defw 0
 	defw timing.dac
-	defb 16 * 3 + 2
+	defw timing.dac.megabyte
+	defb 17 * 3 + 2
 	defb 6
 
 	;blue alpha
@@ -3709,7 +3719,8 @@ device.list:
 	defw 124 * 256 + 127
 	defw 0
 	defw timing.dac
-	defb 16 * 3 + 2
+	defw timing.dac.megabyte
+	defb 17 * 3 + 2
 	defb 6
 
 	;quazar surround soundcard
@@ -3718,6 +3729,7 @@ device.list:
 	defw &06D0
 	defw &0006					; +1 for OUTI
 	defw timing.qss
+	defw timing.qss.megabyte
 	defb 16 * 3 + 2
 	defb 8
 	
@@ -3808,21 +3820,185 @@ sd.qss:
 	outi			; 20   2
 	outi			; 20   2  = 21
 
+;---------------------------------------------------------------
+; timing tables for sound devices
+; last byte in table is delay during line interrupt to get to 1.5
+;
+; 208 bytes per frame, one byte per 1.5 line -> 312 lines of which 192 screen
+; and 120 in border area -> 80 bytes in border area
+;
+; border area is uncontend, so more instructions can be executed than during 
+; screen area:
+
+; if -1 reached -> error, double 0 indicates something went wrong in timing 
+
+
+timing.clut:
+	defb  33,121,121,121,121,121,121,121,121,121  ; 1
+	defb 121,121,121,121,121,121,121,121,121,121  ; 2
+	defb 121,121,121,121,121,122,121,121,121,121  ; 3
+	defb 121,121,121,121,121,121,121,121,121,121  ; 4
+	defb 121,121,121,121,121,121,121,121,121,121  ; 5
+	defb 121,121,121,122,123,121,121,121,121,121  ; 6
+	defb 121,121,121,121,121,121,121,121,121,121  ; 7
+	defb 121,121,121,121,121,121,121,121,121,122  ; 8
+	defb 110, 76, 79, 76, 78, 76, 79, 77, 82, 77  ; 9
+	defb  80, 75, 79, 76, 78, 76, 79, 77, 82, 77  ;10
+	defb  80, 75, 79, 76, 78, 76, 79, 77, 82, 77  ;11
+	defb  80, 75, 79, 76, 78, 76, 79, 77, 82, 77  ;12
+	defb  80, 75, 80, 90, 97,  0, -1, -1, -1, 83  ;13
+
+timing.clut.megabyte:
+	defb  34,121,121,121,121,121,121,121,121,121  ; 1
+	defb 121,121,121,121,121,121,121,121,121,121  ; 2
+	defb 121,121,121,121,121,124,121,121,121,121  ; 3
+	defb 121,121,121,121,121,121,121,121,121,121  ; 4
+	defb 121,121,121,121,121,121,121,121,121,121  ; 5
+	defb 121,121,121,123,123,123,121,121,121,121  ; 6
+	defb 121,121,121,121,121,121,121,121,121,121  ; 7
+	defb 121,121,121,121,121,121,121,121,121,122  ; 8
+	defb 111, 80, 83, 83, 83, 78, 80, 81, 86, 82  ; 9
+	defb  84, 78, 80, 81, 86, 82, 83, 78, 80, 81  ;10
+	defb  86, 82, 83, 78, 80, 81, 86, 82, 83, 78  ;11
+	defb  80, 81, 86, 82, 82, 79, 80, 81, 86, 82  ;12
+	defb  84, 76, 89, 93, 80,  0,  0,  0, -1, 83  ;13 I seem to have lost the last out 
+	
+timing.saa:
+	defb  28,119,119,119,119,119,119,119,119,119  ; 1
+	defb 119,119,119,119,119,119,119,119,119,119  ; 2
+	defb 119,119,119,119,119,119,119,119,119,119  ; 3
+	defb 119,119,119,119,119,119,119,119,119,119  ; 4
+	defb 119,119,119,119,119,119,119,119,119,119  ; 5
+	defb 119,119,119,119,121,119,119,119,119,119  ; 6
+	defb 119,119,119,119,119,119,119,119,119,119  ; 7
+	defb 119,119,119,119,119,119,119,119,119,119  ; 8
+	defb 107, 76, 81, 75, 80, 74, 79, 73, 78, 75  ; 9
+	defb  77, 75, 79, 76, 81, 75, 80, 74, 79, 73  ;10
+	defb  78, 75, 77, 75, 79, 76, 81, 75, 80, 74  ;11
+	defb  79, 73, 78, 75, 77, 75, 79, 76, 81, 75  ;12
+	defb  80, 74, 79, 73, 80, 89, 95,  0, -1, 78  ;13
+
+timing.saa.megabyte:
+	defb  28,119,119,119,119,119,119,119,119,119  ; 1
+	defb 119,119,119,119,119,119,119,119,119,119  ; 2
+	defb 119,119,119,119,119,119,119,119,119,119  ; 3
+	defb 119,119,119,119,119,119,119,119,119,119  ; 4
+	defb 119,119,119,119,119,119,119,119,119,119  ; 5
+	defb 119,119,119,119,121,119,119,119,119,119  ; 6
+	defb 119,119,119,119,119,119,119,119,119,119  ; 7
+	defb 119,119,119,119,119,119,119,119,119,119  ; 8
+	defb 107, 76, 81, 75, 80, 74, 79, 73, 78, 75  ; 9
+	defb  77, 75, 79, 76, 81, 75, 80, 74, 79, 73  ;10
+	defb  78, 75, 77, 75, 79, 76, 81, 75, 80, 74  ;11
+	defb  79, 73, 78, 75, 77, 75, 79, 76, 81, 75  ;12
+	defb  80, 74, 79, 73, 80, 89, 95,  0, -1, 78  ;13
+	
+timing.samdac:
+	defb  32,122,122,122,122,122,122,122,122,122  ; 1
+	defb 122,122,122,122,122,122,122,122,122,122  ; 2
+	defb 122,122,122,122,122,122,122,122,122,122  ; 3
+	defb 122,122,122,122,122,122,122,122,122,122  ; 4
+	defb 122,122,122,122,122,122,122,122,122,122  ; 5
+	defb 122,122,122,123,124,122,122,122,122,122  ; 6
+	defb 122,122,122,122,122,122,122,122,122,122  ; 7
+	defb 122,122,122,122,122,122,122,122,122,123  ; 8
+	defb 109, 80, 80, 81, 81, 78, 80, 78, 78, 81  ; 9
+	defb  82, 79, 79, 78, 78, 80, 80, 81, 81, 78  ;10
+	defb  80, 78, 78, 81, 82, 79, 79, 78, 78, 80  ;11
+	defb  80, 81, 81, 78, 80, 78, 78, 81, 82, 79  ;12
+	defb  81, 92, 97,  0, -1, -1, -1, -1, -1, 83  ;13
+	
+timing.samdac.megabyte:
+	defb  32,122,122,122,122,122,122,122,122,122  ; 1
+	defb 122,122,122,122,122,122,122,122,122,122  ; 2
+	defb 122,122,122,122,122,122,122,122,122,122  ; 3
+	defb 122,122,122,122,122,122,122,122,122,122  ; 4
+	defb 122,122,122,122,122,122,122,122,122,122  ; 5
+	defb 122,122,122,123,124,122,122,122,122,122  ; 6
+	defb 122,122,122,122,122,122,122,122,122,122  ; 7
+	defb 122,122,122,122,122,122,122,122,122,123  ; 8
+	defb 109, 80, 80, 81, 81, 78, 80, 78, 78, 81  ; 9
+	defb  82, 79, 79, 78, 78, 80, 80, 81, 81, 78  ;10
+	defb  80, 78, 78, 81, 82, 79, 79, 78, 78, 80  ;11
+	defb  80, 81, 81, 78, 80, 78, 78, 81, 82, 79  ;12
+	defb  81, 92, 97,  0, -1, -1, -1, -1, -1, 83  ;13
+	
+timing.dac:
+	defb  40,129,129,129,129,129,129,129,129,129  ; 1
+	defb 129,129,129,129,129,129,129,129,129,129  ; 2
+	defb 129,129,129,129,129,129,129,129,129,129  ; 3
+	defb 129,129,129,129,129,129,129,129,129,129  ; 4
+	defb 129,129,129,129,129,129,129,129,129,129  ; 5
+	defb 130,129,130,129,129,129,129,129,129,129  ; 6
+	defb 129,129,129,129,129,129,129,129,129,129  ; 7
+	defb 129,129,129,129,129,129,129,129,129,129  ; 8
+	defb 118, 84, 85, 84, 88, 84, 85, 84, 88, 84  ; 9
+	defb  85, 84, 88, 84, 85, 84, 88, 84, 85, 84  ;10
+	defb  88, 84, 85, 84, 88, 84, 85, 84, 88, 84  ;11
+	defb  85, 83, 89,  0,  0, -1, -1, -1, -1, -1  ;12
+	defb  -1, -1, -1, -1, -1, -1, -1, -1, -1, 93  ;13
+	
+timing.dac.megabyte:
+	defb  40,129,129,129,129,129,129,129,129,129  ; 1
+	defb 129,129,129,129,129,129,129,129,129,129  ; 2
+	defb 129,129,129,129,129,129,129,129,129,129  ; 3
+	defb 129,129,129,129,129,129,129,129,129,129  ; 4
+	defb 129,129,129,129,129,129,129,129,129,129  ; 5
+	defb 130,129,130,129,129,129,129,129,129,129  ; 6
+	defb 129,129,129,129,129,129,129,129,129,129  ; 7
+	defb 129,129,129,129,129,129,129,129,129,129  ; 8
+	defb 118, 84, 85, 84, 88, 84, 85, 84, 88, 84  ; 9
+	defb  85, 84, 88, 84, 85, 84, 88, 84, 85, 84  ;10
+	defb  88, 84, 85, 84, 88, 84, 85, 84, 88, 84  ;11
+	defb  85, 83, 89,  0,  0, -1, -1, -1, -1, -1  ;12
+	defb  -1, -1, -1, -1, -1, -1, -1, -1, -1, 93  ;13
+	
+timing.qss:
+	defb  32,121,121,121,121,121,121,121,121,121  ; 1
+	defb 121,121,121,121,121,121,121,121,121,121  ; 2
+	defb 121,121,121,121,121,121,121,121,121,121  ; 3
+	defb 121,121,121,121,121,121,121,121,121,121  ; 4
+	defb 121,121,121,121,121,121,121,121,121,121  ; 5
+	defb 121,123,122,121,121,121,121,121,121,121  ; 6
+	defb 121,121,121,121,121,121,121,121,121,121  ; 7
+	defb 121,121,121,121,121,121,122,121,121,121  ; 8
+	defb 109, 81, 78, 81, 80, 80, 81, 79, 80, 80  ; 9
+	defb  78, 81, 80, 80, 81, 79, 80, 80, 78, 81  ;10
+	defb  80, 80, 81, 79, 80, 80, 78, 81, 80, 80  ;11
+	defb  81, 79, 93,  0,  0, -1, -1, -1, -1, -1  ;12
+	defb  -1, -1, -1, -1, -1, -1, -1, -1, -1, 83  ;13
+
+timing.qss.megabyte:
+	defb  32,121,121,121,121,121,121,121,121,121  ; 1
+	defb 121,121,121,121,121,121,121,121,121,121  ; 2
+	defb 121,121,121,121,121,121,121,121,121,121  ; 3
+	defb 121,121,121,121,121,121,121,121,121,121  ; 4
+	defb 121,121,121,121,121,121,121,121,121,121  ; 5
+	defb 121,123,122,121,121,121,121,121,121,121  ; 6
+	defb 121,121,121,121,121,121,121,121,121,121  ; 7
+	defb 121,121,121,121,121,121,122,121,121,121  ; 8
+	defb 109, 81, 78, 81, 80, 80, 81, 79, 80, 80  ; 9
+	defb  78, 81, 80, 80, 81, 79, 80, 80, 78, 81  ;10
+	defb  80, 80, 81, 79, 80, 80, 78, 81, 80, 80  ;11
+	defb  81, 79, 93,  0,  0, -1, -1, -1, -1, -1  ;12
+	defb  -1, -1, -1, -1, -1, -1, -1, -1, -1, 83  ;13
+
 ;===============================================================
 mk.movecode:
 	org 0
 
 	di
-	in a,(video.memory.page.register)
+	in a,(port.vmpr)
+;	and %00111111
 	push af
 	ld (bp.stsp+32769),sp
-	in a,(low.memory.page.register)
+	in a,(port.lmpr)
 	ld (bp.stlmpr+32769),a
-	in a,(high.memory.page.register)
+	in a,(port.hmpr)
 	and high.memory.page.mask
 	ld (bp.exitpage+32769),a
 	or low.memory.ram.0
-	out (low.memory.page.register),a
+	out (port.lmpr),a
 	ld sp,32768
 run.program:
 	jp 0		;test
@@ -3830,20 +4006,20 @@ run.program:
 bp.exit:
 	di
 	ld a,255
-	out (line.interrupt.register),a
+	out (port.line_interrupt),a
 bp.exitpage:
 	ld a,0
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	jp bp.stlmpr+32768
 
 bp.stlmpr:
 	ld a,0
-	out (low.memory.page.register),a
+	out (port.lmpr),a
 bp.stsp:
 	ld sp,0
 	pop af
-	out (video.memory.page.register),a
-	; ei
+	out (port.vmpr),a
+; 	ei
 	ret
 
 bp.id:
@@ -3931,12 +4107,12 @@ if defined( testing )
 demo:
 	call 0
 
-	ld bc,247 * 256 + status.register
+	ld bc,keyboard.caps_esc * 256 + port.status
 demoloop:
 	xor a
-	out (color.look.up.table),a
+	out (port.clut),a
 	in a,(c)
-	bit 5,a
+	bit 5,a	; escape
 	jr nz,demoloop
 still:
 	in a,(c)
@@ -3948,11 +4124,11 @@ exit:
 
 init.sq:
 	di
-	in a,(low.memory.page.register)
+	in a,(port.lmpr)
 	ld (is.stlmpr+1),a
 	ld a,page.burstplayer
 	or low.memory.ram.0
-	out (low.memory.page.register),a
+	out (port.lmpr),a
 	ld hl,(bp.sequence)
 	ld (hl),sequencer \ 256
 	inc hl
@@ -3969,7 +4145,7 @@ init.sq:
 
 is.stlmpr:
 	ld a,0
-	out (low.memory.page.register),a
+	out (port.lmpr),a
 	ei
 	ret
 

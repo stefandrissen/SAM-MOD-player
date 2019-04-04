@@ -1,39 +1,35 @@
 ;SAM MOD player - DEMO routine for BURST + SEQUENCER
 
-;(C) 1996-2018 Stefan Drissen
+;(C) 1996-2019 Stefan Drissen
 
 include "memory.i"
 include "ports.i"
 include "opcodes.i"
 
-demo.device:	equ 49152+3		; device, set by loader [0-5]
+;---------------------------------------------------------------
+
+demo.device:	equ 49152+3		; device, set by loader [0-5]	; !!! external ram seems to be there now
 
 
 ;===============================================================
 ;demo is the program that runs in "foreground" mode
 ;	the sequencer is called by the burst routine every frame
 
-	org addr.demo
-	dump page.burstplayer,addr.demo \ 16384
+	org demo.setup	; &6000 - aBcd
 
-setup.demo:
-	; di
-test.1:
-	; xor a
-	; out (254),a
+;---------------------------------------------------------------
 
-	; in a,(low.memory.page.register)
-	; ld (dm.lmpr+1),a
-	; ld a,low.memory.ram.0
-	; out (low.memory.page.register),a
-	jp setupmod
+demo.setup:	jp @setupmod
 
-	org  $-32768
-	
+;---------------------------------------------------------------
+
 demo.external.ram:	defb 0	; [0-4]
 	
-setupmod:
+@setupmod:
 	ex af,af'
+	
+	in a,(port.hmpr)
+	ld (@store.hmpr+1),a
 	
 	ld a,c
 	ld (demo.external.ram),a
@@ -42,23 +38,23 @@ setupmod:
 	ld a,page.mod	
 	jr z,@no.megabyte.1
 	ld a,page.mod.megabyte
-	out (external.memory.page.c),a
+	out (port.xmpr.c),a
 	inc a
-	out (external.memory.page.d),a
+	out (port.xmpr.d),a
 	ld a,high.memory.external
 @no.megabyte.1:
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	
-	ld hl,32768
+	ld hl,&8000
 	ld de,mod.header-32768
-	ld bc,1084
+	ld bc,mod.header.len
 	ldir
 
 	ld a,page.sequencer
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	ld hl,demo
 	ld (sq.pointer.addr.demo),hl
-	xor a
+	ld a,page.demo - 1	; - 1 since demo is in D 
 	ld (sq.pointer.page.demo),a	
 	ex af,af'
 	ld (sq.octaves),a
@@ -74,40 +70,27 @@ setupmod:
 seq.setup:
 	ld a,0
 	or a
-	call z,init.seq
-test.2:
-	; ld a,1
-    ; out (254),a
+	call z,sequencer.init
 
 	ld a,1
 	ld (seq.setup+1),a
 
-	call install.mod
-test.3:
-	; ld a,0
-    ; out (254),a
+	call sequencer.install.mod
 
 	ld a,page.burstplayer
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 
-	call burst.player
-test.4:
-	; ld a,3
-    ; out (254),a
+	call burstplayer.start
 
-    ; xor a
-    ; out (high.memory.page.register),a
-    ; jp dm.lmpr
+@store.hmpr:
+	ld a,0
+	out (port.hmpr),a
 
 	ret
 
-	org  $+32768
+;---------------------------------------------------------------
 
-dm.lmpr:
-	; ld a,0
-    ; out (low.memory.page.register),a
-    ; ei
-    ; ret
+	org  $ + &8000	; abcD
 
 demo.palette:
 	defb %0000000 ;    0
@@ -151,15 +134,15 @@ col.samples:
 
 demo:
 
-	ld bc,256 * 15 + color.look.up.table
+	ld bc,&0f00 + port.clut
 	xor a
 black:
 	out (c),a
 	djnz black
 	out (c),a
 
-	ld a,video.mode.2
-	out (video.memory.page.register),a
+	ld a,video.mode.2 + page.screen
+	out (port.vmpr),a
 
 	call cls
 	call set.palette
@@ -167,50 +150,50 @@ black:
 ; create a fast print routine for hex digits
 
 	ld ix,char.list
-	ld de,( "0" - " " ) * 5 + loader.font + 32768
+	ld de,( "0" - " " ) * 5 + loader.font_high
 	ld hl,build.font
 	ld b,10+6
 build.blp:
 	ld a,b
 	cp 6
 	jr nz,$+5
-	ld de,( "A" - " " ) * 5 + loader.font + 32768
+	ld de,( "A" - " " ) * 5 + loader.font_high
 
 	ld (ix+0),l
 	ld (ix+1),h
 	inc ix
 	inc ix
-	ld (hl),opcode_pop_hl
+	ld (hl),opcode.pop_hl
 	inc hl
-	ld (hl),opcode_ld_a_l
+	ld (hl),opcode.ld_a_l
 	inc hl	
 	ld c,4
 build.clp:
-	ld (hl),opcode_ld_hl_n
+	ld (hl),opcode.ld_hl_n
 	inc hl
 	ld a,(de)
 	inc de
 	ld (hl),a
 	inc hl
-	ld (hl),opcode_add_a_b
+	ld (hl),opcode.add_a_b
 	inc hl
-	ld (hl),opcode_ld_l_a
+	ld (hl),opcode.ld_l_a
 	inc hl
 	dec c
 	jr nz,build.clp
-	ld (hl),opcode_ld_hl_n
+	ld (hl),opcode.ld_hl_n
 	inc hl
 	ld a,(de)
 	inc de
 	ld (hl),a
 	inc hl
-	ld (hl),opcode_cb
+	ld (hl),opcode.cb
 	inc hl
-	ld (hl),opcode_res_7_l
+	ld (hl),opcode.res_7_l
 	inc hl
-	ld (hl),opcode_inc_l
+	ld (hl),opcode.inc_l
 	inc hl
-	ld (hl),opcode_ret
+	ld (hl),opcode.ret
 	inc hl
 	djnz build.blp
 
@@ -252,7 +235,7 @@ skip.intro:
 	call z,show.summary
 	dec a
 	call z,show.burst
-	
+
 	ld hl,(enable.burst)
 	ld (mk.enable+1),hl
 mk.enable:
@@ -314,7 +297,7 @@ skip.patpos:
 	call do.percent
 
 skip.speed:
-	ld bc, 256 * 255 + keyboard.register
+	ld bc,keyboard.cursors_ctrl * 256 + port.keyboard
 	in c,(c)
 	bit 3,c
 	jr nz,not.left
@@ -354,7 +337,7 @@ wait.right:
 	jr nz,wait.right
 not.right:
 
-	ld bc,256 * 247 + keyboard.register ;12345
+	ld bc,keyboard.12345 * 256 + port.keyboard
 	in c,(c)
 	xor a
 	bit 0,c
@@ -425,7 +408,7 @@ not.key.4:
 
 key.p:
 	xor a
-	ld bc,256 * 223 + keyboard.register
+	ld bc,keyboard.yuiop * 256 + port.keyboard
 	in c,(c)
 	bit 0,c
 	jr nz,not.key.p
@@ -454,7 +437,7 @@ still.p:
 	ld hl,trackon+1
 	ld a,(hl)
 
-	ld bc,256 * 254 + status.register
+	ld bc,keyboard.f3_f2_f1 * 256 + port.status
 	in c,(c)
 	bit 5,c
 	jr nz,not.f1
@@ -480,7 +463,7 @@ not.f2:
 	call show.sizes
 	jr skip.f
 not.f3:
-	ld bc,256 * 253 + status.register
+	ld bc,keyboard.f6_f5_f4 * 256 + port.status
 	in c,(c)
 	bit 5,c
 	jr nz,not.f4
@@ -505,8 +488,8 @@ not.f5:
 	jr skip.f
 not.f6:
 skip.f:
-	ld a,%10111111
-	in a,(keyboard.register)
+	ld a,keyboard.hjkl_return
+	in a,(port.keyboard)
 	cpl
 	and %00000010
 	jr z,not.l
@@ -522,8 +505,8 @@ still.l:
 not.l:
 	ld (still.l+1),a
 
-	ld a,%11111110
-	in a,(keyboard.register)
+	ld a,keyboard.vcxz_shift
+	in a,(port.keyboard)
 	cpl
 	and %00001000
 	jr z,not.c
@@ -539,15 +522,15 @@ still.c:
 not.c:
 	ld (still.c+1),a
 
-	ld a,keyboard.shift
-	in a,(keyboard.register)
+	ld a,keyboard.vcxz_shift
+	in a,(port.keyboard)
 	and %00000001	; shift
 	ld bc,64
 	jr nz,$+5
 	ld bc,256
 
 	ld a,keyboard.plus_minus
-	in a,(status.register)
+	in a,(port.status)
 	and %01000000	; +
 	jr nz,not.plus
 
@@ -564,7 +547,7 @@ not.c:
 not.plus:
 
 	ld a,keyboard.plus_minus
-	in a,(status.register)
+	in a,(port.status)
 	and %00100000	; -
 	jr nz,not.minus
 	ld hl,(amp.fac+1)
@@ -578,7 +561,7 @@ not.plus:
 not.minus:
 	ld bc,0
 	ld a,keyboard.caps_esc
-	in a,(status.register)
+	in a,(port.status)
 	and %00100000
 	jr z,exit
 
@@ -586,8 +569,8 @@ not.minus:
 	dec a
 	jr z,exit
 
-	ld a,keyboard.f9
-	in a,(status.register)
+	ld a,keyboard.f9_f8_f7
+	in a,(port.status)
 	and %10000000
 	jr nz,not.f9
 	inc bc             ;bc <> 0
@@ -602,37 +585,37 @@ exit:
 	jp (hl)
 not.f9:
 	ld a,keyboard.caps_esc
-	in a,(status.register)
+	in a,(port.status)
 	and %10000000			; caps
 	jr nz,@not.reset
 	ld a,keyboard.cursors_ctrl
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	and %00000001			; control
 	jr nz,@not.reset
 	ld a,keyboard.edit
-	in a,(status.register)
+	in a,(port.status)
 	and %10000000			; edit
 	jr nz,@not.reset
 
 	di
 	xor a
-	out (video.memory.page.register),a
+	out (port.vmpr),a
 still.res2:
 	ld a,keyboard.caps_esc
-	in a,(status.register)
+	in a,(port.status)
 	and %10000000			; caps
 	jr z,still.res2
 	ld a,keyboard.cursors_ctrl
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	and %00000001			; control
 	jr z,still.res2
 	ld a,keyboard.edit
-	in a,(status.register)
+	in a,(port.status)
 	and %10000000			; edit
 	jr z,still.res2
 reset:
 	xor a
-	out (low.memory.page.register),a
+	out (port.lmpr),a
 	rst 0
 	
 @not.reset:
@@ -655,7 +638,7 @@ set.palette:
 ;===============================================================
 
 ;PATTERN TRACKER for MOD player
-;(C) 1995-2018 Stefan Drissen
+;(C) 1995-2019 Stefan Drissen
 ;
 ;runs off SEQUENCER frame interrupt
 ;only run when frame counter <> 0
@@ -1031,7 +1014,7 @@ unprintable:
 	add hl,hl
 	add hl,hl
 	add hl,bc
-	ld bc,loader.font - 160 + 32768	; -" "*5
+	ld bc,loader.font_high - ( " " * 5 )
 	add hl,bc
 	ld b,5
 pr.chr.blp:
@@ -1192,22 +1175,9 @@ burst.num:
 	ld hl,burst.int
 	ld (int.routine),hl
 	
-	ld a,(demo.external.ram)
-	or a
-	jr z,@no.megabyte.2
-	
-	ld a,page.burstplayer	; ???
-	ld a,0					; ???
-
-	jr @continue.2
-	
-@no.megabyte.2:	
-	
-	in a,(high.memory.page.register)
-
-@continue.2:
-	
+	in a,(port.hmpr)
 	ld (int.rtn.pag),a
+	
 	ld a,-1
 	ret
 
@@ -1369,21 +1339,7 @@ normal:
 	ld hl,printer
 	ld (int.routine),hl
 
-	ld a,(demo.external.ram)
-	or a
-	jr z,@no.megabyte.3
-		
-	ld a,page.burstplayer	; ???
-	ld a,0					; ???
-
-	jr @continue.3
-	
-@no.megabyte.3:	
-
-	in a,(high.memory.page.register)
-
-@continue.3:
-
+	in a,(port.hmpr)
 	ld (int.rtn.pag),a
 
 	ld a,-1
@@ -1460,7 +1416,7 @@ pr.next.ins:
 	inc d
 
 	ld a,l
-	add 32 * 6 - 30
+	add video.memory.32.rows - 30
 	ld l,a
 	jr nc,$+3
 	inc h
@@ -1471,21 +1427,7 @@ set.samp.int:
 	ld hl,instr.point
 	ld (int.routine),hl
 	
-	ld a,(demo.external.ram)
-	or a
-	jr z,@no.megabyte.4
-		
-	ld a,page.burstplayer	; ???
-	ld a,0					; ???
-	
-	jr @continue.4
-
-@no.megabyte.4:
-	
-	in a,(high.memory.page.register)
-
-@continue.4:
-
+	in a,(port.hmpr)
 	ld (int.rtn.pag),a
 
 	ld a,-1
@@ -1549,7 +1491,7 @@ ss.pr.pntb:
 	jr z,got.ins
 	ld c,15
 got.ins:
-	ld hl,6 * 32 + 32768 + 1
+	ld hl,video.memory.32.rows * 1 + 1 + video.memory.high 
 	ld de,mod.header+20
 	ret
 
@@ -1638,7 +1580,7 @@ got.tune:
 	
 	inc de	
 	ld a,l
-	add 32 * 6 - 30 + 10
+	add video.memory.32.rows - 30 + 10
 
 	jr @fin.loop
 
@@ -1667,7 +1609,7 @@ got.tune:
 	
 pr.next.in2:
 	ld a,l
-	add 32 * 6 - 30
+	add video.memory.32.rows - 30
 @fin.loop:
 	ld l,a
 	jr nc,$+3
@@ -1679,7 +1621,7 @@ pr.next.in2:
 	jp set.samp.int
 
 pr.title:
-	ld hl,32768
+	ld hl,video.memory.high
 	ld de,mod.header
 	ld b,20
 	call print.de.b
@@ -2068,7 +2010,7 @@ col.point2:
 txt.help:
 	defm "SAM MOD player             v"
 	defb version.major, ".", version.minor.1, version.minor.2
-	defm "(C) 2018 Stefan Drissen"
+	defm "(C) 2019 Stefan Drissen"
 	defb 0,0
 	defm "           HELP PAGE"
 	defb 0,0
@@ -2106,7 +2048,7 @@ col.help:
 txt.prosummary:
 	defm "SAM MOD player             v"
 	defb version.major, ".", version.minor.1, version.minor.2	
-	defm "(C) 2018 Stefan Drissen"
+	defm "(C) 2019 Stefan Drissen"
 	defb 0,0
 	defm " SUMMARY OF PROTRACKER EFFECTS"
 	defb 0,0
@@ -2150,7 +2092,7 @@ col.pro:
 txt.burst:
 	defm "SAM MOD player             v"
 	defb version.major, ".", version.minor.1, version.minor.2	
-	defm "(C) 2018 Stefan Drissen"
+	defm "(C) 2019 Stefan Drissen"
 	defm "CHANNEL "
 	defm "Page Offs Vol SLo SHi"
 
@@ -2169,7 +2111,7 @@ txt.channel:	defm "Channel "
 
 txt.volume:		defm "Vol: 000%  Speed: 00  Tempo: 000"
 txt.keys:		defm "F1-F6 1234 C <> P ESC -+ Loop:  "
-txt.author:		defm "(C) 2018 Stefan Drissen    v"
+txt.author:		defm "(C) 2019 Stefan Drissen    v"
 				defb version.major, ".", version.minor.1, version.minor.2
 
 
@@ -2237,13 +2179,32 @@ bits.per.dev:
 	defb 8	; quazar surround
 	defb 6	; clut
 
-length: equ $-addr.demo
-
-mod.header:	defs 1084
-
-	defs align 256
+length: equ $-demo.setup
 
 ;------------------------------------------------------------------------------
+mod.header.len: equ 1084
+mod.header:	defs mod.header.len	; first 1084 bytes of mod containing song name + sample info
+
+;   20 bytes module title
+;  930 bytes for sample (31 or 15) info:
+;		22 bytes sample name
+;		 2 bytes sample length in big-endian words
+;		 1 byte finetune value [-8..7]
+;		 1 byte volume [0..64]]
+;		 2 bytes repeat offset in big-endian words (must be > 1)
+;		 2 bytes repeat length in big-endian words (must be > 1)
+;		--
+;		30 bytes * 31 = 930
+;    1 byte song positions
+;    1 byte unused
+;  128 bytes pattern table
+;    4 bytes signature "M.K." / "FLT4"
+; ---- 
+; 1084 
+
+;------------------------------------------------------------------------------
+	defs align 256
+	
 char.list:
 
 ; addresses to print routines for 0-9 A-F  

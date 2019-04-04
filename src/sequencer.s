@@ -1,19 +1,20 @@
 ;SAM MOD player - SEQUENCER 
 
-;(C) 1995-2018 Stefan Drissen
+;(C) 1995-2019 Stefan Drissen
 
 ;first execute "BURST" and install "DEMO"
 
 include "memory.i"
 include "ports.i"
 
-;===============================================================
-	org 32768
-	dump page.sequencer,0
+	org &8000
+	
 ;---------------------------------------------------------------
 
-	jp @init.seq
-	jp @install.mod
+sequencer.init:			jp @init.seq
+sequencer.install.mod:	jp @install.mod
+
+;---------------------------------------------------------------
 
 sq.pointer.addr.demo:	defw 0				; offset
 sq.pointer.page.demo:	defb 0				; & page of demo (foreground)
@@ -26,42 +27,47 @@ sq.instruments:			defb 0
 
 	defm "MOD SEQUENCER " 
 	defb version.major, ".", version.minor.1, version.minor.2
-	defm "(C) 2018 Stefan Drissen"
-	defm " Needs BURST to run, also (C) 2018 S.D. "
+	defm "(C) 2019 Stefan Drissen"
+	defm " Needs BURST to run, also (C) 2019 S.D. "
 
 @init.seq:
 	di
-	in a,(low.memory.page.register)	
+	in a,(port.lmpr)	
 	ld (is.lmpr + 1),a
-	ld c,low.memory.ram.0 - 1
-find.burst:
-	inc c
-	ld a,c
-
-	cp low.memory.ram.0 + 32 + 1
-	jr c,fb.pageok
-
-	xor a
-	out (low.memory.page.register),a
-	rst 0
 	
-fb.pageok:
-	out (low.memory.page.register),a
+	ld c,0
+	
+@find.burst:
+
+	ld a,c
+	or low.memory.ram.0
+	out (port.lmpr),a
+	
 	ld hl,bp.id
 	ld a,(hl)
 	cp "B"
-	jr nz,find.burst
+	jr nz,@not.found
 	inc l
 	ld a,(hl)
 	cp "U"
-	jr nz,find.burst
+	jr nz,@not.found
 	inc l
 	ld a,(hl)
 	cp "R"
-	jr nz,find.burst
+	jr @found
+		
+@not.found:
+	
+	inc c
+	bit 5,c	;	256k: bit 4
+	jr z,@find.burst
 
+	xor a
+	out (port.lmpr),a
+	rst 0
+	
+@found:
 	ld a,c
-	and low.memory.page.mask
 	ld (rs.bp.page+1),a
 
 ;---------------------------------------------------------------
@@ -69,8 +75,8 @@ fb.pageok:
 
 	ld hl,finet.tab
 	ld de,finet.tab+1
-	ld bc,1023
-	ld (hl),255
+	ld bc,&0400 - 1
+	ld (hl),&ff
 	ldir
 
 	ld de,finelist
@@ -248,7 +254,7 @@ put.done.item:
 
 is.lmpr:
 	ld a,0
-	out (low.memory.page.register),a
+	out (port.lmpr),a
     ; ei
 	ret
 
@@ -421,27 +427,28 @@ build.list:
 
 @install.mod:
 	di
-	in a,(low.memory.page.register)
+	in a,(port.lmpr)
 	ld (im.lmpr+1),a
 	ld (im.stsp+1),sp
-	in a,(high.memory.page.register)
+	in a,(port.hmpr)
 	and low.memory.page.mask
 	or low.memory.ram.0
-	out (low.memory.page.register),a
-	jp im.low
+	out (port.lmpr),a
+	jp @install.mod.low
 
 ;===============================================================
 	org $-32768
 ;---------------------------------------------------------------
-im.low:
-	ld sp,16384
+@install.mod.low:
+
+	ld sp,&4000
 
 	ld a,(sq.external.ram - 32768)
 	or a
 	jr z,@no.megabyte
 	
 	ld a,high.memory.external
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 
 @no.megabyte:
 
@@ -595,7 +602,7 @@ convall:
 @volume.ok:	
 	ld (iy+st.vol),a
 
-	ld d,(ix+22)		; sample length in WORDS
+	ld d,(ix+22)		; sample length in big-endian WORDS
 	ld e,(ix+23)
 
 	ld a,d
@@ -1140,7 +1147,7 @@ loop.ok:					;DE = loop offset
 	ld d,(iy+st.end+1)
 
 	; ld a,(iy+st.end+2) = equal to start loop
-	; out (high.memory.page.register),a
+	; out (port.hmpr),a
 
 	or a
 	sbc hl,de			; if end lower than sample
@@ -1311,9 +1318,9 @@ exit.install:
 	add iy,de
 	djnz @fs.blp
 
-	in a,(low.memory.page.register)
+	in a,(port.lmpr)
 	and low.memory.page.mask
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 
 	jp fs.high
 
@@ -1377,9 +1384,9 @@ set.high.memory.a:
 	jr z, @no.megabyte
 
 	pop af	
-	out (external.memory.page.c),a
+	out (port.xmpr.c),a
 	inc a
-	out (external.memory.page.d),a
+	out (port.xmpr.d),a
 	dec a
 	
 	ret	
@@ -1387,7 +1394,7 @@ set.high.memory.a:
 @no.megabyte:	
 	
 	pop af
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	
 	ret
 
@@ -1398,7 +1405,7 @@ fs.high:
 rs.bp.page:
 	ld a,0		;burst page
 	or low.memory.ram.0
-	out (low.memory.page.register),a
+	out (port.lmpr),a
 	ld sp,32768
 
 	ld a,c
@@ -1540,7 +1547,7 @@ im.stsp:
 
 im.lmpr:
 	ld a,0
-	out (low.memory.page.register),a
+	out (port.lmpr),a
 
 	; ei
 	ret
@@ -1848,7 +1855,7 @@ retrig.table:	;counter / x = int ( counter / x )
 sequencer:
 bar.1:
 	; ld a,&10
-    ; out (color.look.up.table),a
+    ; out (port.clut),a
 
 	call c1+update.bp   	;check for sample boundaries
 	call c2+update.bp   	;and loop the samples if
@@ -1869,7 +1876,7 @@ bar.1:
 no.update:
 bar.2:
 	; ld a,&20
-	; out (color.look.up.table),a
+	; out (port.clut),a
 
 	ld hl,countint
 	inc (hl)
@@ -1884,7 +1891,7 @@ bar.2:
 no.extra.int:
 bar.3:
 	; ld a,&30
-    ; out (color.look.up.table),a
+    ; out (port.clut),a
 
 	ld a,(mstatus)
 	dec a

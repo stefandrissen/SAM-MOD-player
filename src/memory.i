@@ -1,36 +1,77 @@
-; memory layout
 
 version.major:		equ	"2"
-version.minor.1:	equ	"2"
-version.minor.2:	equ	"1"
+version.minor.1:	equ	"3"
+version.minor.2:	equ	"0"
+
+; memory layout
+
+; any bank which can be paged into AB /must/ provide service routines:
+
+; &0000	rst  
+; &0008	rst 
+; &0010	rst
+; &0018	rst 
+; &0020	rst 
+; &0028	rst 
+; &0030	rst 
+; &0038	rst 
+; &0038	rst / im 1
+
+; &0066	nmi
+
+; possibly also stack at fixed address (&0100?)
+
+;	&00	&40		for basic - can use approx 7k (clear &61ff -> &1e00 bytes)
+;	&1a			burst player
+;	&1b			burst player
+;	&1c			sequencer
+;	&1d	&60		dos
+;	&1e	&c0		screen	-> 1 page is enough for mode 2
+;	&1f	&c0		screen	-> replace with loader + demo
+
+
+;				loader
+;				loading screen	-> open new screen 
+;				loader / demo	-> &1f
+;				make burstplayer-> &19 -> &1a &1b 
+;				sequencer		-> &1c
+
+inst.buffer:	equ &4f00
+
 
 ; burstplayer
 
-page.loader:				equ 1	
-page.burstplayer:			equ 2
+; todo: make pages dynamic based on available?
 
-	addr.demo:					equ 57344
+page.burstplayer:			equ &1a
+page.screen:				equ &1e
+page.loader:				equ &1f
+page.demo:					equ &1f
+	demo.setup:					equ &6000
 	
-page.sequencer:				equ 4
+page.sequencer:				equ &1c
 
-	init.seq:					equ 32768	; initialise sequencer routine
-	install.mod:				equ 32771	; install mod by adding "runways"
+	sequencer.init:				equ 32768	; initialise sequencer routine
+	sequencer.install.mod:		equ 32771	; install mod by adding "runways"
 	sq.pointer.addr.demo:		equ 32774	; address of foreground program (>32k)
 	sq.pointer.page.demo:		equ 32776	; page of foreground program
 	sq.pointer.page.mod:		equ 32777 	; page mod loaded in at (at 32k)
 	sq.octaves:					equ 32778	; 3 or 5 octave mode
 	sq.external.ram:			equ 32779
 
-page.create.burstplayer:	equ 5	; once created, overwritten by mod
+page.create.burstplayer:	equ &19	; once created -> mode 2 screen 
 
-page.mod:					equ page.create.burstplayer ; 0 when megabyte
-page.mod.megabyte:			equ 0
+;page.mod:					equ 6 - when example 
+page.mod:					equ &01	; 0 when megabyte
+page.mod.megabyte:			equ &00
 ;---------------------------------------------------------------
 ; page.burstplayer
 
+burstplayer.create:			equ &8000
 burstplayer.device:			equ 32771
 burstplayer.speed:			equ 32772
 burstplayer.external.ram:	equ 32773
+burstplayer.page:			equ 32774
 
 bp.id:						equ 53		; "BUR"
 bp.device:					equ 105
@@ -105,15 +146,14 @@ ldir.to.far:			equ ldir.from.far + @ldir.from.far.size	; copy buffer to BDE, C b
 playtab1:				equ ldir.to.far + @ldir.to.far.size 		; 2 * 208  
 
 
-burst.player:	equ 32768
+burstplayer.start:	equ 32768
 
-video.memory.low:				equ 0
-video.memory.low.attributes:	equ video.memory.low + 8192 
-
-video.memory.high:				equ 32768
-video.memory.high.attributes:	equ video.memory.high + 8192 
+video.memory.high:				equ &8000
+video.memory.high.attributes:	equ video.memory.high + &2000 
 
 video.memory.24.rows:	equ 256
 video.memory.32.rows:	equ 192
 
-loader.font:	equ 16401
+;loader.font:		equ 16400
+loader.font_high:	equ 49160
+

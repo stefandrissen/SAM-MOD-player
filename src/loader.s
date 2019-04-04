@@ -1,19 +1,27 @@
 ;SAM MOD player - DOS loader 
 
-;(C) 1996-2018 Stefan Drissen
+;(C) 1996-2019 Stefan Drissen
+
+; to do:
+;
+; - fix 4-bit "compressed" mods 
+; - fix msdos
+; - handle dos errors better (doser) 
+; + add sample runways while loading
 
 include "memory.i"
 include "ports.i"
+include "dos.i"
 
 load.offs:	equ 32768
 
-	dump page.loader,0
-	
-	org 32768
+	org &c000
+
+;---------------------------------------------------------------
 
 	jp go.loader
 
-	org $-16384
+;---------------------------------------------------------------
 
 
 loader.device:			defb device.samdac	; [0-5]
@@ -33,54 +41,34 @@ loader.speed:			defb 0	; [0-1]
 	
 loader.external.ram:	defb 0	; [0-4]
 
-drive.1.steprate:		defb 2	; 0=6ms, 1=12ms, 2=2ms, 3=3ms
-drive.2.steprate:		defb 1
-
-	org $+16384
+loader.drive:			defb 1	; [1-2]
 
 ;---------------------------------------------------------------
-go.loader:
-;---------------------------------------------------------------
-
-	di
-	ld a,low.memory.ram.0
-	out (low.memory.page.register),a
-	jp loader.low
-
-	org $-16384
-
-;---------------------------------------------------------------
-loader.font:
+loader.font_high:
 ;---------------------------------------------------------------
 	mdat "../res/font.bin"
 
-;---------------------------------------------------------------
-loader.low:
-;---------------------------------------------------------------
-	ld sp,32768
 
-	call set.palette.black
-	
-	ld a,video.mode.2
-	out (video.memory.page.register),a
-	
-	call cls
+;---------------------------------------------------------------
+relocate.scan:
 
-	ld a,(drive.1.steprate)
-	ld (steprate.1+1),a
-	ld a,(drive.2.steprate)
-	ld (steprate.2+1),a
+	org inst.buffer
 	
-	ld a,high.memory.external
-	out (high.memory.page.register),a
+scan.external.memory:	
+
+	in a,(port.hmpr)
+	ld c,a
 	
-	ld hl,32768
+	ld hl,&8000
 	ld b,0
+
+	ld a,high.memory.external
+	out (port.hmpr),a	
 
 @scan.megs:
 
 	ld a,b
-	out (external.memory.page.c),a
+	out (port.xmpr.c),a
 
 	xor a
 	ld (hl),a
@@ -92,21 +80,55 @@ loader.low:
 	jr nz,@not.ram
 
 	ld a,b
-	add 64
+	add &40
 	ld b,a
 	jr nc,@scan.megs
 	
-	ld a,4
-	jr @4mb	
-
+	ld b,1
+	
 @not.ram:
 
+	ld a,c
+	out (port.hmpr),a
+	
 	ld a,b
 	rlca
-	rlca
+	rlca	
+	
+	ret
+	
+scan.external.memory.len: equ $ - scan.external.memory
+
+	org relocate.scan + scan.external.memory.len
+	
+
+;---------------------------------------------------------------
+go.loader:
+;---------------------------------------------------------------
+;	ld sp,32768
+
+
+	di
+	
+	call cls
+	
+	ld a,page.loader - 1 + video.mode.2
+	out (port.vmpr),a
+	
+	ld (svar.cuscrnp),a
+	ld a,1
+	ld (svar.mode),a	
+	
+	ld hl,relocate.scan
+	ld de,inst.buffer
+	ld bc,scan.external.memory.len
+	ldir
+
+	call scan.external.memory
+
 	or a
 	jr z,@no.megabyte.1
-@4mb:	
+
 	ld (loader.external.ram),a
 
 	ld hl,device.screen.memory
@@ -130,7 +152,7 @@ loader.low:
 	ld ix,device.attributes
 	call print.screen
 
-	ld hl,video.memory.32.rows * row.device
+	ld hl,video.memory.32.rows * row.device + video.memory.high
 	ld (curs.offs+1),hl
 
 	ld a,(loader.device)
@@ -144,7 +166,7 @@ loader.low:
 	ld (curs.blink+1),a
 	call print.cursor
 
-	ld hl,video.memory.32.rows * row.speed
+	ld hl,video.memory.32.rows * row.speed + video.memory.high
 	ld (curs.offs+1),hl
 
 	ld a,(loader.speed)
@@ -161,7 +183,7 @@ loader.low:
 ;---------------------------------------------------------------	
 select.device:
 
-	ld hl,video.memory.32.rows * row.device
+	ld hl,video.memory.32.rows * row.device + video.memory.high
 	ld (curs.offs+1),hl
 	ld a,5
 	ld (max.select+1),a
@@ -208,7 +230,7 @@ select.device:
 ;---------------------------------------------------------------
 select.speed:
 
-	ld hl,video.memory.32.rows * row.speed
+	ld hl,video.memory.32.rows * row.speed + video.memory.high
 	ld (curs.offs+1),hl
 	ld a,1
 	ld (max.select+1),a
@@ -247,8 +269,10 @@ selected:
 
 	call cls
 
-	ld a,page.create.burstplayer
-	out (high.memory.page.register),a
+	ld hl,relocate.call.burstplayer.create
+	ld de,inst.buffer
+	ld bc,call.burstplayer.create.len
+	ldir
 	
 	ld a,(loader.device)
 	ld hl,@device.mapping
@@ -261,13 +285,13 @@ selected:
 	ld hl,loader.device.port
 	add a,(hl)
 		
-	ld (burstplayer.device),a
+	ld (@loader.device+1),a
 	ld a,(loader.speed)
-	ld (burstplayer.speed),a
+	ld (@loader.speed+1),a
 	ld a,(loader.external.ram)
-	ld (burstplayer.external.ram),a
+	ld (@loader.external.ram+1),a
 	
-	call 32768		;make burst
+	call call.burstplayer.create
 
 	jp loader
 	
@@ -279,6 +303,41 @@ selected:
 	defb 6	; blue alpha
 	defb 7	; quazar
 	defb 0	; screen 	
+
+;---------------------------------------------------------------
+relocate.call.burstplayer.create:
+
+	org inst.buffer
+	
+call.burstplayer.create:
+
+	in a,(port.hmpr)
+	ld (@store.hmpr+1),a
+
+	ld a,page.create.burstplayer
+	out (port.hmpr),a		
+	
+@loader.device:
+	ld a,0
+	ld (burstplayer.device),a
+@loader.speed:	
+	ld a,0
+	ld (burstplayer.speed),a
+@loader.external.ram:	
+	ld a,0
+	ld (burstplayer.external.ram),a
+	
+	call burstplayer.create
+	
+@store.hmpr:
+	ld a,0
+	out (port.hmpr),a
+	
+	ret	
+	
+call.burstplayer.create.len: equ $ - call.burstplayer.create
+
+	org relocate.call.burstplayer.create + call.burstplayer.create.len			
 
 ;---------------------------------------------------------------
 	
@@ -293,7 +352,7 @@ print.device.details:
 	ld a,(hl)
 	add "0"
 	push hl
-	ld hl,video.memory.32.rows * 30 
+	ld hl,video.memory.32.rows * 30 + video.memory.high
 	call print.chr
 	ld de,text.bits
 	ld b,7
@@ -310,13 +369,13 @@ print.device.details:
 	inc hl
 	ld d,(hl)
 	ld b,32 - 8
-	ld hl,video.memory.32.rows * 30 + 8
+	ld hl,video.memory.32.rows * 30 + 8 + video.memory.high
 	call print.de.b
 
 	pop af
 	push af
 
-	ld hl,video.memory.32.rows * 30 + 26
+	ld hl,video.memory.32.rows * 30 + 26 + video.memory.high
 	ld b,6
 	ld de,text.blank
 	
@@ -376,7 +435,7 @@ print.speed.details:
 	ld d,(hl)
 		
 	ld b,32
-	ld hl,video.memory.32.rows * 30 
+	ld hl,video.memory.32.rows * 30 + video.memory.high
 	call print.de.b
 	
 	pop af
@@ -408,14 +467,14 @@ cursor.select:
 	pop bc
 
 	ld a,keyboard.cursors_ctrl
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	bit 1,a
 	jr z,curs.up
 	bit 2,a
 	jr z,curs.dn
 
 	ld a,keyboard.67890
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	bit 1,a
 	jr z,curs.up
 	bit 2,a
@@ -466,7 +525,7 @@ sd.curs.dn:
 
 scan.escape:
 	ld a,keyboard.caps_esc
-	in a,(status.register)
+	in a,(port.status)
 	and %00100000 
 	jr z,@still.esc
 	
@@ -475,19 +534,19 @@ scan.escape:
 	
 @still.esc:
 	ld a,keyboard.caps_esc
-	in a,(status.register)
+	in a,(port.status)
 	and %00100000
 	jr z,@still.esc
 	ret
 
 scan.keyboard.return:
 	ld a,keyboard.hjkl_return
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	and %00001
 	jr z,@still.return
 	
 	ld a,keyboard.67890
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	and %00001
 	jr z,@still.0
 	
@@ -496,14 +555,14 @@ scan.keyboard.return:
 
 @still.return:
 	ld a,keyboard.hjkl_return
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	and %00001
 	jr z,@still.return
 	ret
 
 @still.0:	
 	ld a,keyboard.67890
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	and %00001
 	jr z,@still.0
 	ret
@@ -511,14 +570,14 @@ scan.keyboard.return:
 scan.keyboard.left.right:
 
 	ld a,keyboard.cursors_ctrl
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	bit 3,a
 	jr z,@still.cursor.left
 	bit 4,a
 	jr z,@still.cursor.right
 	
 	ld a,keyboard.67890
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	bit 4,a
 	jr z,@still.6
 	bit 3,a
@@ -529,28 +588,28 @@ scan.keyboard.left.right:
 
 @still.cursor.left:
 	ld a,keyboard.cursors_ctrl
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	bit 3,a
 	jr z,@still.cursor.left
 	jr @change.port
 
 @still.cursor.right:
 	ld a,keyboard.cursors_ctrl
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	bit 4,a
 	jr z,@still.cursor.right
 	jr @change.port
 
 @still.6:
 	ld a,keyboard.67890
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	bit 4,a
 	jr z,@still.6
 	jr @change.port
 
 @still.7:
 	ld a,keyboard.67890
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	bit 3,a
 	jr z,@still.7
 
@@ -612,18 +671,6 @@ loader.palette:
 	defb %1110111 ;    F
 
 ;---------------------------------------------------------------
-set.palette.black:
-;---------------------------------------------------------------
-
-	ld bc,256 * 15 + color.look.up.table
-	xor a
-@loop:
-	out (c),a
-	djnz @loop
-	out (c),a
-	ret
-
-;---------------------------------------------------------------
 show.screen:
 ;---------------------------------------------------------------
 
@@ -638,7 +685,7 @@ show.screen:
 loader:
 ;---------------------------------------------------------------
 
-	ld sp,32768
+;	ld sp,&8000
 
 	call show.screen
 
@@ -663,8 +710,8 @@ loader:
 	ld bc,load.len * 2
 	ldir
 
-	ld de,loader.dir+load.len
-	ld c,225+16
+	ld de,loader.dir + load.len
+	ld c,disk.track + disk2.offset ; !!!
 	ld b,0
 is.2.pres:
 	out (c),b
@@ -731,17 +778,17 @@ pl.copy.name:
 	push de
 
 	ld e,(ix+26)
-	ld d,(ix+27)		;first cluster
+	ld d,(ix+27)		; first cluster
 
-	ld hl,temp.spc-9	;space between scrn & attrib
+	ld hl,temp.spc		; space between scrn & attrib
 pc.rd.more:
-	call readcluster
-	call getfatentry
+	call msdos.readcluster
+	call msdos.getfatentry
 	ld a,h
-	cp ( temp.spc + 1084 - 9 ) // 256 + 1
+	cp ( temp.spc + 1084 ) // 256 + 1
 	jr c,pc.rd.more
 
-	ld hl,temp.spc+1083-9
+	ld hl,temp.spc+1083
 	ld de,temp.spc+1083
 	ld bc,1084
 	lddr
@@ -828,15 +875,23 @@ cnv.sam:
 	push de
 	ld ix,black.attributes
 	ld a,6
-	call set.attributes
+	call set.attributes 
 
 ;first read in SAM directory
-	ld de,1
+
+	in a,(port.hmpr)
+	and high.memory.page.mask
+	ld c,a
+
+	ld de,&0001
 	ld hl,fat
+	
 cs.rd.lp:
+	push bc
 	push de
 	push hl
-	call rdphysec
+	
+	call disk.read.sector
 	pop hl
 
 	ld a,d
@@ -844,7 +899,7 @@ cs.rd.lp:
 	jr nz,cs.notfirst
 	dec e
 	jr nz,cs.notfirst
-
+	
 	push hl
 	ld de,m.vollabel
 	ld hl,fat+210
@@ -906,6 +961,7 @@ cs.notfirst:
 	ldir
 	ex de,hl
 	pop de
+	pop bc
 	inc e
 	ld a,e
 	cp 11
@@ -926,7 +982,7 @@ sam.to.loader:
 	push af
 	ld a,(hl)
 	and %00111111
-	cp 19
+	cp uifa.filetype.code
 	jp nz,sl.skip
 
 	push hl
@@ -970,18 +1026,22 @@ sl.copy.name:
 	ld e,(ix+14)
 	ld d,(ix+13)	;first sector
 
-	ld hl,temp.spc-9
-	call rdphysec
+	in a,(port.hmpr)
+	and high.memory.page.mask
+	ld c,a
+
+	ld hl,temp.spc
+	call disk.read.sector
 	dec hl
 	ld e,(hl)
 	dec hl
 	ld d,(hl)
-	call rdphysec
+	call disk.read.sector
 	dec hl
 	ld e,(hl)
 	dec hl
 	ld d,(hl)
-	call rdphysec
+	call disk.read.sector
 
 	pop de
 
@@ -1075,11 +1135,8 @@ converted:
 
 	call print.oct
 
-	ld a,(driveselect+1)
-	or a
-	ld a,"1"
-	jr z,$+3
-	inc a
+	ld a,(loader.drive)
+	add a,"0"
 	ld (mes.drive+6),a
 
 	ld de,mes.label
@@ -1091,7 +1148,7 @@ converted:
 	ld bc,11
 	ldir
 
-	ld hl,video.memory.32.rows * 3
+	ld hl,video.memory.32.rows * 3 + video.memory.high
 	ld de,mes.drive
 	ld b,9+11
 	call print.de.b
@@ -1102,7 +1159,7 @@ converted:
 	ld a,24
 	ld c,a
 	ld de,loader.dir
-	ld hl,video.memory.32.rows * 4 + 1
+	ld hl,video.memory.32.rows * 4 + 1 + video.memory.high
 le.loop:
 	push de
 	push hl
@@ -1126,7 +1183,7 @@ le.loop:
 
 	call @still.esc	; to prevent immediate exit when escape used to exit "DEMO"
 
-	ld hl,video.memory.32.rows * 4
+	ld hl,video.memory.32.rows * 4 + video.memory.high
 	ld (curs.offs+1),hl
 	ld a,(load.entries)
 	dec a
@@ -1173,7 +1230,7 @@ gm.is.8:
 	pop de
 
 	ld b,32
-	ld hl,video.memory.32.rows * 29
+	ld hl,video.memory.32.rows * 29 + video.memory.high
 	call print.de.b
 
 	ld hl,mes.size
@@ -1242,7 +1299,7 @@ gm.got.date:
 	jr normal.mess
 
 disc.mess:
-	ld hl,video.memory.32.rows * 29
+	ld hl,video.memory.32.rows * 29 + video.memory.high
 	ld b,32
 blnk.line:
 	ld a," "
@@ -1250,13 +1307,13 @@ blnk.line:
 	djnz blnk.line
 normal.mess:
 	ld b,32
-	ld hl,video.memory.32.rows * 30
+	ld hl,video.memory.32.rows * 30 + video.memory.high
 	call print.de.b
 
 	call cursor.select
 
 	ld a,keyboard.caps_esc
-	in a,(status.register)
+	in a,(port.status)
 	bit 5,a
 	jr z,loader.quit
 
@@ -1264,7 +1321,7 @@ normal.mess:
 	jp nz,select.key
 
 	ld a,keyboard.yuiop
-	in a,(keyboard.register)
+	in a,(port.keyboard)
 	and %00010
 	ld a,0
 	jr nz,not.o
@@ -1282,7 +1339,7 @@ not.o.nc:
 	jp cursor.lp
 
 print.oct:
-	ld hl,video.memory.32.rows * 1 + 26
+	ld hl,video.memory.32.rows * 1 + 26 + video.memory.high
 	ld de,mes.oct
 	ld b,5
 	call print.de.b
@@ -1294,29 +1351,21 @@ print.oct:
 	ret
 
 loader.quit:
-	in a,(low.memory.page.register)
-	and 31
-	out (high.memory.page.register),a
-	jp quit.hi
 
-	org $+32768
-quit.hi:
 	xor a
-	out (low.memory.page.register),a
+	out (port.lmpr),a
 	rst 0
-
-	org $-32768
 
 ;check to see if the sum of sample lengths + patterns = file len
 file.check:
-	ld hl,temp.spc
+	ld hl,temp.spc + 9
 	ld bc,20
 	ldir
 
 	ld (bytes.per+1),a		;2=normal, 1=compressed?
 
 	push ix
-	ld bc,(temp.spc+1080)
+	ld bc,(temp.spc + 9 + 1080)
 	ld a,1
 	or a
 	ld hl,&2E4D				;"M."
@@ -1338,10 +1387,10 @@ pl.got.type:				;0=nst, 1=m.k., 2=flt4
 	ld (de),a
 pl.not.comp:
 	inc de
-	ld hl, temp.spc + ( 30 * 31 ) + 20
+	ld hl, temp.spc + 9 + ( 30 * 31 ) + 20
 	and 63
 	jr nz,$+5
-	ld hl, temp.spc + ( 30 * 15 ) + 20
+	ld hl, temp.spc + 9 + ( 30 * 15 ) + 20
 	ldi
 	push de
 	ld bc, 31 * 256
@@ -1353,7 +1402,7 @@ pl.not.comp:
 fc.is.nst:
 	xor a
 	ld (sample.count+1),a
-	ld ix,temp.spc+20
+	ld ix,temp.spc + 9 + 20
 add.all.smp:
 	ld d,(ix+22)
 	ld e,(ix+23)
@@ -1432,14 +1481,14 @@ sample.count:
 fc.sam:
 	push de
 
-	ld de,(temp.spc-9+1);length mod 16384
-	ld a,(temp.spc-9+7) ;length in pages (16384)
+	ld de,(temp.spc + 1);length mod 16384
+	ld a,(temp.spc + 7) ;length in pages (16384)
 	and %00000011
 	rrca
 	rrca
 	add d
 	ld d,a
-	ld a,(temp.spc-9+7)
+	ld a,(temp.spc + 7)
 	jr nc,$+4
 	add 4
 	srl a
@@ -1471,7 +1520,7 @@ select.key:
 
 	ld de,mes.load
 	ld b,10
-	ld hl,video.memory.32.rows * 31
+	ld hl,video.memory.32.rows * 31 + video.memory.high
 	call print.de.b
 	push ix
 	pop de
@@ -1493,9 +1542,6 @@ select.key:
 
 	push af
 
-	call checknodisc
-	jp z,loader
-
 	push ix
 	pop hl
 	ld de,parafile
@@ -1514,6 +1560,10 @@ select.key:
 	or a
 	jr z,sam.load
 
+;---------------------------------------------------------------
+
+msdos.load:	; !!! does not work yet, needs to be moved to inst.buffer
+
 	push hl
 	pop ix
 	ld e,(ix+26)
@@ -1524,11 +1574,11 @@ select.key:
 	jr z,@no.megabyte.2
 
 	ld a,high.memory.external
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	ld a,page.mod.megabyte
-	out (external.memory.page.c),a
+	out (port.xmpr.c),a
 	inc a
-	out (external.memory.page.d),a
+	out (port.xmpr.d),a
 	ld (@external+1),a
 	
 	jr @continue.2
@@ -1536,13 +1586,13 @@ select.key:
 @no.megabyte.2:
 
 	ld a,page.mod
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	
 @continue.2:	
 	
 	ld hl,load.offs
 pc.load.all:
-	call readcluster
+	call msdos.readcluster
 	bit 6,h
 	res 6,h
 	jr z,@page.ok
@@ -1553,40 +1603,47 @@ pc.load.all:
 
 @external:
 	ld a,0
-	out (external.memory.page.c),a
+	out (port.xmpr.c),a
 	inc a
-	out (external.memory.page.d),a
+	out (port.xmpr.d),a
 	ld (@external+1),a
 	
 	jr @page.ok
 		
 @no.megabyte.3:
 
-	in a,(high.memory.page.register)
+	in a,(port.hmpr)
 	inc a
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	
 @page.ok:
 
-	call getfatentry
+	call msdos.getfatentry
 	ld a,d
-	cp 15
+	cp &0f
 	jr nz,pc.load.all
 	ld a,e
-	cp &F8
+	cp &f8
 	jr c,pc.load.all
 
 	jp file.loaded
 
 
+;---------------------------------------------------------------
+
 sam.load:
-	ld de,1
+
+	ld de,&0001
+
 sam.load.dir:
-	ld hl,6144
-	call rdphysec
-	ld hl,6144
+	in a,(port.hmpr)
+	and high.memory.page.mask
+	ld c,a
+	ld hl,temp.spc
+	call disk.read.sector
+	ld hl,temp.spc
 	call sam.match
-	ld hl,6144+256
+	ld hl,temp.spc+256
 	call sam.match
 	inc e
 	ld a,e
@@ -1603,7 +1660,7 @@ file.notfound:
 sam.match:
 	push ix
 	ld a,(hl)
-	cp 19
+	cp uifa.filetype.code
 	jr nz,sam.no.match
 
 	ld b,8
@@ -1634,31 +1691,51 @@ sam.match.blp:
 	inc l
 	ld e,(hl)		;first sector
 
-	ld hl,6144
-	call rdphysec
-
-	ld a,(loader.external.ram)
+	push hl
+	push de
+	
+	ld hl,relocate.load.mod
+	ld bc,load.mod.len
+	ld a,(loader.external.ram)	
 	or a
-	jr z,@no.megabyte.4
+	jr z,@no.meg
+	ld hl,relocate.meg.load.mod
+	ld bc,meg.load.mod.len
+@no.meg:	
+	ld de,inst.buffer
+	ldir
+	pop de
+	pop hl
+	
+	ld a,(loader.drive)	
 
-	ld a,high.memory.external
-	out (high.memory.page.register),a
-	ld a,page.mod.megabyte
-	out (external.memory.page.c),a
-	inc a
-	out (external.memory.page.d),a
-	ld (@external+1),a
-				
-	jr @continue.4				
-				
-@no.megabyte.4:
+	call load.mod
+	
+	jp file.loaded
+	
+sam.no.match:
+	pop ix
+	ret
 
+relocate.load.mod:
+
+	org inst.buffer
+	
+load.mod:	
+	
+	ld (@disk+1),a
+	ld hl,uifa	; tape headers + farldir buffer = 512 bytes
+	
+	rst 8
+	defb dos.hrsad
+	di
+
+	in a,(port.hmpr)
+	ld (@file.loaded+1),a
+	
 	ld a,page.mod
-	out (high.memory.page.register),a
-	
-@continue.4:
-	
-	ld hl,6144+9
+	out (port.hmpr),a
+	ld hl,uifa + 9
 	ld de,load.offs
 	ld bc,510-9
 	ldir
@@ -1667,52 +1744,155 @@ sam.match.blp:
 	ld e,(hl)
 
 	ld hl,load.offs+510-9
-sam.load.lp:
-	call rdphysec
+	ld c,a
+	
+@loop:
+
+@disk:	
+	ld a,0
+	ld ix,1
+	
+	push hl
+	push bc
+	
+	rst 8
+	defb dos.hmrsad
+	di
+	
+	pop bc
+	
+	ld a,c
+	out (port.hmpr),a	
+	
+	pop hl
+	inc h
+	inc h
+	
 	dec hl
 	ld e,(hl)
 	dec hl
 	ld d,(hl)
 	ld a,e
 	or d
-	jr z,file.loaded
+	jr z,@file.loaded
 	bit 6,h
+	jr z,@loop
+
 	res 6,h
-	jr z,@page.ok
-
-	ld a,(loader.external.ram)
-	or a
-	jr z,@no.megabyte.5
-
-@external:
+	inc c	
+	jr @loop
+	
+@file.loaded:
 	ld a,0
-	out (external.memory.page.c),a
+	out (port.hmpr),a
+	ret	
+
+load.mod.len: equ $ - load.mod
+
+	org relocate.load.mod + load.mod.len
+
+relocate.meg.load.mod:
+
+	org inst.buffer
+	
+meg.load.mod:	
+	
+	ld (@meg.disk+1),a
+	ld hl,dos.sector
+	
+	rst 8
+	defb dos.hrsad
+	di
+
+	in a,(port.hmpr)
+	ld (@meg.file.loaded+1),a
+
+	ld a,page.mod.megabyte
+	ld (@external+1),a
+	out (port.xmpr.c),a
 	inc a
-	out (external.memory.page.d),a
+	out (port.xmpr.d),a
+	ld a,high.memory.external
+	out (port.hmpr),a
+	
+	ld hl,dos.sector + 9
+	ld de,load.offs
+	ld bc,510-9
+	ldir
+	ld d,(hl)
+	inc l
+	ld e,(hl)
+
+	ld hl,load.offs+510-9
+	
+@meg.loop:
+
+	ld a,(@meg.file.loaded+1)
+	out (port.hmpr),a
+
+@meg.disk:	
+	ld a,0
+	
+	push hl
+	
+	ld hl,dos.sector
+	
+	rst 8
+	defb dos.hrsad
+	di
+	
+	ld a,high.memory.external
+	out (port.hmpr),a
+@external:	
+	ld a,0
+	out (port.xmpr.c),a
+	inc a
+	out (port.xmpr.d),a
+	
+	pop de
+	
+	ld hl,dos.sector
+	ld bc,510
+	ldir
+	
+	push de	
+	ld d,(hl)
+	inc hl
+	ld e,(hl)
+	pop hl
+	
+	ld a,e
+	or d
+	jr z,@meg.file.loaded
+	bit 6,h
+	jr z,@meg.loop
+
+	res 6,h
+	ld a,(@external+1)
+	inc a
 	ld (@external+1),a
 	
-	jr @page.ok
+	jr @meg.loop
 	
-@no.megabyte.5:
+@meg.file.loaded:
+	ld a,0
+	out (port.hmpr),a	
+	ret	
 
-	in a,(high.memory.page.register)
-	inc a
-	out (high.memory.page.register),a
-	
-@page.ok:
-	
-	jr sam.load.lp
+meg.load.mod.len: equ $ - meg.load.mod
 
-sam.no.match:
-	pop ix
-	ret
-
+	org relocate.meg.load.mod + meg.load.mod.len
 
 file.loaded:
+
 	pop af
 	bit 6,a
 	jp z,no.decompress
-decompress:
+	
+;---------------------------------------------------------------
+
+decompress:			; !!! does not work yet
+
 	ld c,a
 
 	ld a,(loader.external.ram)
@@ -1720,11 +1900,11 @@ decompress:
 	jr z,@no.megabyte.6
 
 	ld a,high.memory.external
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	ld a,page.mod.megabyte
-	out (external.memory.page.c),a
+	out (port.xmpr.c),a
 	inc a
-	out (external.memory.page.d),a
+	out (port.xmpr.d),a
 	dec a
 
 	jr @continue.6				
@@ -1732,7 +1912,7 @@ decompress:
 @no.megabyte.6:
 
 	ld a,page.mod
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	
 @continue.6:
 	ld (@page.mod+1),a	
@@ -1850,16 +2030,16 @@ loop2:
 	
 	jr z,@no.megabyte.7
 
-	out (external.memory.page.c),a
+	out (port.xmpr.c),a
 	inc a
-	out (external.memory.page.d),a
+	out (port.xmpr.d),a
 	dec a
 	
 	jr @continue.7
 	
 @no.megabyte.7:
 
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	
 @continue.7:
 	
@@ -1879,16 +2059,16 @@ loop2:
 	
 	jr z,@no.megabyte.8
 	
-	out (external.memory.page.c),a
+	out (port.xmpr.c),a
 	inc a
-	out (external.memory.page.d),a
+	out (port.xmpr.d),a
 	dec a
 	
 	jr @continue.8
 	
 @no.megabyte.8:
 
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	
 @continue.8:
 	
@@ -1905,16 +2085,16 @@ loop2:
 	
 	jr z,@no.megabyte.9
 
-	out (external.memory.page.c),a
+	out (port.xmpr.c),a
 	inc a
-	out (external.memory.page.d),a
+	out (port.xmpr.d),a
 	dec a
 	
 	jr @continue.9
 	
 @no.megabyte.9:
 
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	
 @continue.9:
 
@@ -1942,17 +2122,35 @@ end2:
 	or a
 	jr nz,loop2
 
+;---------------------------------------------------------------
+
 no.decompress:
+
 	call cls
-	in a,(low.memory.page.register)
-	and %00011111
-	out (high.memory.page.register),a
+	
+	in a,(port.lmpr)
+	ld (@store.lmpr+1),a
+	ld (@store.sp+1),sp
+
+	ld sp,&8000	
+	in a,(port.hmpr)
+	and low.memory.page.mask
+	or low.memory.ram.0
+	out (port.lmpr),a
+
 	ld a,(loader.external.ram)
 	ld c,a
 	
 loader.octaves:
-	ld a,3				; 3 or 5 octave
-	call addr.demo		; demo
+	ld a,3					; 3 or 5 octave
+	call demo.setup			; aBcd	 
+	
+@store.lmpr:
+	ld a,0
+	out (port.lmpr),a
+@store.sp:
+	ld sp,0		
+	
 	ld a,c
 	dec a
 	jp nz,converted
@@ -1973,14 +2171,14 @@ new.read:
 	and 127
 	or a
 	push af
-	call z,select1
+	call z,select.drive.1
 	pop af
-	call nz,select2
+	call nz,select.drive.2
 	jp loader
 
 print.cursor:
 wait4int:
-	in a,(status.register)
+	in a,(port.status)
 	and 8
 	jr nz,wait4int
 
@@ -2049,7 +2247,7 @@ curs.blink:
 
 get.pos:
 curs.offs:
-	ld hl,video.memory.32.rows * 3
+	ld hl,video.memory.32.rows * 3 + video.memory.high
 	ld de,32
 	or a
 get.pos.lp:
@@ -2100,7 +2298,7 @@ loader.dir:
 	defw 0			;total size in k
 	defb 0			;number of samples (len>1)
 
-load.len:	equ 8+20+1+1+6+2+1
+load.len:	equ $ - loader.dir
 
 	defs 27 * load.len	;max 27 on screen (25 files)
 
@@ -2159,7 +2357,7 @@ unprintable:
 	add hl,hl
 	add hl,hl
 	add hl,bc
-	ld bc,loader.font - 160	;-" "*5
+	ld bc,loader.font_high - 160	;-" "*5
 	add hl,bc
 	ld b,5
 pr.chr.blp:
@@ -2185,7 +2383,7 @@ print.screen:
 	ld a,6
 	call set.attributes
 
-	ld hl,video.memory.low
+	ld hl,video.memory.high
 	pop de
 	ld c,32
 @wel.all:
@@ -2214,23 +2412,33 @@ print.screen:
 ;---------------------------------------------------------------	
 cls:
 
-; clear mode 2 screen in lower memory
+; clear mode 2 screen 
 ;---------------------------------------------------------------	
-	ld hl,video.memory.low
-	ld de,video.memory.low + 1
+	ld hl,video.memory.high
+	ld de,video.memory.high + 1
 	ld bc,6143
 	ld (hl),l
 	ldir
 
-	ld hl,video.memory.low.attributes
-	ld de,video.memory.low.attributes + 1
+	ld hl,video.memory.high.attributes
+	ld de,video.memory.high.attributes + 1
 	ld bc,6143
 	ld (hl),l
 	ldir
 
 	ld hl,loader.palette + 15
-	ld bc,256 * 16 + color.look.up.table
+	ld bc,256 * 16 + port.clut
 	otdr
+	
+	ld hl,loader.palette
+	ld de,palette.table
+	ld bc,&10
+	ldir
+	
+	ld hl,loader.palette
+	ld de,palette.table + &14
+	ld bc,&10
+	ldir
 
 	ret
 
@@ -2257,11 +2465,11 @@ eop:
 ;---------------------------------------------------------------	
 set.attributes:
 
-; apply attributes to mode 2 screen in lower memory
+; apply attributes to mode 2 screen 
 ;---------------------------------------------------------------	
 	ld (line.size+1),a
 
-	ld hl,video.memory.low.attributes
+	ld hl,video.memory.high.attributes
 col.loop:
 	ld c,(ix)
 	inc ix
@@ -2282,73 +2490,16 @@ line.size:
 col.blp2:
 	ld a,(de)
 	inc de
+	
+@fill: equ for 31
+	
 	ld (hl),a
 	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
+	
+next @fill
 
 	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc l
-	ld (hl),a
-	inc hl
+	inc hl	
 
 	djnz col.blp2
 
@@ -2357,7 +2508,7 @@ col.blp2:
 	inc ix
 
 	ld a,h
-	cp ( video.memory.low.attributes + 6144 ) // 256
+	cp ( video.memory.high.attributes + 6144 ) // 256
 	jr nz,col.loop
 	ret
 
@@ -2389,10 +2540,10 @@ colour.yellow:	equ 5
 device.screen:
 	defm "SAM MOD player             v"
 	defb version.major, ".", version.minor.1, version.minor.2	
-	defm "(C) 2018 Stefan Drissen"
+	defm "(C) 2019 Stefan Drissen"
 	defb 0,0
 row.device:	equ 5	
-	defm " SOUND DEVICE"
+	defm "SOUND DEVICE"
 	defb 0,0
 	defm " Soundchip"
 	defb 0
@@ -2407,7 +2558,7 @@ row.device:	equ 5
 	defm " Screen"
 	defb 0,0
 row.speed:	equ 14
-	defm " AMIGA SPEED"
+	defm "AMIGA SPEED"
 	defb 0,0
 	defm " PAL"
 	defb 0
@@ -2463,7 +2614,7 @@ text.surround:
 load.screen:
 	defm "SAM MOD player             v"
 	defb version.major, ".", version.minor.1, version.minor.2	
-	defm "(C) 2018 Stefan Drissen"
+	defm "(C) 2019 Stefan Drissen"
 	defb 0,0,0,0,0,0,0
 	defb 0,0,0,0,0,0,0,0
 	defb 0,0,0,0,0,0,0,0
@@ -2490,11 +2641,7 @@ dir.stuff:
 
 m.vollabel:	defm "01234567890"
 
-	ld a,(driveselect+1)
-	rlca
-	rlca
-	rlca
-	rlca
+	ld a,(loader.drive)
 	add "A"
 	rst 16
 	ld a,":"
@@ -2710,10 +2857,10 @@ lpisdir:
 	ld bc,0
 lpreadmore:
 	push bc
-	call readcluster
+	call msdos.readcluster
 	pop bc
 	inc bc
-	call getfatentry
+	call msdos.getfatentry
 	ld a,d
 	cp 15
 	jr nz,lpreadmore
@@ -2913,19 +3060,18 @@ gifendext:
 	xor a
 	ret
 
-select1:
-	ld a,0
-	call setdrive
+select.drive.1:
+	ld a,1
 	ld hl,patha
+@select.drive:	
+	ld (loader.drive),a
 	ld (path),hl
 	ret
 
-select2:
-	ld a,1
-	call setdrive
+select.drive.2:
+	ld a,2
 	ld hl,pathb
-	ld (path),hl
-	ret
+	jr @select.drive
 
 
 filecount:	defw 0
@@ -2974,43 +3120,10 @@ prdonelabel:
 
 ;===============================================================
 
-checknodisc:
-	push bc
-	push hl
-	ld c,%11010000		;force interrupt
-	call dsendc
-	ld c,dstatcom
-	call dconvert
-	ld hl,0
-clearbit:
-	dec hl
-	ld a,h
-	or l
-	jr z,cdisdisc
-	in a,(c)
-	bit 1,a
-	jr nz,clearbit
-	ld hl,0
-cndlp:
-	in a,(c)
-	nop
-	nop
-	bit 1,a
-	jr nz,cdisdisc
-	dec hl
-	ld a,h
-	or l
-	jr nz,cndlp
-cdisdisc:
-	pop bc
-	pop hl
-	ret
-
-;---------------------------------------------------------------
 ;get FAT entry
 ;de = cluster
 
-getfatentry:
+msdos.getfatentry:
 	push hl
 	ld h,d
 	ld l,e
@@ -3108,7 +3221,7 @@ rdrtlp:
 ;de= cluster number (2-711)
 ;hl= address
 
-readcluster:
+msdos.readcluster:
 	push de
 	push hl
 	dec de
@@ -3218,7 +3331,12 @@ rlsdiv9:
 	jr nz,$+4
 	rrc d
 	pop hl
-	call rdphysec
+	
+	in a,(port.hmpr)
+	and high.memory.page.mask
+	ld c,a	
+	
+	call disk.read.sector
 	pop de
 	pop bc
 	ret
@@ -3230,178 +3348,145 @@ rlsdiv9:
 ;e = sector
 ;hl= address
 
-dstatcom:	equ 224
-dtrack:		equ 225
-dsec:		equ 226
-ddata:		equ 227
+; disk.statcom:	equ 224
+disk.track:		equ 225
+; disk.sector:	equ 226
+; disk.data:	equ 227
+disk2.offset:	equ 16
 
-rdphysec:
-	; di
+text.track.sector:	
+		defm "T:"
+@trk:	defm "00"
+		defm "S:"
+@sec:	defm "00"
+		defb 0
+						
 
-	xor a
-	ld (derrcount+1),a
-	ld (rpshl+1),hl
-rpsretry:
 
-rpshl:
-	ld hl,0
-	push de
-	ld a,d
-	and 127
-	ld d,a
-rpsnxtrk:
-	call busy
-	ld c,dtrack
-	call dconvert
-	in a,(c)
-	cp d
-	jr z,rpright
-	ld c,%01011000
-	call mergestep
-	jr c,$+4
-	set 5,c
-	call dsendc
-	jr rpsnxtrk
-rpright:
-	pop de
-	ld c,dsec
-	call dconvert
-	ld a,e
-	out (c),a
 
-	ld c,%10000000
-	call dsendc
-	ld c,dstatcom
-	call dconvert
-	ld a,c
-	ld (dnodata+1),a
-	ld c,ddata
-	call dconvert
-	jr dnodata
-dread:
-	ini
-dnodata:
-	in a,(dstatcom)
-	bit 1,a
-	jr nz,dread
-	rrca
-	jr c,dnodata
-	and %00001110
+disk.read.sector:
 
-	jr z,finread
-derrcount:
-	ld a,0
-	inc a
+;	hl	=	address
+;	de	=	track / sector
 
-	ld (derrcount+1),a
-	cp 5
-	jp c,rpsretry
-
-	push hl
-	push de
+	di
+	
+	push ix
+	push af
 	push bc
-	ld a,"0"
-	bit 7,d
-	jr z,$+3
-	inc a
-	ld (mes.sec+12),a
-	ld a,d
-	and 127
 	push de
-	ld de,mes.sec+21
-	call cnv.a.to.de
-	pop de
+	push hl
+	
+if defined(debug)	
+	
+	push hl
+	push de 
+	push bc
+	
+	ld hl,video.memory.high + 30 * video.memory.32.rows 
+	
+	ld a,"T"
+	call print.chr
+	ld a,":"
+	call print.chr
+	ld a,d
+	call print.num
+	
+	ld a," "
+	call print.chr
+	
+	ld a,"S"
+	call print.chr
+	ld a,":"
+	call print.chr
 	ld a,e
-	ld de,mes.sec+29
-	call cnv.a.to.de
+	call print.num
 
-	ld hl,31*6*32
-	ld de,mes.sec
-	ld b,32
-	call print.de.b
-
-	pop bc
+	pop bc	
 	pop de
+	pop hl
+	
+endif
+	
+	ld hl,@dos.exit.routine
+	ld hl,0
+	ld (svar.doser),hl
+	
+	pop hl
+	push hl
+
+	ld a,(loader.drive)
+	ld ix,1
+	
+	rst 8
+	defb dos.hmrsad	
+	
+	di
+	
 	pop hl
 	inc h
 	inc h
-
-finread:
-	; ei
-	ret
-
-mes.sec:	defm "ERROR: side 0, track 00, sec 00"
-
-dsendc:
-	push bc
-	call busy
+	pop de
 	pop bc
-dsendnow:
-	ld a,c
-	ld c,dstatcom
-	call dconvert
-	out (c),a
-	ld a,16
-dwait:
-	dec a
-	jr nz,dwait
-	ret
-
-busy:
-	ld c,dstatcom
-	call dconvert
-busylp:
-	in a,(c)
-	bit 0,a
-	jr nz,busylp
-	ret
-
-dconvert:
-	push af
-	bit 7,d
-	jr z,$+4
-	set 2,c
-driveselect:
-	ld a,0		; +16 for drive 2
-	or c
-	ld c,a
 	pop af
+	pop ix
+	
+;	ei
 	ret
 
-setdrive:
-	rlca
-	rlca
-	rlca
-	rlca
-	ld (driveselect+1),a
-	ret
+@dos.exit.routine:
 
-mergestep:
-	push af
-	ld a,(driveselect+1)
+	ld hl,0
+	ld (svar.doser),hl
+
 	or a
-steprate.1:
-	ld a,%11
-	jr z,$+4
-steprate.2:
-	ld a,%00
-	or c
-	ld c,a
+	jr nz,@dos.error
+	
+	ret	
+
+@dos.error:	
+	di
+	ld bc,port.border
+	
+@loop:	
+	out (c),a
+	out (c),b
+	
+	jr @loop
+	
+	push af
+
+@nokey:	
+	xor a
+	in a,(port.keyboard)
+	and %00011111
+	cp %00011111
+	jr nz,@nokey
+
+@anykey:	
+	xor a
+	in a,(port.keyboard)
+	and %00011111
+	cp %00011111
+	jr z,@anykey
+	
 	pop af
+
 	ret
 
 ;---------------------------------------------------------------
 ;read boot sector from disc at fixed address
 
 rdboot:
-	call checknodisc
-	jp z,errnodisc
-	ld c,%00000000
-	call mergestep
-	call dsendc
-	ld de,1
+
+	ld de,&0001
 	ld hl,bootsector
-	call rdphysec
+
+	in a,(port.hmpr)
+	and high.memory.page.mask
+	ld c,a
+	
+	call disk.read.sector
 	ld hl,(bstotsecs)
 	ld de,(bssecstrack)
 	ld a,d
@@ -3455,24 +3540,25 @@ save.sam.sp:
 	ld sp,0
 	ret
 
+
 bootsector:		defs 3
-bssysid:		defm "01234567"
-bssecsize:		defw 0
-bsclusize:		defb 0
-bsressec:		defw 0
-bsnumfats:		defb 0
-bsrootentries:	defw 0
-bstotsecs:		defw 0
-bsformatid:		defb 0
-bssecsfat:		defw 0
-bssecstrack:	defw 0
-bssides:		defw 0
-bshiddensecs:	defw 0,0
-bsbigtot:		defw 0,0
-bsphysdrv:		defb 0
-				defw 0
-bsvolserial:	defb 0,0,0,0
-bsvolname:		defm "01234567890"
+	bssysid:		defm "01234567"
+	bssecsize:		defw 0
+	bsclusize:		defb 0
+	bsressec:		defw 0
+	bsnumfats:		defb 0
+	bsrootentries:	defw 0
+	bstotsecs:		defw 0
+	bsformatid:		defb 0
+	bssecsfat:		defw 0
+	bssecstrack:	defw 0
+	bssides:		defw 0
+	bshiddensecs:	defw 0,0
+	bsbigtot:		defw 0,0
+	bsphysdrv:		defb 0
+					defw 0
+	bsvolserial:	defb 0,0,0,0
+	bsvolname:		defm "01234567890"
 
 bytescluster:	defw 0
 
@@ -3480,9 +3566,11 @@ direntries:		defw 0
 
 data:			defw 0		;points to first address after FAT
 
-fat:			equ 2 * 192
+; in screen area
 
-temp.spc:		equ 6144+9
+fat:			equ video.memory.high + 2 * video.memory.32.rows
+
+temp.spc:		equ video.memory.high + video.memory.32.rows * 32 
 
 ;===============================================================
 

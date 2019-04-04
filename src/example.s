@@ -1,6 +1,6 @@
 ; SAM MOD player - EXAMPLE routine for BURST+SequENCER
 
-; (C) 1996-2018 Stefan Drissen
+; (C) 1996-2019 Stefan Drissen
 
 	include "memory.i"
 	include "ports.i"
@@ -26,7 +26,7 @@ make.burst:	equ 32768
 
 ;set the following address with the desired sound device
 
-device:		equ 32771
+burstplayer.device:		equ 32771
 	clut:		equ 0
 	saa:		equ 1
 	samdac1:	equ 2
@@ -38,26 +38,25 @@ device:		equ 32771
 
 ;set the following address with the desired Amiga speed
 
-amiga:		equ 32772
+burstplayer.speed:		equ 32772
 	pal:		equ 0
 	ntsc:		equ 1
 
 ;set the following address with the page at which to build
 
-burst:		equ 32774
+burstplayer.page:		equ 32774
 
-page.example:	equ  1
+page.example:			equ 1
 
-	dump page.example,0
 	org 32768
 
 	di
-	in a,(low.memory.page.register)
+	in a,(port.lmpr)
 	ld (st.lmpr+1),a
-	in a,(high.memory.page.register)
+	in a,(port.hmpr)
 	and high.memory.page.mask
 	or low.memory.ram.0
-	out (low.memory.page.register),a
+	out (port.lmpr),a
 	ld (st.stpr+1),sp
 	ld sp,16384
 	jp @low
@@ -69,14 +68,14 @@ page.example:	equ  1
 	jr nz,already.made
 
 	ld a,page.create.burstplayer
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 
 	ld a,samdac1
-	ld (device),a
+	ld (burstplayer.device),a
 	ld a,pal
-	ld (amiga),a
+	ld (burstplayer.speed),a
 	ld a,page.burstplayer
-	ld (burst),a
+	ld (burstplayer.page),a
 
 	call make.burst
 already.made:
@@ -87,7 +86,7 @@ already.made:
 ;sound device.
 
 	ld a,page.sequencer
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	ld hl,demo.rtn
 	ld (sq.pointer.addr.demo),hl
 	ld a,demo.rtn.page
@@ -106,7 +105,7 @@ already.made:
 seq.setup:	 
 	ld a,0
 	or a
-	call z,init.seq
+	call z,sequencer.init
 	ld a,1
 	ld (seq.setup+1),a
 
@@ -121,34 +120,34 @@ seq.setup:
 ;length.
 
 	ld a,page.mod
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	ld a,(32768)
 	cp 255
 	jr z,already.inst
 
 	ld a,255
-	ld ( 32768 ),a
+	ld (32768),a
 
 	ld a,page.sequencer
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 
-	call install.mod	;add gaps between samples
+	call sequencer.install.mod	;add gaps between samples
 already.inst:
 	ld a,page.burstplayer
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 
-	call burst.player
+	call burstplayer.start
 test:
-	in a,(low.memory.page.register)
+	in a,(port.lmpr)
 	and low.memory.page.mask
-	out (high.memory.page.register),a
+	out (port.hmpr),a
 	jp high
 
 	org  $+32768
 high:
 st.lmpr:
 	ld a,0
-	out (low.memory.page.register),a
+	out (port.lmpr),a
 st.stpr:
 	ld sp,0
 	ei
@@ -182,13 +181,13 @@ mk.enable:
 	ldir
 
 @demo.loop:
-	ld bc,color.look.up.table
+	ld bc,port.clut
 	ld a,r
 	out (c),a
 
 	ld bc,0
 	ld a,247
-	in a,(status.register)	; escape key
+	in a,(port.status)	; escape key
 	and 32
 	jr z,@exit
 
@@ -221,7 +220,7 @@ my.palette:
 interrupt.on:
 	ld hl,example.int
 	ld (int.routine),hl
-	in a,(high.memory.page.register)
+	in a,(port.hmpr)
 	ld (int.rtn.pag),a
 	ret
 

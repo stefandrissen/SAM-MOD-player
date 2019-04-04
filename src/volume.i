@@ -21,7 +21,7 @@ populate.volume.table:
 	ld a,1
 	ld (cv.skip.table+2),a
 
-	ld a,opcode_nop
+	ld a,opcode.nop
 
 	jr @continue
 	
@@ -32,7 +32,7 @@ populate.volume.table:
 	xor a
 	ld (cv.skip.table+2),a
 
-	ld a,opcode_ret
+	ld a,opcode.ret
 
 @continue:
 
