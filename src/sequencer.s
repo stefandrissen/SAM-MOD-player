@@ -483,15 +483,20 @@ build.list:
 
 	ld de,(32768 + 1080)	; 20 + 31 * 30 + 2 + 128
 findmk:
+	ld a,31
 	ld hl,-&2E4D			; "M."=  PROTRACKER 31.inst.
 	or a
 	adc hl,de
-	ld a,31
 	jr z,set.instr
+    ld hl,-&214D            ; "M!"=  PROTRACKER 31.inst.
+    or a
+    adc hl,de
+    jr z,set.instr
 	ld hl,-&4C46			; "FL"=  STARTREKKER 31 inst.
 	or a
 	adc hl,de
 	jr z,set.instr
+
 	ld a,15
 set.instr:
 	ld (sq.instruments - 32768),a

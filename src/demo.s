@@ -1479,18 +1479,30 @@ ss.pr.pntb:
 	call pr.title
 
 	ld c,31
-	ld hl,(mod.header+1080)
-	or a
-	ld de,&2E4D			;M.
-	sbc hl,de
-	jr z,got.ins
-	ld hl,(mod.header+1080)
-	or a
-	ld de,&4C46			;FL
-	sbc hl,de
-	jr z,got.ins
+	ld hl,mod.header+1080
+	ld a,(hl)
+	cp "M"             ; M.K. / M!K!
+	jr nz,@not.m
+	inc hl
+	ld a,(hl)
+	cp "."
+	jr z,@ins.31
+	cp "!"
+	jr z,@ins.31
+	jr @ins.15
+	
+@not.m:
+    cp "F"              ; FLT4
+    jr nz,@ins.15
+    inc hl
+    ld a,(hl)
+    cp "L"
+    jr z,@ins.31
+      	
+@ins.15:	
 	ld c,15
-got.ins:
+	
+@ins.31:
 	ld hl,video.memory.32.rows * 1 + 1 + video.memory.high 
 	ld de,mod.header+20
 	ret
@@ -2198,7 +2210,7 @@ mod.header:	defs mod.header.len	; first 1084 bytes of mod containing song name +
 ;    1 byte song positions
 ;    1 byte unused
 ;  128 bytes pattern table
-;    4 bytes signature "M.K." / "FLT4"
+;    4 bytes signature "M.K." / "FLT4" / "M!K!"
 ; ---- 
 ; 1084 
 

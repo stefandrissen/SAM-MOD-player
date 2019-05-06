@@ -105,8 +105,6 @@ scan.external.memory.len: equ $ - scan.external.memory
 ;---------------------------------------------------------------
 go.loader:
 ;---------------------------------------------------------------
-;	ld sp,32768
-
 
 	di
 	
@@ -1204,6 +1202,9 @@ cursor.lp:
 	ld de,mes.sta
 	dec a
 	jr z,got.mes
+	ld de,mes.pro  ; m!k!
+	dec a
+	jr z,got.mes
 	ld de,mes.drv
 got.mes:
 	ld a,(ix+28)
@@ -1376,8 +1377,13 @@ file.check:
 	ld hl,&4C46				;"FL"
 	sbc hl,bc
 	jr z,pl.got.type
+    inc a
+    or a
+    ld hl,&214D             ;"M!"
+    sbc hl,bc
+    jr z,pl.got.type
 	xor a
-pl.got.type:				;0=nst, 1=m.k., 2=flt4
+pl.got.type:				;0=nst, 1=m.k., 2=flt4, 3=m!k!
 	ld (de),a
 	ld a,(bytes.per+1)
 	dec a
