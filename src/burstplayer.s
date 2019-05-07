@@ -6,6 +6,7 @@
 
 include "memory.i"
 include "ports.i"
+include "saa1099.i"
 include "opcodes.i"
 
 ;---------------------------------------------------------------
@@ -71,6 +72,30 @@ burstplayer.page:		defb page.burstplayer
 	ld sp,0
 	; ei
 	ret
+
+if defined (debug)
+
+    ;---------------------------------------------------------------
+    debug.assert.hl_7_bit_positive:    ; ensure jr does not overflow
+    ;---------------------------------------------------------------
+
+        push af
+        ld a,h
+        or a
+        jr nz,@error
+        bit 7,l
+        jr nz,@error
+        pop af
+        ret
+    
+    @error:
+    
+        ld a,r
+        and %110
+        out (port.border),a
+        jr @error
+
+endif
 
 ;---------------------------------------------------------------
 maker:
@@ -237,7 +262,10 @@ mk.sto1.1:
 	push hl
 	scf
 	sbc hl,de
-	ld a,l
+if defined (debug)
+    call debug.assert.hl_7_bit_positive
+endif	
+    ld a,l	
 	pop hl
 	ld (mk.stojr188+1),a
 	ld (hl),opcode.ld_a_n
@@ -300,6 +328,9 @@ mk.sto1:
 	push hl
 	scf
 	sbc hl,de
+if defined (debug)
+    call debug.assert.hl_7_bit_positive
+endif 
 	ex de,hl
 	ld (hl),e
 mk.recjr191:
@@ -3656,18 +3687,20 @@ device.list:
 	;clut
 	defw 0,0					; init, length             	     
 	defw sd.clut,10				; sound driver, length
-	defw port.clut	; output port
-	defw &1734                	; control
+	defw port.clut	            ; output port
+	defb &34                    ; control
+	defb &17		            ; control
 	defw timing.clut          	; timing table
 	defw timing.clut.megabyte	; timing table
 	defb 22 * 3 + 2           	; raster interrupts - related to count to 0 in timing.<device>
 	defb 6                    	; number of bits
 	
 	;saa
-	defw i.saa,e.saa-i.saa
+	defw init.saa, init.saa.length
 	defw sd.saa,10
-	defw 511
-	defw &0205
+	defw port.sound.address
+	defb saa.register.amplitude_5
+	defb saa.register.amplitude_2
 	defw timing.saa
 	defw timing.saa.megabyte
 	defb 23 * 3 + 2
@@ -3714,7 +3747,7 @@ device.list:
 	defb 6
 
 	;blue alpha
-	defw i.bla,e.bla-i.bla
+	defw init.blue_alpha, init.blue_alpha.length
 	defw sd.dac,8
 	defw 124 * 256 + 127
 	defw 0
@@ -3724,7 +3757,7 @@ device.list:
 	defb 6
 
 	;quazar surround soundcard
-	defw i.qss,e.qss-i.qss
+	defw init.quazar, init.quazar.length
 	defw sd.qss,9
 	defw &06D0
 	defw &0006					; +1 for OUTI
@@ -3736,32 +3769,60 @@ device.list:
 ;---------------------------------------------------------------
 ;initialise device subroutines
 
-i.saa:
-	ld a,%10001000    ;A=silence value
-	ld bc,511
-	ld de,32 * 256 + 31
-	xor a
+init.saa:
+;	ld a,%10001000    ;A=silence value ??? 
+	ld bc,port.sound.address
+;	ld de,32 * 256 + 31
+;	xor a
 bp.res.saa:
-	out (c),e
-	out (255),a
-	dec e
-	dec d
-	jr nz,bp.res.saa
-	ld hl,bp.soundtab
+;	out (c),e
+;	out (port.sound.data),a
+;	dec e
+;	dec d
+;	jr nz,bp.res.saa
+	
+if 1 > 0 
+
+    ; !!! size too large for jr 
+ 
+    ld e,saa.register.sound_enable
+    out (c),e
+    dec b
+    ld e,saa.se.enabled
+    out (c),e
+
+    ld e,saa.envelope.enabled | saa.envelope.mode.maximum
+    ld d,saa.register.envelope_generator_0
+    inc b
+    out (c),d
+    dec b
+    out (c),e
+    
+    ld d,saa.register.envelope_generator_1
+    inc b
+    out (c),d
+    dec b
+    out (c),e
+    
+else 
+
+	ld hl,bp.saa.init
 	ld b,6
 	otir
-e.saa:
+	
+endif	
+    init.saa.length:    equ $ - init.saa
 
-i.bla:
+init.blue_alpha:
 	ld bc,127 * 256 + 127
 	ld a,255
 	out (c),a
 	ld b,125
 	ld a,253
 	out (c),a
-e.bla:
+    init.blue_alpha.length: equ $ - init.blue_alpha
 
-i.qss:
+init.quazar:
 	ld bc,&06D0
 	in a,(c)			; mode 1
 	ld a,128
@@ -3773,7 +3834,7 @@ i.qss:
 	out (c),a			; front right
 	dec b
 	out (c),a			; front left
-e.qss:
+    init.quazar.length: equ $ - init.quazar
 
 ;---------------------------------------------------------------
 ;sound drivers
@@ -4079,8 +4140,12 @@ bp.c4.speedhi:		defw 0
 bp.c4.sp.frct:		defw 0
 
 
-bp.soundtab:	defb 28,1,25,130,24,130   ;set saa for samples
-
+if 0 > 1 
+;set saa for samples
+bp.saa.init:	defb saa.register.sound_enable        , saa.se.enabled
+                defb saa.register.envelope_generator_1, saa.envelope.enabled | saa.envelope.mode.maximum
+                defb saa.register.envelope_generator_0, saa.envelope.enabled | saa.envelope.mode.maximum
+endif
 
 mk.mv.end:
 sound.driver.reset:
@@ -4153,4 +4218,4 @@ is.stlmpr:
 sequencer:
 	ret
 
-endif	
+endif

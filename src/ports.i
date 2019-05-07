@@ -84,3 +84,20 @@ port.printer_1:				equ &e8	; 232
 port.printer_2:				equ &ea	; 234
 
 ;---------------------------------------------------------------
+
+port.disk.1.statcom:		equ &e0	; 224
+port.disk.1.track:			equ &e1	; 225
+port.disk.1.sector:			equ &e2	; 226
+port.disk.1.data:			equ &e3	; 227
+
+port.disk.2.statcom:		equ &f0	; 240
+port.disk.2.track:			equ &f1	; 241
+port.disk.2.sector:			equ &f2	; 242
+port.disk.2.data:			equ &f3	; 243
+
+;---------------------------------------------------------------
+
+port.sound.data:            equ &00ff   ; 255
+port.sound.address:         equ &01ff   ; 511
+
+;---------------------------------------------------------------

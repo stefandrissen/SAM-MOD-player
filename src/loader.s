@@ -5,7 +5,6 @@
 ; to do:
 ;
 ; - fix 4-bit "compressed" mods 
-; - fix msdos
 ; - handle dos errors better (doser) 
 ; + add sample runways while loading
 
@@ -19,7 +18,7 @@ load.offs:	equ 32768
 
 ;---------------------------------------------------------------
 
-	jp go.loader
+	jp loader.start
 
 ;---------------------------------------------------------------
 
@@ -100,10 +99,9 @@ scan.external.memory:
 scan.external.memory.len: equ $ - scan.external.memory
 
 	org relocate.scan + scan.external.memory.len
-	
 
 ;---------------------------------------------------------------
-go.loader:
+loader.start:
 ;---------------------------------------------------------------
 
 	di
@@ -222,8 +220,6 @@ select.device:
 	add a,a
 	ld c,a
 	call print.cursor
-
-	jr select.speed
 
 ;---------------------------------------------------------------
 select.speed:
@@ -621,23 +617,6 @@ scan.keyboard.left.right:
 
 ;===============================================================
 
-path:			defw patha
-
-patha:
-	defb "\",0
-	defs 63
-	defb 0
-
-pathb:
-	defb "\",0
-	defs 63
-	defb 0
-
-temppath:
-	defb "\"
-	defs 64
-
-;===============================================================
 ;loader
 
 loader.palette:	
@@ -677,6 +656,7 @@ show.screen:
 	ld de,load.screen
 	ld ix,load.attributes
 	call print.screen
+	
 	ret
 
 ;---------------------------------------------------------------
@@ -698,10 +678,10 @@ loader:
 	xor a
 	ld (nodisc+1),a
 
-	call dir
+	call fat.read.dir
 
 	ld a,1
-	ld (load.entries),a
+	ld (loader.entries),a
 
 	ld hl,option.dir
 	ld de,loader.dir
@@ -709,7 +689,13 @@ loader:
 	ldir
 
 	ld de,loader.dir + load.len
-	ld c,disk.track + disk2.offset ; !!!
+
+	ld a,dvar.records
+	call bdos.get.dvar
+	or a
+	jr nz,@has.drive.2
+	
+	ld c,port.disk.2.track
 	ld b,0
 is.2.pres:
 	out (c),b
@@ -723,9 +709,13 @@ is.2.pres:
 	cp b
 	jr nz,no.drive2
 	djnz is.2.pres
+	
+@has.drive.2:
+
 	ld a,2
-	ld (load.entries),a
-	ld de,loader.dir + ( 2 * load.len ) 
+	ld (loader.entries),a
+	ld de,loader.dir + ( 2 * load.len )
+	 
 no.drive2:
 
 nodisc:
@@ -740,7 +730,7 @@ msdos:
 
 ;convert pc dir -> loader dir
 
-	ld hl,(data)
+	ld hl,(fat.data)
 pc.to.loader:
 	ld a,(hl)
 	or a
@@ -780,8 +770,8 @@ pl.copy.name:
 
 	ld hl,temp.spc		; space between scrn & attrib
 pc.rd.more:
-	call msdos.readcluster
-	call msdos.getfatentry
+	call fat.read_cluster
+	call fat.get_entry
 	ld a,h
 	cp ( temp.spc + 1084 ) // 256 + 1
 	jr c,pc.rd.more
@@ -854,7 +844,7 @@ pc.file.ok:
 	call cnv.a.to.de
 
 	call insert.size
-	ld hl,load.entries
+	ld hl,loader.entries
 	inc (hl)
 	pop hl
 	ld bc,load.len
@@ -864,7 +854,7 @@ pc.file.ok:
 pl.skip:
 	ld bc,32
 	add hl,bc
-	ld a,(load.entries)
+	ld a,(loader.entries)
 	cp 27
 	jp z,converted
 	jp pc.to.loader
@@ -875,102 +865,9 @@ cnv.sam:
 	ld a,6
 	call set.attributes 
 
-;first read in SAM directory
+	call bdos.read.dir
 
-	in a,(port.hmpr)
-	and high.memory.page.mask
-	ld c,a
-
-	ld de,&0001
-	ld hl,fat
-	
-cs.rd.lp:
-	push bc
-	push de
-	push hl
-	
-	call disk.read.sector
-	pop hl
-
-	ld a,d
-	or a
-	jr nz,cs.notfirst
-	dec e
-	jr nz,cs.notfirst
-	
-	push hl
-	ld de,m.vollabel
-	ld hl,fat+210
-	ld a,(hl)
-	cp "*"
-	jr nz,$+4
-	ld (hl),0
-	ld bc,10
-	ldir
-	ld a," "
-	ld (de),a
-	pop hl
-cs.notfirst:
-	push hl
-	push hl
-	pop de
-	ld bc,245
-	add hl,bc
-	ld a,e
-	add 11
-	ld e,a
-	jr nc,$+3
-	inc d
-	ldi
-	ldi
-	inc de
-	inc de
-	ldi
-	pop hl
-
-	ld bc,16
-	ld e,l
-	ld d,h
-	ex de,hl
-	add hl,bc
-	ex de,hl
-	inc h
-
-	push de
-	push hl
-	push hl
-	pop de
-	ld bc,245
-	add hl,bc
-	ld a,e
-	add 11
-	ld e,a
-	jr nc,$+3
-	inc d
-	ldi
-	ldi
-	inc de
-	inc de
-	ldi
-	pop hl
-	pop de
-
-	ld bc,16
-	ldir
-	ex de,hl
-	pop de
-	pop bc
-	inc e
-	ld a,e
-	cp 11
-	jr nz,cs.rd.lp
-	ld e,1
-	inc d
-	ld a,d
-	cp 4
-	jr nz,cs.rd.lp
-
-;now convert the SAM stuff to loader format
+	; now convert the SAM stuff to loader format
 
 	pop de
 	ld hl,fat
@@ -1029,17 +926,17 @@ sl.copy.name:
 	ld c,a
 
 	ld hl,temp.spc
-	call disk.read.sector
+	call bdos.read.sector
 	dec hl
 	ld e,(hl)
 	dec hl
 	ld d,(hl)
-	call disk.read.sector
+	call bdos.read.sector
 	dec hl
 	ld e,(hl)
 	dec hl
 	ld d,(hl)
-	call disk.read.sector
+	call bdos.read.sector
 
 	pop de
 
@@ -1108,7 +1005,7 @@ sm.done.date:
 
 	call insert.size
 
-	ld hl,load.entries
+	ld hl,loader.entries
 	inc (hl)
 	pop hl
 	ld bc,load.len
@@ -1121,7 +1018,7 @@ sl.skip:
 
 	pop af
 	ld b,a
-	ld a,(load.entries)
+	ld a,(loader.entries)
 	cp 27
 	jr z,converted
 	ld a,b
@@ -1151,7 +1048,7 @@ converted:
 	ld b,9+11
 	call print.de.b
 
-	ld a,(load.entries)
+	ld a,(loader.entries)
 	cp 24
 	jr c,$+4
 	ld a,24
@@ -1183,13 +1080,15 @@ le.loop:
 
 	ld hl,video.memory.32.rows * 4 + video.memory.high
 	ld (curs.offs+1),hl
-	ld a,(load.entries)
+	ld a,(loader.entries)
 	dec a
 	ld (max.select+1),a
 
 	ld c,0
 	call print.cursor
+	
 cursor.lp:
+
 	call get.entry
 	ld a,(ix+28)
 	res 6,a
@@ -1306,6 +1205,7 @@ blnk.line:
 	ld a," "
 	call print.chr
 	djnz blnk.line
+
 normal.mess:
 	ld b,32
 	ld hl,video.memory.32.rows * 30 + video.memory.high
@@ -1316,7 +1216,7 @@ normal.mess:
 	ld a,keyboard.caps_esc
 	in a,(port.status)
 	bit 5,a
-	jr z,loader.quit
+	jp z,loader.quit
 
 	call scan.keyboard.return
 	jp nz,select.key
@@ -1337,7 +1237,101 @@ still.o:
 not.o:
 	ld (still.o),a
 not.o.nc:
+
+    ld a,(ix+28)
+    cp &81      ; drive 2
+    call z,@scan.keyboard.left.right
+
 	jp cursor.lp
+
+; !!! copy / paste  
+	
+@scan.keyboard.left.right:
+
+    ld a,keyboard.cursors_ctrl
+    in a,(port.keyboard)
+    bit 3,a
+    jr z,@still.cursor.left
+    bit 4,a
+    jr z,@still.cursor.right
+    
+    ld a,keyboard.67890
+    in a,(port.keyboard)
+    bit 4,a
+    jr z,@still.6
+    bit 3,a
+    jr z,@still.7
+    
+    ret 
+
+@still.cursor.left:
+    ld a,keyboard.cursors_ctrl
+    in a,(port.keyboard)
+    bit 3,a
+    jr z,@still.cursor.left
+    jr @record.down
+
+@still.cursor.right:
+    ld a,keyboard.cursors_ctrl
+    in a,(port.keyboard)
+    bit 4,a
+    jr z,@still.cursor.right
+    jr @record.up
+
+@still.6:
+    ld a,keyboard.67890
+    in a,(port.keyboard)
+    bit 4,a
+    jr z,@still.6
+    jr @record.down
+
+@still.7:
+    ld a,keyboard.67890
+    in a,(port.keyboard)
+    bit 3,a
+    jr z,@still.7
+    jr @record.up
+
+@record.down:
+
+    ld a,dvar.record
+    call bdos.get.dvar
+    ld l,a
+    ld a,dvar.record+1
+    call bdos.get.dvar
+    ld h,a
+    dec hl
+    ld a,h
+    or l
+    ret z
+    jr @change.record
+
+@record.up:	
+
+    ld a,dvar.record
+    call bdos.get.dvar
+    ld l,a
+    ld a,dvar.record+1
+    call bdos.get.dvar
+    ld h,a
+    inc hl
+    ld a,dvar.records
+    call bdos.get.dvar
+    ld e,a
+    ld a,dvar.records+1
+    call bdos.get.dvar
+    ld d,a
+    or a
+    sbc hl,de
+    ret nc
+    add hl,de
+
+@change.record:
+
+    call bdos.select.record.hl
+    pop af
+    jp select.key 
+
 
 print.oct:
 	ld hl,video.memory.32.rows * 1 + 26 + video.memory.high
@@ -1550,7 +1544,7 @@ select.key:
 
 	push ix
 	pop hl
-	ld de,parafile
+	ld de,fat.parafile
 	ld bc,8
 	ldir
 	ex de,hl
@@ -1560,7 +1554,7 @@ select.key:
 	inc hl
 	ld (hl),"D"
 
-	ld hl,parafile
+	ld hl,fat.parafile
 	call findfile
 	ld a,(msdos+1)
 	or a
@@ -1598,7 +1592,7 @@ msdos.load:	; !!! does not work yet, needs to be moved to inst.buffer
 	
 	ld hl,load.offs
 pc.load.all:
-	call msdos.readcluster
+	call fat.read_cluster
 	bit 6,h
 	res 6,h
 	jr z,@page.ok
@@ -1624,7 +1618,7 @@ pc.load.all:
 	
 @page.ok:
 
-	call msdos.getfatentry
+	call fat.get_entry
 	ld a,d
 	cp &0f
 	jr nz,pc.load.all
@@ -1646,7 +1640,7 @@ sam.load.dir:
 	and high.memory.page.mask
 	ld c,a
 	ld hl,temp.spc
-	call disk.read.sector
+	call bdos.read.sector
 	ld hl,temp.spc
 	call sam.match
 	ld hl,temp.spc+256
@@ -2293,7 +2287,7 @@ option.dir:
 	defw 0
 	defb 0
 
-load.entries:	defb 0
+loader.entries:	defb 0
 
 loader.dir:
 	defm "filename"
@@ -2642,37 +2636,11 @@ black.attributes:
 	defb 1,colour.yellow
 
 ;---------------------------------------------------------------
-;directory stuff
-dir.stuff:
 
 m.vollabel:	defm "01234567890"
 
-	ld a,(loader.drive)
-	add "A"
-	rst 16
-	ld a,":"
-	rst 16
-	ld hl,(path)
-
 ;---------------------------------------------------------------
-program:
 
-
-badcommand:
-	ld hl,msbadfile
-	ret
-	
-badfilename:
-	ld hl,msbadname
-	ret
-	
-filenotfound:
-	ld hl,msfilenot
-	ret
-
-invaliddir:
-	ld hl,msinvdir
-	ret
 
 errnodisc:
 	ld sp,(save.sam.sp+1)
@@ -2680,102 +2648,23 @@ errnodisc:
 	ld (nodisc+1),a
 	ret
 
-commands:
-
-msbadfile:
-	defb 13
-	defm "Bad command or file name"
-	defb 13,0
-
-msbadname:
-	defb 13
-	defm "Invalid file name"
-	defb 13,0
-
-msfilenot:
-	defb 13
-	defm "File not found"
-	defb 13,0
-
-msinvdir:
-	defb 13
-	defm "Invalid subdirectory"
-	defb 13,0
-
-
-parlast:		defw 0
-
-parameter:		defs 255
-
-parafile:		defs 11
-
-matchfile:		defs 11
-
-getparameter:
-	ld hl,(parlast)
-	ld de,parameter
-getparlp2:
-	ld a,(hl)
-	ld (de),a
-	or a
-	ret z
-	inc hl
-	cp " "
-	jr z,getparlp2
-
-getparlp:
-	ld (de),a
-	inc de
-	ld a,(hl)
-	inc hl
-	or a
-	jr z,gpnomore
-	cp " "
-	jr z,gpnomore
-	cp "\"
-	jr z,gpnomore
-	cp "."
-	jr z,gpnomore
-	jr getparlp
-gpnomore:
-	dec hl
-	ld (parlast),hl
-	xor a
-	ld (de),a
-	dec a
-	ret
-
-
-chdir:
-	call getparameter
-	jp z,badcommand
-	call getinputpath
-	call readroot
-	call loadpath
-	jp c,invaliddir
-	ld hl,temppath
-	ld de,(path)
-	ld bc,64
-	ldir
-	ret
-
 
 findfile:
 	ld (save.sam.sp+1),sp
 
-	ld de,matchfile
+	ld de,fat.matchfile
 	ld bc,11
 	ldir
-	call readroot
-	call loadpath
-	call c,resetpath
-	ld bc,(direntries)
-	ld hl,(data)
+	call fat.readroot
+	call fat.load_path
+	call c,fat.reset_path
+	ld bc,(fat.dir_entries)
+	ld hl,(fat.data)
 fmclp:
 	push hl
 	push bc
 	ld b,11
-	ld de,matchfile
+	ld de,fat.matchfile
 fmblp:
 	ld a,(de)
 	cp (hl)
@@ -2799,778 +2688,53 @@ nomatch:
 	jp file.notfound
 
 
-resetpath:
-	ld hl,(path)
-	ld (hl),"\"
-	inc hl
-	ld (hl),0
-	call copypath
-	jp readroot
-copypath:
-	push hl
-	push de
-	push bc
-	ld hl,(path)
-	ld de,temppath
-	ld bc,64
-	ldir
-	pop bc
-	pop de
-	pop hl
-	ret
-
-loadpath:
-	ld a,(temppath+1)
-	or a
-	ret z
-	ld hl,temppath
-	ld (parlast),hl
-	call getparameter
-lploop:
-	ld a,(parameter)
-	or a
-	ret z
-	call getinputfile
-
-	push hl
-	ld hl,(data)
-	ld bc,(direntries)
-lpmatchlp:
-	ld de,parafile
-	push hl
-	push bc
-	ld b,11
-lpmatchblp:
-	ld a,(de)
-	cp (hl)
-	jr nz,lpnomatch
-	inc hl
-	inc de
-	djnz lpmatchblp
-	pop bc
-	pop ix
-	ld a,(ix+11)
-	and %00010000
-	jr nz,lpisdir
-	push ix
-	push bc
-	jp lpnomatch
-lpisdir:
-	ld e,(ix+26)
-	ld d,(ix+27)
-
-	ld hl,(data)
-	ld bc,0
-lpreadmore:
-	push bc
-	call msdos.readcluster
-	pop bc
-	inc bc
-	call msdos.getfatentry
-	ld a,d
-	cp 15
-	jr nz,lpreadmore
-	ld a,e
-	cp &F8
-	jr c,lpreadmore
-	ld hl,(bytescluster)
-	srl h
-	rr l
-	srl h
-	rr l
-	srl h
-	rr l
-	srl h
-	rr l
-	srl h
-	rr l
-	ex de,hl
-	ld hl,0
-lpaddlp:
-	add hl,de
-	dec bc
-	ld a,b
-	or c
-	jr nz,lpaddlp
-
-	ld (direntries),hl
-	pop hl
-	jp lploop
-lpnomatch:
-	pop bc
-	pop hl
-	ld de,32
-	add hl,de
-	dec bc
-	ld a,b
-	or c
-	jr nz,lpmatchlp
-	pop hl
-	scf
-	ret
-
-
-getinputpath:
-	call copypath
-	ld hl,parameter
-	ld de,temppath
-	ld a,(hl)
-	cp "\"
-	jr z,gipnewpath
-	ld a,(de)
-	or a
-	jr z,gipnewpath
-gipfindend:
-	inc de
-	ld a,(de)
-	or a
-	jr nz,gipfindend
-	ld a,e
-	cp ( temppath + 1 ) \ 256
-	jr nz,gipnewpath
-	dec de
-gipnewpath:
-	ld a,"\"
-	ld (de),a
-	inc de
-
-	ld a,(parameter)
-	cp "\"
-	jr nz,gipns
-	ld a,(parameter+1)
-	or a
-	jr nz,gipns
-	push de
-	call getparameter
-	pop de
-	ld a,(parameter)
-gipns:
-	cp "."
-	jr nz,gipnotdot
-	push de
-	call getparameter
-	pop de
-	ld a,(parameter)
-	cp "."
-	jr nz,gipfndlstp
-	dec de
-gipfndlstp:
-	dec de
-	ld a,(de)
-	cp "\"
-	jr nz,gipfndlstp
-	ld a,e
-	cp temppath \ 256
-	jr nz,$+3
-	inc de
-	xor a
-	ld (de),a
-
-	push de
-	call getparameter
-	pop de
-	jp gipdoneext
-gipnotdot:
-	push de
-	call getinputfile
-	pop de
-	jp c,invaliddir
-
-	ld hl,parafile
-	ld b,8
-gipcopyname:
-	ld a,(hl)
-	cp " "
-	jr z,gipdonename
-	ld (de),a
-	inc hl
-	inc de
-	djnz gipcopyname
-gipdonename:
-	ld hl,parafile+8
-	ld a,(hl)
-	cp " "
-	jr z,gipdoneext
-	ld a,"."
-	ld (de),a
-	inc de
-	ld b,3
-gipcopyext:
-	ld a,(hl)
-	cp " "
-	jr z,gipdoneext
-	ld (de),a
-	inc hl
-	inc de
-	djnz gipcopyext
-gipdoneext:
-	ld a,(parameter)
-	cp "\"
-	jr z,gipnewpath
-gipend:
-	xor a
-	ld (de),a
-	ret
-
-
-getinputfile:
-	ld hl,parafile
-	ld b,11
-clearpf:
-	ld (hl)," "
-	inc hl
-	djnz clearpf
-
-	ld hl,parameter
-	ld de,parafile
-	ld a,(hl)
-	cp "."
-	jr z,gifextonly
-	ld b,9
-gifcopynm:
-	ld a,(hl)
-	inc hl
-	or a
-	jr z,gifendname
-	cp "\"
-	jr z,gifcopynm
-	ld (de),a
-	inc de
-	djnz gifcopynm
-	scf					;file longer than 8 chars
-	ret
-gifendname:
-	call getparameter
-	jr z,gifendext
-
-	ld hl,parameter
-	ld a,(hl)
-	cp "."
-	jr nz,gifendext
-gifextonly:
-	inc hl
-	ld de,parafile+8
-	ld b,4
-gifcopyext:
-	ld a,(hl)
-	or a
-	jr z,gifendext
-	ld (de),a
-	inc hl
-	inc de
-	djnz gifcopyext
-	call getparameter
-	scf
-	ret			;extension longer than 3 chars
-gifendext:
-	xor a
-	ret
 
 select.drive.1:
 	ld a,1
-	ld hl,patha
+	ld hl,fat.path_a
 @select.drive:	
 	ld (loader.drive),a
-	ld (path),hl
+	ld (fat.path),hl
 	ret
 
 select.drive.2:
 	ld a,2
-	ld hl,pathb
+	ld hl,fat.path_b
 	jr @select.drive
 
+;---------------------------------------------------------------
+relocate.low:	
 
-filecount:	defw 0
+; move code after call to inst.buffer and execute it
 
-dir:
-	ld (save.sam.sp+1),sp
-
-	call readroot
-
-	xor a
-	ld (m.vollabel),a
-
-	ld a,(direntries)
-	ld hl,(data)
-	ld de,11
-	add hl,de
-	ld de,32
-	ld b,a
-prfindlabel:
-	ld a,(hl)
-	and 8
-	jr nz,prlabel
-	add hl,de
-	djnz prfindlabel
-prlabel:
-	jr z,prnolabel
-	ld de,11
-	xor a
-	sbc hl,de
-	ld b,11
-	ld de,m.vollabel
-prlabblp:
-	ld a,(hl)
-	ld (de),a
+	ld (@store.hl+1),hl
+	pop hl
+	
+	push de
+	push bc
+	
+	ld c,(hl)
 	inc hl
-	inc de
-	djnz prlabblp
-prnolabel:
-prdonelabel:
-	call copypath
-	call loadpath
-	call c,resetpath
-
-	ret
-
-
-;===============================================================
-
-;get FAT entry
-;de = cluster
-
-msdos.getfatentry:
-	push hl
-	ld h,d
-	ld l,e
-	add hl,hl
-	add hl,de
-
-	ld de,fat
-	srl h
-	rr l
-	jr c,oddfat
-
-	add hl,de
-	ld e,(hl)
+	ld b,(hl)
 	inc hl
-	ld a,(hl)
-	and 15
-	ld d,a
-	pop hl
-	ret
-
-oddfat:
-	add hl,de
-	ld a,(hl)
-	rrca
-	rrca
-	rrca
-	rrca
-	and 15
-	ld e,a
-	inc hl
-	ld a,(hl)
-	ld d,a
-	rlca
-	rlca
-	rlca
-	rlca
-	and 240
-	or e
-	ld e,a
-	srl d
-	srl d
-	srl d
-	srl d
-	pop hl
-	ret
-
-
-;---------------------------------------------------------------
-;read FAT at fixed address, (data) -> first address after FAT
-
-readfat:
-	push hl
-	ld de,1
-	ld hl,fat
-	ld a,(bssecsfat)
-	ld b,a
-rfblp:
-	call rdlogsec
-	inc de
-	djnz rfblp
-	ld (data),hl
-	pop hl
-	ret
-
-;---------------------------------------------------------------
-;read root directory
-;hl= address
-
-readroot:
-	call rdboot
-	call readfat
-	call startcluster
-	push de
-	call startroot
-	pop hl
-	xor a
-	sbc hl,de
-	ld b,l
-	push bc
-	call startroot
+	
+	ld de,inst.buffer
+	ldir
+	
 	pop bc
-	ld hl,(data)
-rdrtlp:
-	call rdlogsec
-	inc de
-	djnz rdrtlp
-	ld a,1
-	or a
-	ret
-
-
-
-;---------------------------------------------------------------
-;read cluster from disc
-;de= cluster number (2-711)
-;hl= address
-
-msdos.readcluster:
-	push de
-	push hl
-	dec de
-	dec de
-	ld hl,0
-	ld a,(bsclusize)
-	ld b,a
-rccalc:
-	add hl,de
-	djnz rccalc
-	call startcluster
-	add hl,de
-	ex de,hl
-	pop hl
-
-	ld a,(bsclusize)
-	ld b,a
-rcclusrep:
-	call rdlogsec
-	inc de
-	djnz rcclusrep
 	pop de
-	ret
-
-;---------------------------------------------------------------
-;calculate start sector of root directory
-;returns de with
-
-startroot:
-	ld de,1
-	ld a,(bsnumfats)
-	ld b,a
-rcfats:
-	ld a,(bssecsfat)
-	add a,e
-	ld e,a
-	djnz rcfats
-	ret
-
-;calculate total number of clusters on disc
-
-calcclusters:
-	ld hl,(bstotsecs)
-	call startcluster
-	xor a
-	sbc hl,de
-	ld a,(bsclusize)
-ccdiv:
-	srl a
-	jr z,ccdonediv
-	srl h
-	rr l
-	jr ccdiv
-ccdonediv:
-	ld c,l
-	ld b,h
-	ret
-
-;calculate start sector of cluster 2 (first data cluster)
-;returns de with logical sector of first data cluster
-
-startcluster:
-	push hl
-	ld hl,(bsrootentries)
-	add hl,hl
-	add hl,hl
-	add hl,hl
-	add hl,hl
-	add hl,hl	; * 32 bytes per entry
-	ld de,0
-	ld bc,(bssecsize)
-	xor a
-scdivsecs:
-	sbc hl,bc
-	inc e
-	jr nc,scdivsecs
-	dec e
-	ex de,hl
-	call startroot
-	add hl,de
-	ex de,hl
-	pop hl
-	ret
-
-;---------------------------------------------------------------
-;read logical sector from disc
-;de= sector number (0 - 1439 (for 720k disc))
-;hl= address
-
-rdlogsec:
-	push bc
-	push de
-	push hl
-	ex de,hl
-	ld bc,(bssecstrack) ;number of secs per track
-	ld de,0
-	xor a
-rlsdiv9:
-	sbc hl,bc
-	inc d
-	jr nc,rlsdiv9
-	adc hl,bc
-	dec d
-	ld e,l
-	ld a,(bssides)
-	cp 2
-	jr nz,$+4
-	rrc d
-	pop hl
 	
-	in a,(port.hmpr)
-	and high.memory.page.mask
-	ld c,a	
+	push hl	; return address
 	
-	call disk.read.sector
-	pop de
-	pop bc
-	ret
-
-
-;---------------------------------------------------------------
-;read physical sector from disc
-;d = track (+128 for side 2)
-;e = sector
-;hl= address
-
-; disk.statcom:	equ 224
-disk.track:		equ 225
-; disk.sector:	equ 226
-; disk.data:	equ 227
-disk2.offset:	equ 16
-
-text.track.sector:	
-		defm "T:"
-@trk:	defm "00"
-		defm "S:"
-@sec:	defm "00"
-		defb 0
-						
-
-
-
-disk.read.sector:
-
-;	hl	=	address
-;	de	=	track / sector
-
-	di
-	
-	push ix
-	push af
-	push bc
-	push de
-	push hl
-	
-if defined(debug)	
-	
-	push hl
-	push de 
-	push bc
-	
-	ld hl,video.memory.high + 30 * video.memory.32.rows 
-	
-	ld a,"T"
-	call print.chr
-	ld a,":"
-	call print.chr
-	ld a,d
-	call print.num
-	
-	ld a," "
-	call print.chr
-	
-	ld a,"S"
-	call print.chr
-	ld a,":"
-	call print.chr
-	ld a,e
-	call print.num
-
-	pop bc	
-	pop de
-	pop hl
-	
-endif
-	
-	ld hl,@dos.exit.routine
+@store.hl:
 	ld hl,0
-	ld (svar.doser),hl
-	
-	pop hl
-	push hl
-
-	ld a,(loader.drive)
-	ld ix,1
-	
-	rst 8
-	defb dos.hmrsad	
-	
-	di
-	
-	pop hl
-	inc h
-	inc h
-	pop de
-	pop bc
-	pop af
-	pop ix
-	
-;	ei
-	ret
-
-@dos.exit.routine:
-
-	ld hl,0
-	ld (svar.doser),hl
-
-	or a
-	jr nz,@dos.error
-	
-	ret	
-
-@dos.error:	
-	di
-	ld bc,port.border
-	
-@loop:	
-	out (c),a
-	out (c),b
-	
-	jr @loop
-	
-	push af
-
-@nokey:	
-	xor a
-	in a,(port.keyboard)
-	and %00011111
-	cp %00011111
-	jr nz,@nokey
-
-@anykey:	
-	xor a
-	in a,(port.keyboard)
-	and %00011111
-	cp %00011111
-	jr z,@anykey
-	
-	pop af
-
-	ret
+		
+	jp inst.buffer
 
 ;---------------------------------------------------------------
-;read boot sector from disc at fixed address
 
-rdboot:
-
-	ld de,&0001
-	ld hl,bootsector
-
-	in a,(port.hmpr)
-	and high.memory.page.mask
-	ld c,a
-	
-	call disk.read.sector
-	ld hl,(bstotsecs)
-	ld de,(bssecstrack)
-	ld a,d
-	or e
-	jr z,notpcdisc
-	xor a
-	ld bc,0
-rblp:
-	inc bc
-	sbc hl,de
-	jr nc,rblp
-	dec bc
-	add hl,de
-	ld a,h
-	or l
-	jr nz,notpcdisc
-	ld h,b
-	ld l,c
-	ld de,(bssides)
-	ld a,d
-	or e
-	jr z,notpcdisc
-	xor a
-rblp2:
-	sbc hl,de
-	jr nc,rblp2
-	add hl,de
-	ld a,h
-	or l
-	jr nz,notpcdisc
-
-	ld hl,0
-	ld bc,(bssecsize)
-	ld a,(bsclusize)
-rbcalcsz:
-	add hl,bc
-	dec a
-	jr nz,rbcalcsz
-	ld (bytescluster),hl
-	ld hl,(bsrootentries)
-	ld (direntries),hl
-
-	ld ix,black.attributes
-	ld a,6
-	jp set.attributes
-
-notpcdisc:
-	xor a
-	ld (msdos+1),a
-save.sam.sp:
-	ld sp,0
-	ret
-
-
-bootsector:		defs 3
-	bssysid:		defm "01234567"
-	bssecsize:		defw 0
-	bsclusize:		defb 0
-	bsressec:		defw 0
-	bsnumfats:		defb 0
-	bsrootentries:	defw 0
-	bstotsecs:		defw 0
-	bsformatid:		defb 0
-	bssecsfat:		defw 0
-	bssecstrack:	defw 0
-	bssides:		defw 0
-	bshiddensecs:	defw 0,0
-	bsbigtot:		defw 0,0
-	bsphysdrv:		defb 0
-					defw 0
-	bsvolserial:	defb 0,0,0,0
-	bsvolname:		defm "01234567890"
-
-bytescluster:	defw 0
-
-direntries:		defw 0
-
-data:			defw 0		;points to first address after FAT
+include "loader.bdos.i"
+include "loader.fat.i"
 
 ; in screen area
 

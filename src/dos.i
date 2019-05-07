@@ -29,9 +29,30 @@ difa:			equ &4b50	; disk information file area
 ; SVAR - System VARiables
 ;---------------------------------------------------------------
 
+svar.dosflg:	equ &5bc2	; zero if no DOS loaded, else page number containing DOS.
 svar.doser:		equ	&5bc0	; (2) If address is non-zero, DOS jumps there on exit.
 svar.mode:		equ &5a40	; MODE of current screen. 0-3 for modes 1-4
 svar.cuscrnp:	equ &5a78	; Current screen page. Bit 7=0, bits 6 and 5=MODE (0-3) and bits 4-0=page number. Set by SCREEN command
+
+;===============================================================
+; DVAR - Dos VARiables
+;---------------------------------------------------------------
+
+bdos.dvars:		equ &8000
+
+dvar.border.mask:		equ 0	; Border mask 0=no border change,1-7 border changed
+dvar.version:			equ 7	; Version number divided by 10 minus 10 (version 1.1 = 1)
+dvar.reserved:			equ 21	; Number of reserved sectors on hard disk for BOOT sector
+      							; and RECORD list. Equal to INT ((records+63)/32))
+      							; May be altered to access the Record names list. This DVAR
+      							; must be restored to its old value before the hard disk is
+      							; used again.
+dvar.records:			equ 23	; Total number of records available
+dvar.record:			equ 25	; current record selected. May be DPOKEd manually to select
+      							; a record. The write protect status of a record is not
+      							; updated if this DVAR is DPOKEd.
+dvar.record.protected:	equ	27	; Write protect status of current record. Note only updated
+      							; If a record is selected using the RECORD command.
 
 ;---------------------------------------------------------------
 
@@ -61,6 +82,13 @@ dos.hload:	equ &82	; load file
 
 ;---------------------------------------------------------------
 
+dos.hrecord: equ &9c ; select a record
+
+; if A = 0 then select record number HL,
+; else select record by name. HL points to the 16 char. name
+
+;---------------------------------------------------------------
+
 dos.hrsad:	equ &a0	; read a sector from disk
 
 ; D contains the track number, and E contains the sector number.
@@ -83,3 +111,5 @@ dos.hmrsad:	equ &a2 ; read multiple sectors
 ;	C = memory page
 ;	HL = memory offset (32768 to 49151)
 ;	IX = number of sectors
+
+;---------------------------------------------------------------

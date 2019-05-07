@@ -10,6 +10,7 @@
 		<attribute name="source" />
 		<attribute name="obj" default="@{source}" />
 		<attribute name="mapfile" default="false" />
+		<attribute name="debug" default="false" />
 
 		<sequential xmlns:if="ant:if">
 
@@ -21,6 +22,7 @@
 				<arg value="${pyz80}" />
 				<arg value="--obj=obj/@{obj}" />
 				<arg value="--mapfile=obj/@{source}.map" if:true="@{mapfile}" />
+				<arg value="-Ddebug=1" if:true="@{debug}" />
 				<arg value="src/@{source}.s" />
 			</exec>
 
@@ -83,7 +85,7 @@
 
 	<target name="all" description="compile all, create disk and launch" depends="create-disk">
 
-		<exec executable="${simcoupe}">
+		<exec executable="${simcoupe}" spawn="true">
 			<arg value="obj/modplayer.dsk" />
 		</exec>
 
