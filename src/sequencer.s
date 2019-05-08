@@ -3053,22 +3053,24 @@ r1.097:
 sononew:
 sampoffs:
     ld a,0
-    ld c,0
 r1.098:
     ld hl,(smp.offs+1)
-    add h
+    ld b,a
+    and %11000000       ; %01000000 = &40 -> &4000 = 16384 = 1 page
+    rlca
+    rlca
+    ld c,a              ; offset in pages
+    ld a,b
+    and %00111111       ; offset in bytes excluding pages
+    add a,h
     ld h,a
-    jr nc,so.noover
-    set 7,h
-    ld c,2
-so.noover:
 r1.099:
     ld a,(smp.page+1)
     add c
-    bit 6,h
+    bit 6,h             ; if pointer in bank D, move pointer down to bank C
     res 6,h
     jr z,$+3
-    inc a
+    inc a               ; increasing page
 
     ex de,hl
     ld c,a
