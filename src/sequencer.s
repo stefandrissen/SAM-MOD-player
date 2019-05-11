@@ -2195,8 +2195,18 @@ sml.jr: EQU  small.loop-repeat-2
 blp.jr: EQU  big.loop-repeat-2
 
 ;---------------------------------------------------------------
-
 play.voice:
+
+; hl = pattern row
+;
+; SPPPSECC
+;
+; S   S     = sample
+;  PPP      = note period
+;      E    = effect
+;       CC  = command
+;---------------------------------------------------------------
+
 mk.cur.pat:
     ld hl,0
 
