@@ -44,7 +44,7 @@
 
 	<target name="assemble-burstplayer">
 
-		<assemble source="burstplayer" mapfile="${mapfile}" />
+		<assemble source="burstplayer" mapfile="${mapfile}" debug="true" />
 
 	</target>
 
@@ -64,14 +64,14 @@
 
 		<exec executable="${python}" failonerror="true">
 			<arg value="${pyz80}" />
-			<arg value="-Ires/B-DOS15a" />
+			<!--            <arg value="-Ires/B-DOS15a" /> -->
+			<arg value="-Ires/AL-BDOS15a" />
 			<arg value="-Ires/loading.$" />
 			<arg value="-Iobj/sequencer" />
 			<arg value="-Iobj/burstplayer" />
 			<arg value="-Iobj/loader" />
 			<arg value="-Iobj/demo" />
 			<arg value="-Ires/test.m" />
-			<arg value="-Ires/buena vi.m" />
 			<arg value="-oobj/modplayer.dsk" />
 			<arg value="--mapfile=obj/boot.map" if:true="${mapfile}" />
 			<arg value="src/boot.s" />
