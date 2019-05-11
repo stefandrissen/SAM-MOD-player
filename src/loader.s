@@ -245,7 +245,7 @@ select.speed:
     call speed.details
 
     call scan.keyboard.return
-    jr nz,selected
+    jr nz,speed.selected
 
     call scan.escape
     jr z,@loop
@@ -261,7 +261,7 @@ select.speed:
 
     jr select.device
 
-selected:
+speed.selected:
 
     call cls
 
@@ -1537,6 +1537,7 @@ select.key:
     ld a,(ix+28)            ;mod type ,+128=drive
     bit 7,a
     jp nz,new.read
+    push af
 
     ld de,mes.load
     ld b,10
@@ -1555,8 +1556,6 @@ select.key:
     call print.chr
     xor a
     call print.chr
-
-    push af
 
     push ix
     pop hl
