@@ -1,6 +1,6 @@
 # SAM MOD player
 
-[![Build Status](https://travis-ci.org/stefandrissen/SAM-MOD-player.svg?branch=master)](https://travis-ci.org/stefandrissen/SAM-MOD-player)
+[![Build Status](https://travis-ci.com/stefandrissen/SAM-MOD-player.svg?branch=master)](https://travis-ci.com/stefandrissen/SAM-MOD-player)
 
 ## Structure
 
