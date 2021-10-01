@@ -10,9 +10,6 @@
 include "memory.i"
 include "ports/internal.i"
 include "ports/megabyte.i"
-include "ports/printer.i"
-include "ports/saa1099.i"
-include "ports/blue_alpha.i"
 include "opcodes.i"
 
 ;---------------------------------------------------------------
@@ -136,17 +133,17 @@ not.qss.pt:
     ld (no.function+1),hl
     ex af,af'
 
-    ld hl,device.list
+    ld hl,list.device.properties
     add a,a
-    ld e,a
-    add a,a
-    add a,a
-    add a,a
-    add a,e     ; * 18
     add a,l
     ld l,a
     jr nc,$+3
     inc h
+    ld e,(hl)
+    inc hl
+    ld d,(hl)
+    ex de,hl
+
     ld e,(hl)
     inc hl
     ld d,(hl)
@@ -3638,370 +3635,23 @@ mk.gd.offs: defw 0
 mk.store:   defs 208 * 2    ; stores adresses
 
 ;===============================================================
-device.list:
+list.device.properties:
 
-    ;clut
-    defw 0,0                    ; init, length
-    defw sd.clut,10             ; sound driver, length
-    defw port.clut              ; output port
-    defb 0x34                   ; control
-    defb 0x17                   ; control
-    defw timing.clut            ; timing table
-    defw timing.clut.megabyte   ; timing table
-    defb 22 * 3 + 2             ; raster interrupts - related to count to 0 in timing.<device>
-    defb 6                      ; number of bits
+    defw properties.clut
+    defw properties.saa1099
+    defw properties.samdac.1
+    defw properties.samdac.2
+    defw properties.dac.1
+    defw properties.dac.2
+    defw properties.blue_alpha
+    defw properties.quazar
 
-    ;saa
-    defw init.saa, init.saa.length
-    defw sd.saa,10
-    defw port.sound.address
-    defb saa.register.amplitude_5
-    defb saa.register.amplitude_2
-    defw timing.saa
-    defw timing.saa.megabyte
-    defb 23 * 3 + 2
-    defb 3
-
-    ;samdac
-    defw 0,0
-    defw sd.samdac,12
-    defw port.printer_1.data
-    defw 0x0001
-    defw timing.samdac
-    defw timing.samdac.megabyte
-    defb 21 * 3 + 2
-    defb 7
-
-    ;samdac 2
-    defw 0,0
-    defw sd.samdac,12
-    defw port.printer_2.data
-    defw 0x0001
-    defw timing.samdac
-    defw timing.samdac.megabyte
-    defb 21 * 3 + 2
-    defb 7
-
-    ;dac
-    defw 0,0
-    defw sd.dac,8
-    defw port.printer_1.data
-    defw 0
-    defw timing.dac
-    defw timing.dac.megabyte
-    defb 17 * 3 + 2
-    defb 6
-
-    ;dac 2
-    defw 0,0
-    defw sd.dac,8
-    defw port.printer_2.data
-    defw 0
-    defw timing.dac
-    defw timing.dac.megabyte
-    defb 17 * 3 + 2
-    defb 6
-
-    ;blue alpha
-    defw init.blue_alpha, init.blue_alpha.length
-    defw sd.dac,8
-    defw 124 * 256 + 127
-    defw 0
-    defw timing.dac
-    defw timing.dac.megabyte
-    defb 17 * 3 + 2
-    defb 6
-
-    ;quazar surround soundcard
-    defw init.quazar, init.quazar.length
-    defw sd.qss,9
-    defw 0x06d0
-    defw 0x0006                 ; +1 for OUTI
-    defw timing.qss
-    defw timing.qss.megabyte
-    defb 16 * 3 + 2
-    defb 8
-
-;---------------------------------------------------------------
-;initialise device subroutines
-
-init.saa:
-;   ld a,%10001000    ;A=silence value ???
-    ld bc,port.sound.address
-;   ld de,32 * 256 + 31
-;   xor a
-bp.res.saa:
-;   out (c),e
-;   out (port.sound.data),a
-;   dec e
-;   dec d
-;   jr nz,bp.res.saa
-
-if 1 > 0
-
-    ; !!! size too large for jr
-
-    ld e,saa.register.sound_enable
-    out (c),e
-    dec b
-    ld e,saa.se.channels.enabled
-    out (c),e
-
-    ld e,saa.envelope.enabled | saa.envelope.mode.maximum
-    ld d,saa.register.envelope_generator_0
-    inc b
-    out (c),d
-    dec b
-    out (c),e
-
-    ld d,saa.register.envelope_generator_1
-    inc b
-    out (c),d
-    dec b
-    out (c),e
-
-else
-
-    ld hl,bp.saa.init
-    ld b,6
-    otir
-
-endif
-    init.saa.length:    equ $ - init.saa
-
-init.blue_alpha:
-    ld bc,port.blue_alpha.control
-    ld a,255
-    out (c),a
-    ld bc,125   ; port.blue_alpha.b
-    ld a,253
-    out (c),a
-    init.blue_alpha.length: equ $ - init.blue_alpha
-
-init.quazar:
-    ld bc,0x06d0
-    in a,(c)            ; mode 1
-    ld a,128
-    dec b
-    out (c),a           ; rear right
-    dec b
-    out (c),a           ; rear left
-    dec b
-    out (c),a           ; front right
-    dec b
-    out (c),a           ; front left
-    init.quazar.length: equ $ - init.quazar
-
-;---------------------------------------------------------------
-;sound drivers
-
-sd.clut:
-    out (c),e       ; 16   2
-    inc b           ;  4   1
-    outi            ; 24   2
-    out (c),d       ; 16   2
-    inc b           ;  4   1
-    outi            ; 24   2  = 22
-
-sd.saa:
-    out (c),e       ; 16   2
-    outi            ; 24   2
-    inc b           ;  4   1
-    out (c),d       ; 16   2
-    outi            ; 24   2
-    inc b           ;  4   1  = 26
-
-sd.samdac:
-    outi            ; 20   2         data: sample out (left)
-    inc c           ;  4   1
-    out (c),e       ; 12   2         strobe: 1
-    dec c           ;  4   1
-    outi            ; 20   2         data: sample out (right)
-    inc c           ;  4   1
-    out (c),d       ; 20   2         strobe: 0
-    dec c           ;  4   1
-
-sd.dac:
-    ld e,a          ;  4   1
-    ld a,(hl)       ;  8   1
-    inc hl          ;  8   1
-    add (hl)        ;  8   1
-    inc hl          ;  8   1
-    out (c),a       ; 12   2
-    ld a,e          ;  4   1
-
-sd.qss:
-    ld b,e          ;  4   1
-    outi            ; 20   2
-    outi            ; 20   2
-    outi            ; 20   2
-    outi            ; 20   2  = 21
-
-;---------------------------------------------------------------
-; timing tables for sound devices - (130 bytes)
-; last byte in table is delay during line interrupt to get to 1.5
-;
-; 208 bytes per frame, one byte per 1.5 line -> 312 lines of which 192 screen
-; and 120 in border area -> 80 bytes in border area
-;
-; border area is uncontended, so more instructions can be executed than during
-; screen area:
-
-; if -1 reached -> error, double 0 indicates something went wrong in timing
-
-
-; lets try actual t-states 384 states per line, with a counter for when contended memory is encountered
-
-timing.clut:
-    defb  33,121,121,121,121,121,121,121,121,121  ; 1
-    defb 121,121,121,121,121,121,121,121,121,121  ; 2
-    defb 121,121,121,121,121,122,121,121,121,121  ; 3
-    defb 121,121,121,121,121,121,121,121,121,121  ; 4
-    defb 121,121,121,121,121,121,121,121,121,121  ; 5
-;    defb 121,121,121,122,123,121,121,121,121,121  ; 6 - different timing must mean bad counting?
-    defb 121,121,121,121,121,121,121,121,121,121  ; 6
-    defb 121,121,121,121,121,121,121,121,121,121  ; 7
-    defb 121,121,121,121,121,121,121,121,121,122  ; 8
-    defb 110, 76, 79, 76, 78, 76, 79, 77, 82, 77  ; 9
-    defb  80, 75, 79, 76, 78, 76, 79, 77, 82, 77  ;10
-    defb  80, 75, 79, 76, 78, 76, 79, 77, 82, 77  ;11
-    defb  80, 75, 79, 76, 78, 76, 79, 77, 82, 77  ;12
-    defb  80, 75, 80, 90, 97,  0, -1, -1, -1, 83  ;13
-
-timing.clut.megabyte:
-    defb  34,121,121,121,121,121,121,121,121,121  ; 1
-    defb 121,121,121,121,121,121,121,121,121,121  ; 2
-    defb 121,121,121,121,121,124,121,121,121,121  ; 3
-    defb 121,121,121,121,121,121,121,121,121,121  ; 4
-    defb 121,121,121,121,121,121,121,121,121,121  ; 5
-    defb 121,121,121,123,123,123,121,121,121,121  ; 6
-    defb 121,121,121,121,121,121,121,121,121,121  ; 7
-    defb 121,121,121,121,121,121,121,121,121,122  ; 8
-    defb 111, 80, 83, 83, 83, 78, 80, 81, 86, 82  ; 9
-    defb  84, 78, 80, 81, 86, 82, 83, 78, 80, 81  ;10
-    defb  86, 82, 83, 78, 80, 81, 86, 82, 83, 78  ;11
-    defb  80, 81, 86, 82, 82, 79, 80, 81, 86, 82  ;12
-    defb  84, 76, 89, 93, 80,  0,  0,  0, -1, 83  ;13 I seem to have lost the last out
-
-timing.saa:
-    defb  28,119,119,119,119,119,119,119,119,119  ; 1
-    defb 119,119,119,119,119,119,119,119,119,119  ; 2
-    defb 119,119,119,119,119,119,119,119,119,119  ; 3
-    defb 119,119,119,119,119,119,119,119,119,119  ; 4
-    defb 119,119,119,119,119,119,119,119,119,119  ; 5
-    defb 119,119,119,119,121,119,119,119,119,119  ; 6
-    defb 119,119,119,119,119,119,119,119,119,119  ; 7
-    defb 119,119,119,119,119,119,119,119,119,119  ; 8
-    defb 107, 76, 81, 75, 80, 74, 79, 73, 78, 75  ; 9
-    defb  77, 75, 79, 76, 81, 75, 80, 74, 79, 73  ;10
-    defb  78, 75, 77, 75, 79, 76, 81, 75, 80, 74  ;11
-    defb  79, 73, 78, 75, 77, 75, 79, 76, 81, 75  ;12
-    defb  80, 74, 79, 73, 80, 89, 95,  0, -1, 78  ;13
-
-timing.saa.megabyte:
-    defb  28,119,119,119,119,119,119,119,119,119  ; 1
-    defb 119,119,119,119,119,119,119,119,119,119  ; 2
-    defb 119,119,119,119,119,119,119,119,119,119  ; 3
-    defb 119,119,119,119,119,119,119,119,119,119  ; 4
-    defb 119,119,119,119,119,119,119,119,119,119  ; 5
-    defb 119,119,119,119,121,119,119,119,119,119  ; 6
-    defb 119,119,119,119,119,119,119,119,119,119  ; 7
-    defb 119,119,119,119,119,119,119,119,119,119  ; 8
-    defb 107, 76, 81, 75, 80, 74, 79, 73, 78, 75  ; 9
-    defb  77, 75, 79, 76, 81, 75, 80, 74, 79, 73  ;10
-    defb  78, 75, 77, 75, 79, 76, 81, 75, 80, 74  ;11
-    defb  79, 73, 78, 75, 77, 75, 79, 76, 81, 75  ;12
-    defb  80, 74, 79, 73, 80, 89, 95,  0, -1, 78  ;13
-
-timing.samdac:
-    defb  32,122,122,122,122,122,122,122,122,122  ; 1
-    defb 122,122,122,122,122,122,122,122,122,122  ; 2
-    defb 122,122,122,122,122,122,122,122,122,122  ; 3
-    defb 122,122,122,122,122,122,122,122,122,122  ; 4
-    defb 122,122,122,122,122,122,122,122,122,122  ; 5
-    defb 122,122,122,123,124,122,122,122,122,122  ; 6
-    defb 122,122,122,122,122,122,122,122,122,122  ; 7
-    defb 122,122,122,122,122,122,122,122,122,123  ; 8
-    defb 109, 80, 80, 81, 81, 78, 80, 78, 78, 81  ; 9
-    defb  82, 79, 79, 78, 78, 80, 80, 81, 81, 78  ;10
-    defb  80, 78, 78, 81, 82, 79, 79, 78, 78, 80  ;11
-    defb  80, 81, 81, 78, 80, 78, 78, 81, 82, 79  ;12
-    defb  81, 92, 97,  0, -1, -1, -1, -1, -1, 83  ;13
-
-timing.samdac.megabyte:
-    defb  32,122,122,122,122,122,122,122,122,122  ; 1
-    defb 122,122,122,122,122,122,122,122,122,122  ; 2
-    defb 122,122,122,122,122,122,122,122,122,122  ; 3
-    defb 122,122,122,122,122,122,122,122,122,122  ; 4
-    defb 122,122,122,122,122,122,122,122,122,122  ; 5
-    defb 122,122,122,123,124,122,122,122,122,122  ; 6
-    defb 122,122,122,122,122,122,122,122,122,122  ; 7
-    defb 122,122,122,122,122,122,122,122,122,123  ; 8
-    defb 109, 80, 80, 81, 81, 78, 80, 78, 78, 81  ; 9
-    defb  82, 79, 79, 78, 78, 80, 80, 81, 81, 78  ;10
-    defb  80, 78, 78, 81, 82, 79, 79, 78, 78, 80  ;11
-    defb  80, 81, 81, 78, 80, 78, 78, 81, 82, 79  ;12
-    defb  81, 92, 97,  0, -1, -1, -1, -1, -1, 83  ;13
-
-timing.dac:
-    defb  40,129,129,129,129,129,129,129,129,129  ; 1
-    defb 129,129,129,129,129,129,129,129,129,129  ; 2
-    defb 129,129,129,129,129,129,129,129,129,129  ; 3
-    defb 129,129,129,129,129,129,129,129,129,129  ; 4
-    defb 129,129,129,129,129,129,129,129,129,129  ; 5
-    defb 130,129,130,129,129,129,129,129,129,129  ; 6
-    defb 129,129,129,129,129,129,129,129,129,129  ; 7
-    defb 129,129,129,129,129,129,129,129,129,129  ; 8
-    defb 118, 84, 85, 84, 88, 84, 85, 84, 88, 84  ; 9
-    defb  85, 84, 88, 84, 85, 84, 88, 84, 85, 84  ;10
-    defb  88, 84, 85, 84, 88, 84, 85, 84, 88, 84  ;11
-    defb  85, 83, 89,  0,  0, -1, -1, -1, -1, -1  ;12
-    defb  -1, -1, -1, -1, -1, -1, -1, -1, -1, 93  ;13
-
-timing.dac.megabyte:
-    defb  40,129,129,129,129,129,129,129,129,129  ; 1
-    defb 129,129,129,129,129,129,129,129,129,129  ; 2
-    defb 129,129,129,129,129,129,129,129,129,129  ; 3
-    defb 129,129,129,129,129,129,129,129,129,129  ; 4
-    defb 129,129,129,129,129,129,129,129,129,129  ; 5
-    defb 130,129,130,129,129,129,129,129,129,129  ; 6
-    defb 129,129,129,129,129,129,129,129,129,129  ; 7
-    defb 129,129,129,129,129,129,129,129,129,129  ; 8
-    defb 118, 84, 85, 84, 88, 84, 85, 84, 88, 84  ; 9
-    defb  85, 84, 88, 84, 85, 84, 88, 84, 85, 84  ;10
-    defb  88, 84, 85, 84, 88, 84, 85, 84, 88, 84  ;11
-    defb  85, 83, 89,  0,  0, -1, -1, -1, -1, -1  ;12
-    defb  -1, -1, -1, -1, -1, -1, -1, -1, -1, 93  ;13
-
-timing.qss:
-    defb  32,121,121,121,121,121,121,121,121,121  ; 1
-    defb 121,121,121,121,121,121,121,121,121,121  ; 2
-    defb 121,121,121,121,121,121,121,121,121,121  ; 3
-    defb 121,121,121,121,121,121,121,121,121,121  ; 4
-    defb 121,121,121,121,121,121,121,121,121,121  ; 5
-    defb 121,123,122,121,121,121,121,121,121,121  ; 6
-    defb 121,121,121,121,121,121,121,121,121,121  ; 7
-    defb 121,121,121,121,121,121,122,121,121,121  ; 8
-    defb 109, 81, 78, 81, 80, 80, 81, 79, 80, 80  ; 9
-    defb  78, 81, 80, 80, 81, 79, 80, 80, 78, 81  ;10
-    defb  80, 80, 81, 79, 80, 80, 78, 81, 80, 80  ;11
-    defb  81, 79, 93,  0,  0, -1, -1, -1, -1, -1  ;12
-    defb  -1, -1, -1, -1, -1, -1, -1, -1, -1, 83  ;13
-
-timing.qss.megabyte:
-    defb  32,121,121,121,121,121,121,121,121,121  ; 1
-    defb 121,121,121,121,121,121,121,121,121,121  ; 2
-    defb 121,121,121,121,121,121,121,121,121,121  ; 3
-    defb 121,121,121,121,121,121,121,121,121,121  ; 4
-    defb 121,121,121,121,121,121,121,121,121,121  ; 5
-    defb 121,123,122,121,121,121,121,121,121,121  ; 6
-    defb 121,121,121,121,121,121,121,121,121,121  ; 7
-    defb 121,121,121,121,121,121,122,121,121,121  ; 8
-    defb 109, 81, 78, 81, 80, 80, 81, 79, 80, 80  ; 9
-    defb  78, 81, 80, 80, 81, 79, 80, 80, 78, 81  ;10
-    defb  80, 80, 81, 79, 80, 80, 78, 81, 80, 80  ;11
-    defb  81, 79, 93,  0,  0, -1, -1, -1, -1, -1  ;12
-    defb  -1, -1, -1, -1, -1, -1, -1, -1, -1, 83  ;13
+    include "devices/clut.i"
+    include "devices/saa1099.i"
+    include "devices/samdac.i"
+    include "devices/dac.i"
+    include "devices/blue_alpha.i"
+    include "devices/quazar.i"
 
 ;===============================================================
 mk.movecode:
