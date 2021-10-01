@@ -1,6 +1,6 @@
 ;SAM MOD player - DOS loader
 
-;(C) 1996-2019 Stefan Drissen
+;(C) 1996-2021 Stefan Drissen
 
 ; to do:
 ;
@@ -9,13 +9,16 @@
 ; + add sample runways while loading
 
 include "memory.i"
-include "ports.i"
+include "ports/internal.i"
+include "ports/megabyte.i"
+include "ports/keyboard.i"
+include "ports/fdc.i"
 include "dos.i"
 include "opcodes.i"
 
-load.offs:	equ 32768
+load.offs:  equ 0x8000
 
-    org &c000
+    org 0xc000
 
 ;---------------------------------------------------------------
 
@@ -24,24 +27,24 @@ load.offs:	equ 32768
 ;---------------------------------------------------------------
 
 
-loader.device:			defb device.samdac	; [0-5]
+loader.device:          defb device.clut ; [0-5]
 
-    device.saa:			equ 0
-    device.samdac:		equ 1
-    device.dac:			equ 2
-    device.bluealpha:	equ 3
-    device.quazar:		equ 4
-    device.clut:		equ 5
+    device.saa:             equ 0
+    device.samdac:          equ 1
+    device.dac:             equ 2
+    device.bluealpha:       equ 3
+    device.quazar:          equ 4
+    device.clut:            equ 5
 
-loader.device.port:		defb 0	; [0-1]
-loader.speed:			defb 0	; [0-1]
+loader.device.port:     defb 0 ; [0-1]
+loader.speed:           defb 0 ; [0-1]
 
-    speed.pal:			equ 0
-    speed.ntsc:			equ 1
+    speed.pal:              equ 0
+    speed.ntsc:             equ 1
 
-loader.external.ram:	defb 0	; [0-4]
+loader.external.ram:    defb 0 ; [0-4]
 
-loader.drive:			defb 1	; [1-2]
+loader.drive:           defb 1 ; [1-2]
 loader.record:          defw 0
 
 ;---------------------------------------------------------------
@@ -60,7 +63,7 @@ scan.external.memory:
     in a,(port.hmpr)
     ld c,a
 
-    ld hl,&8000
+    ld hl,0x8000
     ld b,0
 
     ld a,high.memory.external
@@ -81,7 +84,7 @@ scan.external.memory:
     jr nz,@not.ram
 
     ld a,b
-    add &40
+    add 0x40
     ld b,a
     jr nc,@scan.megs
 
@@ -158,7 +161,7 @@ loader.start:
     add a,a
     add a,c
     add a,a
-    ld c,a					; c = loader.device * 6
+    ld c,a                  ; c = loader.device * 6
     ld (old.cursor+1),a
     xor a
     ld (curs.blink+1),a
@@ -293,12 +296,12 @@ speed.selected:
 
 ; map new loader screen to burstplayer device numbers - fix burstplayer later on
 @device.mapping:
-    defb 1	; soundchip
-    defb 2	; samdac
-    defb 4	; dac
-    defb 6	; blue alpha
-    defb 7	; quazar
-    defb 0	; screen
+    defb 1  ; soundchip
+    defb 2  ; samdac
+    defb 4  ; dac
+    defb 6  ; blue alpha
+    defb 7  ; quazar
+    defb 0  ; screen
 
 ;---------------------------------------------------------------
 relocate.call.burstplayer.create:
@@ -318,7 +321,7 @@ call.burstplayer.create:
     ld (burstplayer.device),a
 @loader.speed:
     ld a,0
-    ld (burstplayer.speed),a
+    ld (burstplayer.amiga),a
 @loader.external.ram:
     ld a,0
     ld (burstplayer.external.ram),a
@@ -438,11 +441,11 @@ print.speed.details:
 
     ret
 
-text.speed:			defw text.speed.pal,text.speed.ntsc
+text.speed:         defw text.speed.pal,text.speed.ntsc
 
-text.speed.pal: 	defm "7.0937892 MHz"
+text.speed.pal:     defm "7.0937892 MHz"
                     defb 0
-text.speed.ntsc:	defm "7.1590905 MHz"
+text.speed.ntsc:    defm "7.1590905 MHz"
                     defb 0
 
 ;---------------------------------------------------------------
@@ -462,7 +465,7 @@ cursor.select:
     call print.cursor
     pop bc
 
-    ld a,keyboard.cursors_ctrl
+    ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
     bit 1,a
     jr z,curs.up
@@ -520,7 +523,7 @@ sd.curs.dn:
     ret
 
 scan.escape:
-    ld a,keyboard.caps_esc
+    ld a,keyboard.caps_tab_esc
     in a,(port.status)
     and %00100000
     jr z,@still.esc
@@ -529,7 +532,7 @@ scan.escape:
     ret
 
 @still.esc:
-    ld a,keyboard.caps_esc
+    ld a,keyboard.caps_tab_esc
     in a,(port.status)
     and %00100000
     jr z,@still.esc
@@ -565,7 +568,7 @@ scan.keyboard.return:
 
 scan.keyboard.left.right:
 
-    ld a,keyboard.cursors_ctrl
+    ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
     bit 3,a
     jr z,@still.cursor.left
@@ -583,14 +586,14 @@ scan.keyboard.left.right:
     ret
 
 @still.cursor.left:
-    ld a,keyboard.cursors_ctrl
+    ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
     bit 3,a
     jr z,@still.cursor.left
     jr @change.port
 
 @still.cursor.right:
-    ld a,keyboard.cursors_ctrl
+    ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
     bit 4,a
     jr z,@still.cursor.right
@@ -665,7 +668,7 @@ show.screen:
 loader:
 ;---------------------------------------------------------------
 
-;	ld sp,&8000
+;   ld sp,0x8000
 
     call show.screen
 
@@ -703,7 +706,7 @@ loader:
 is.2.pres:
     out (c),b
 
-    ld a,12				;approx 32 micro second delay
+    ld a,12             ; approx 32 micro second delay
 @loop:
     dec a
     jr nz,@loop
@@ -737,7 +740,7 @@ is.2.pres:
 @no.drive2:
 
 nodisc:
-    ld a,0	;set by errnodisc
+    ld a,0  ; set by errnodisc
     or a
     jp nz,converted
 
@@ -754,12 +757,12 @@ pc.to.loader:
     or a
     jp z,converted
     cp 229
-    jp z,pl.skip	;deleted file
+    jp z,pl.skip    ; deleted file
     push hl
     pop ix
     ld a,(ix+11)
     and 8
-    jp nz,pl.skip	;volume label
+    jp nz,pl.skip   ; volume label
 
     ld a,(ix+8)
     cp "M"
@@ -769,7 +772,7 @@ pc.to.loader:
     jp nz,pl.skip
     ld a,(ix+10)
     cp "D"
-    jp nz,pl.skip		;not MOD extension
+    jp nz,pl.skip       ; not MOD extension
 
     push hl
     push de
@@ -784,9 +787,9 @@ pl.copy.name:
     push de
 
     ld e,(ix+26)
-    ld d,(ix+27)		; first cluster
+    ld d,(ix+27)        ; first cluster
 
-    ld hl,temp.spc		; space between scrn & attrib
+    ld hl,temp.spc      ; space between scrn & attrib
 pc.rd.more:
     call fat.read_cluster
     call fat.get_entry
@@ -822,7 +825,7 @@ pc.resub:
     ld a,c
     ld c,b
     jr pc.resub
-pc.got.maxmin:			;ahl = difference calc len & file len
+pc.got.maxmin:          ; ahl = difference calc len & file len
     pop de
     or h
     jr z,pc.file.ok
@@ -836,7 +839,7 @@ pc.file.ok:
 ;get date
     ld a,(ix+24)
     ld b,a
-    and %00011111		;day
+    and %00011111       ; day
     call cnv.a.to.de
     ld a,b
     and %11100000
@@ -850,7 +853,7 @@ pc.file.ok:
     rlca
     rlca
     rlca
-    or c				;month
+    or c                ; month
     call cnv.a.to.de
     ld a,b
     and %11111110
@@ -858,7 +861,7 @@ pc.file.ok:
     add 80
     sub 100
     jr nc,$-2
-    add 100				;year
+    add 100             ; year
     call cnv.a.to.de
 
     call insert.size
@@ -890,7 +893,7 @@ cnv.sam:
     pop de
     ld hl,fat
 
-    ld a,80				;80 directory entries
+    ld a,80             ; 80 directory entries
 sam.to.loader:
     push af
     ld a,(hl)
@@ -909,7 +912,7 @@ ext.find.m:
     cp "."
     jr nz,ext.not.fnd
     ld a,(hl)
-    res 5,a				;->uppercase
+    res 5,a             ; ->uppercase
     cp "M"
     jr nz,ext.not.fnd
     jr sam.found.m
@@ -937,7 +940,7 @@ sl.copy.name:
     push de
 
     ld e,(ix+14)
-    ld d,(ix+13)	;first sector
+    ld d,(ix+13)    ; first sector
 
     in a,(port.hmpr)
     and high.memory.page.mask
@@ -973,7 +976,7 @@ sl.copy.name:
     add hl,de
     ex de,hl
 
-    ld a,1				;only add sample length once
+    ld a,1              ; only add sample length once
     call file.check
 
     call fc.sam
@@ -993,19 +996,19 @@ sm.file.ok:
 sm.check.date:
     ld a,(ix+11)
     or a
-    jr z,sm.done.date		;0->invalid date
+    jr z,sm.done.date       ; 0->invalid date
     cp 32
-    jr nc,sm.done.date		;day>31 = invalid date
+    jr nc,sm.done.date      ; day>31 = invalid date
     ld a,(ix+12)
     or a
-    jr z,sm.done.date		;0->invalid date
+    jr z,sm.done.date       ; 0->invalid date
     cp 13
-    jr nc,sm.done.date		;month>12 = invalid date
+    jr nc,sm.done.date      ; month>12 = invalid date
     ld a,(ix+15)
     or a
-    jr z,sm.done.date ;0->invalid date
+    jr z,sm.done.date ; 0->invalid date
     inc a
-    jr z,sm.done.date ;255->invalid date
+    jr z,sm.done.date ; 255->invalid date
 
     ld a,(ix+11)
     call cnv.a.to.de
@@ -1094,7 +1097,7 @@ le.loop:
     dec c
     jr nz,le.loop
 
-    call @still.esc	; to prevent immediate exit when escape used to exit "DEMO"
+    call @still.esc ; to prevent immediate exit when escape used to exit "DEMO"
 
     ld hl,video.memory.32.rows * 4 + video.memory.high
     ld (curs.offs+1),hl
@@ -1128,7 +1131,7 @@ cursor.lp:
 got.mes:
     ld a,(ix+28)
     bit 7,a
-    jp nz,disc.mess		;new disc message
+    jp nz,disc.mess     ; new disc message
     push ix
     push de
     pop ix
@@ -1138,7 +1141,7 @@ got.mes:
     ld (ix+26),"4"
 gm.is.8:
     pop ix
-    push bc				;c = select position
+    push bc             ; c = select position
     push de
     ld a,e
     add 14
@@ -1154,7 +1157,7 @@ gm.is.8:
     call print.de.b
 
     ld hl,mes.size
-    ld a,(ix+29)		;length in patterns
+    ld a,(ix+29)        ; length in patterns
     ld b,"0"
     cp 100
     jr c,gm.len.100
@@ -1233,7 +1236,7 @@ normal.mess:
 
     call cursor.select
 
-    ld a,keyboard.caps_esc
+    ld a,keyboard.caps_tab_esc
     in a,(port.status)
     bit 5,a
     jp z,loader.quit
@@ -1259,7 +1262,7 @@ not.o:
 not.o.nc:
 
     ld a,(ix+28)
-    cp &81      ; drive 2
+    cp 0x81     ; drive 2
     call z,@scan.keyboard.left.right
 
     jp cursor.lp
@@ -1268,7 +1271,7 @@ not.o.nc:
 
 @scan.keyboard.left.right:
 
-    ld a,keyboard.cursors_ctrl
+    ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
     bit 3,a
     jr z,@still.cursor.left
@@ -1285,14 +1288,14 @@ not.o.nc:
     ret
 
 @still.cursor.left:
-    ld a,keyboard.cursors_ctrl
+    ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
     bit 3,a
     jr z,@still.cursor.left
     jr @record.down
 
 @still.cursor.right:
-    ld a,keyboard.cursors_ctrl
+    ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
     bit 4,a
     jr z,@still.cursor.right
@@ -1368,33 +1371,33 @@ file.check:
     ld bc,20
     ldir
 
-    ld (bytes.per+1),a		;2=normal, 1=compressed?
+    ld (bytes.per+1),a      ; 2=normal, 1=compressed?
 
     push ix
     ld bc,(temp.spc + 9 + 1080)
     ld a,1
     or a
-    ld hl,&2E4D				;"M."
+    ld hl,"M" + "." * 0x100
     sbc hl,bc
     jr z,pl.got.type
     inc a
     or a
-    ld hl,&4C46				;"FL"
+    ld hl,"F" + "L" * 0x100
     sbc hl,bc
     jr z,pl.got.type
     inc a
     or a
-    ld hl,&214D             ;"M!"
+    ld hl,"M" + "!" * 0x100
     sbc hl,bc
     jr z,pl.got.type
     xor a
-pl.got.type:				;0=nst, 1=m.k., 2=flt4, 3=m!k!
+pl.got.type:                ; 0=nst, 1=m.k., 2=flt4, 3=m!k!
     ld (de),a
     ld a,(bytes.per+1)
     dec a
     ld a,(de)
     jr nz,pl.not.comp
-    set 6,a					;compressed 4 bit
+    set 6,a                 ; compressed 4 bit
     ld (de),a
 pl.not.comp:
     inc de
@@ -1479,7 +1482,7 @@ file.len:
     srl h
     rr l
     ex de,hl
-    ld (hl),e	;size in k
+    ld (hl),e   ; size in k
     inc hl
     ld (hl),d
     inc hl
@@ -1518,13 +1521,13 @@ sm.resub:
     ld a,c
     ld c,b
     jr sm.resub
-sm.got.maxmin:		;ahl=difference calc len & file len
+sm.got.maxmin:      ; ahl=difference calc len & file len
     pop de
     or h
     ret
 
 
-mes.load:	defm " Loading: "
+mes.load:   defm " Loading: "
 
 ;---------------------------------------------------------------
 select.key:
@@ -1577,7 +1580,7 @@ select.key:
 
 ;---------------------------------------------------------------
 
-msdos.load:	; !!! does not work yet, needs to be moved to inst.buffer
+msdos.load: ; !!! does not work yet, needs to be moved to inst.buffer
 
     push hl
     pop ix
@@ -1635,10 +1638,10 @@ pc.load.all:
 
     call fat.get_entry
     ld a,d
-    cp &0f
+    cp 0x0f
     jr nz,pc.load.all
     ld a,e
-    cp &f8
+    cp 0xf8
     jr c,pc.load.all
 
     jp file.loaded
@@ -1648,7 +1651,7 @@ pc.load.all:
 
 sam.load:
 
-    ld de,&0001
+    ld de,0x0001
 
 sam.load.dir:
     in a,(port.hmpr)
@@ -1696,15 +1699,15 @@ sam.match.blp:
     ; jr nz,sam.no.match
     pop ix
 
-    pop af			;chuck return address
+    pop af          ; chuck return address
 
     ld a,l
     and 128
     or 13
     ld l,a
-    ld d,(hl)		;first track
+    ld d,(hl)       ; first track
     inc l
-    ld e,(hl)		;first sector
+    ld e,(hl)       ; first sector
 
     push hl
     push de
@@ -1739,7 +1742,7 @@ relocate.load.mod:
 load.mod:
 
     ld (@disk+1),a
-    ld hl,uifa	; tape headers + farldir buffer = 512 bytes
+    ld hl,uifa  ; tape headers + farldir buffer = 512 bytes
 
     rst 8
     defb dos.hrsad
@@ -1906,7 +1909,7 @@ file.loaded:
 
 ;---------------------------------------------------------------
 
-decompress:			; !!! does not work yet
+decompress:         ; !!! does not work yet
 
     ld c,a
 
@@ -2147,7 +2150,7 @@ no.decompress:
     ld (@store.lmpr+1),a
     ld (@store.sp+1),sp
 
-    ld sp,&8000
+    ld sp,0x8000
     in a,(port.hmpr)
     and low.memory.page.mask
     or low.memory.ram.0
@@ -2157,8 +2160,8 @@ no.decompress:
     ld c,a
 
 loader.octaves:
-    ld a,3					; 3 or 5 octave
-    call demo.setup			; aBcd
+    ld a,3                  ; 3 or 5 octave
+    call demo.setup         ; aBcd
 
 @store.lmpr:
     ld a,0
@@ -2281,17 +2284,17 @@ get.pos.lp:
 
 ;---------------------------------------------------------------
 
-mes.oct:		defm "Oct: "
-mes.drive:		defm "Drive 1: "
-mes.label:		defm "Solar Flare"
-mes.nolabel:	defm "No label   "
-mes.nodisc:		defm "No disc    "
-mes.noi:		defm "Noisetracker, 15 samples, 8 bits"
-mes.pro:		defm "Protracker,   31 samples, 8 bits"
-mes.sta:		defm "Startrekker,  31 samples, 8 bits"
-mes.drv:		defm "Press RETURN for new directory. "
-mes.size:		defm "127 song entries, 999k,         "
-mes.no.date:	defm "no date "
+mes.oct:        defm "Oct: "
+mes.drive:      defm "Drive 1: "
+mes.label:      defm "Solar Flare"
+mes.nolabel:    defm "No label   "
+mes.nodisc:     defm "No disc    "
+mes.noi:        defm "Noisetracker, 15 samples, 8 bits"
+mes.pro:        defm "Protracker,   31 samples, 8 bits"
+mes.sta:        defm "Startrekker,  31 samples, 8 bits"
+mes.drv:        defm "Press RETURN for new directory. "
+mes.size:       defm "127 song entries, 999k,         "
+mes.no.date:    defm "no date "
 
 option.dir:
     defm " < 1: > "
@@ -2320,20 +2323,20 @@ record.dir:
     defb 0
 
 
-loader.entries:	defb 0
+loader.entries: defb 0
 
 loader.dir:
     defm "filename"
     defm "20 char module title"
-    defb 0			;module type 0=noise, 1=pro, 2=star +64 = 4 bit compressed
-    defb 0			;length in patterns
-    defm "100672"	;date stamp
-    defw 0			;total size in k
-    defb 0			;number of samples (len>1)
+    defb 0          ; module type 0=noise, 1=pro, 2=star +64 = 4 bit compressed
+    defb 0          ; length in patterns
+    defm "100672"   ; date stamp
+    defw 0          ; total size in k
+    defb 0          ; number of samples (len>1)
 
-load.len:	equ $ - loader.dir
+load.len:   equ $ - loader.dir
 
-    defs 27 * load.len	;max 27 on screen (25 files)
+    defs 27 * load.len  ;max 27 on screen (25 files)
 
 
 ;---------------------------------------------------------------
@@ -2435,14 +2438,14 @@ cnv.a.to.de:
 ;---------------------------------------------------------------
 print.num:
     ld b,a
-    and &F0
+    and 0xf0
     rrca
     rrca
     rrca
     rrca
     call pr.num.hex
     ld a,b
-    and &0F
+    and 0x0f
 pr.num.hex:
     add "0"
     cp ":"
@@ -2468,7 +2471,7 @@ unprintable:
     add hl,hl
     add hl,hl
     add hl,bc
-    ld bc,loader.font_high - 160	;-" "*5
+    ld bc,loader.font_high - 160    ; -" "*5
     add hl,bc
     ld b,5
 pr.chr.blp:
@@ -2543,12 +2546,12 @@ cls:
 
     ld hl,loader.palette
     ld de,palette.table
-    ld bc,&10
+    ld bc,0x10
     ldir
 
     ld hl,loader.palette
-    ld de,palette.table + &14
-    ld bc,&10
+    ld de,palette.table + 0x14
+    ld bc,0x10
     ldir
 
     ret
@@ -2627,22 +2630,22 @@ next @fill
 ;---------------------------------------------------------------
 
 colours:
-colour.black:	equ 0
+colour.black:   equ 0
     defb 0,0,0,0,0,0,0,0
 
-colour.blue:	equ 1
+colour.blue:    equ 1
     defb 1,2,3,2,1,0,0,0
 
-colour.orange:	equ 2
+colour.orange:  equ 2
     defb 4,5,6,5,4,0,0,0
 
-colour.green:	equ 3
+colour.green:   equ 3
     defb 7,9+56,3,9+56,7,0,0,0
 
-colour.purple:	equ 4
+colour.purple:  equ 4
     defb 10+56,11+56,12+56,11+56,10+56,0,0,0
 
-colour.yellow:	equ 5
+colour.yellow:  equ 5
     defb 13+56,14+56,6,14+56,13+56,0,0,0
 
 ;---------------------------------------------------------------
@@ -2650,10 +2653,12 @@ colour.yellow:	equ 5
 
 device.screen:
     defm "SAM MOD player             v"
-    defb version.major, ".", version.minor.1, version.minor.2
-    defm "(C) 2019 Stefan Drissen"
+    defw version.major, version.minor
+    defm "(C) 20"
+    defw copyright.year
+    defm " Stefan Drissen"
     defb 0,0
-row.device:	equ 5
+row.device: equ 5
     defm "SOUND DEVICE"
     defb 0,0
     defm " Soundchip"
@@ -2668,7 +2673,7 @@ row.device:	equ 5
     defb 0
     defm " Screen"
     defb 0,0
-row.speed:	equ 14
+row.speed:  equ 14
     defm "AMIGA SPEED"
     defb 0,0
     defm " PAL"
@@ -2701,12 +2706,12 @@ device.details:
     defb 8, surround
     defb 7, visual
 
-    visual:		equ 0
-    mono:		equ 1
-    stereo:		equ 2
-    surround:	equ 3
+    visual:     equ 0
+    mono:       equ 1
+    stereo:     equ 2
+    surround:   equ 3
 
-device.texts:	defw text.visual,text.mono,text.stereo,text.surround
+device.texts:   defw text.visual,text.mono,text.stereo,text.surround
 
 text.visual:
     defm "visual"
@@ -2724,8 +2729,10 @@ text.surround:
 
 load.screen:
     defm "SAM MOD player             v"
-    defb version.major, ".", version.minor.1, version.minor.2
-    defm "(C) 2019 Stefan Drissen"
+    defw version.major, version.minor
+    defm "(C) 20"
+    defw copyright.year
+    defm " Stefan Drissen"
     defb 0,0,0,0,0,0,0
     defb 0,0,0,0,0,0,0,0
     defb 0,0,0,0,0,0,0,0
@@ -2748,7 +2755,7 @@ black.attributes:
 
 ;---------------------------------------------------------------
 
-m.vollabel:	defm "01234567890"
+m.vollabel: defm "01234567890"
 
 ;---------------------------------------------------------------
 
@@ -2795,7 +2802,7 @@ nomatch:
     ld a,b
     or c
     jr nz,fmclp
-    pop af				;chuck return address
+    pop af              ; chuck return address
     jp file.notfound
 
 
@@ -2835,7 +2842,7 @@ relocate.low:
     pop bc
     pop de
 
-    push hl	; return address
+    push hl ; return address
 
 @store.hl:
     ld hl,0
@@ -2849,11 +2856,11 @@ include "loader.fat.i"
 
 ; in screen area
 
-fat:			equ video.memory.high + 2 * video.memory.32.rows
+fat:            equ video.memory.high + 2 * video.memory.32.rows
 
-temp.spc:		equ video.memory.high + video.memory.32.rows * 32
+temp.spc:       equ video.memory.high + video.memory.32.rows * 32
 
 ;===============================================================
 
-length:			equ $-16384
+length:         equ $-16384
 

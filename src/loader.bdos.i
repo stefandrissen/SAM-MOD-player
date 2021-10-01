@@ -1,6 +1,6 @@
 ;SAM MOD player - b-dos loader
 
-;(C) 2019 Stefan Drissen
+;(C) 2019-2021 Stefan Drissen
 
 ; - Record list size (in sectors) = (all sectors / 1600 + 32) / 32
 ; - Selected record (disk drive = 0) = (PEEK DVAR 7 = 2) * DPEEK DVAR 25
@@ -15,7 +15,7 @@ bdos.read.dir:
     and high.memory.page.mask
     ld c,a
 
-    ld de,&0001
+    ld de,0x0001
     ld hl,fat
 
 cs.rd.lp:
@@ -110,9 +110,9 @@ if defined (debug)
 
     text.track.sector:
             defm "T:"
-    @trk:	defm "00"
+    @trk:   defm "00"
             defm "S:"
-    @sec:	defm "00"
+    @sec:   defm "00"
             defb 0
 
 endif
@@ -122,9 +122,9 @@ endif
 bdos.read.sector:
 
 ; read physical sector from disc
-;	d = track (+128 for side 2)
-;	e = sector
-;	hl= address
+;   d = track (+128 for side 2)
+;   e = sector
+;   hl= address
 ;---------------------------------------------------------------
 
     di
@@ -189,7 +189,7 @@ endif
     pop af
     pop ix
 
-;	ei
+;   ei
     ret
 
 @dos.exit.routine:
@@ -236,7 +236,7 @@ endif
 bdos.get.dvar:
 
 ; get dvar value and return it in a
-;	a = dvar to get
+;   a = dvar to get
 ;---------------------------------------------------------------
 
     call relocate.low
@@ -275,7 +275,7 @@ bdos.get.dvar:
 
     ret
 
-@get.dvar.len:	equ $ - @get.dvar
+@get.dvar.len:  equ $ - @get.dvar
 
     org @store.org + @get.dvar.len + 2
 

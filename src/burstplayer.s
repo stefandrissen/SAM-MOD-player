@@ -1,54 +1,65 @@
-;SAM MOD player - MAKE burstplayer
+; SAM MOD player - MAKE burstplayer
 
-;(C) 1995-2019 Stefan Drissen
+; (C) 1995-2021 Stefan Drissen
+
+; 384 t-states per line, 312 lines = 119808 t-states per frame * 50 = 5,990,400 = 6 MHz?
+; !!! use better timing - see T in simcoupe
 
 ;---------------------------------------------------------------
 
 include "memory.i"
-include "ports.i"
-include "saa1099.i"
+include "ports/internal.i"
+include "ports/megabyte.i"
+include "ports/printer.i"
+include "ports/saa1099.i"
+include "ports/blue_alpha.i"
 include "opcodes.i"
 
 ;---------------------------------------------------------------
 
-;samdac routine uses most memory!
-;quazar needs largest playback buffers
+; samdac routine uses most memory!
+; quazar needs largest playback buffers
 
-count:		equ 255		;number of outs before border change
-linetest:	equ 0
-
-;---------------------------------------------------------------
-
-    org &8000
+count:      equ 255     ;number of outs before border change
+linetest:   equ 0
 
 ;---------------------------------------------------------------
 
-burstplayer.create:	jp @go.burst
+    org 0x8000
 
 ;---------------------------------------------------------------
 
-burstplayer.device:		defb 0	; [0-7]
+burstplayer.create:
+    jp @go.burst
 
-    device.clut:		equ 0
-    device.saa:			equ 1
-    device.samdac.1:	equ 2
-    device.samdac.2:	equ 3
-    device.dac.1:		equ 4
-    device.dac.2:		equ 5
-    device.bluealpha:	equ 6
-    device.quazar:		equ 7
+;---------------------------------------------------------------
 
-burstplayer.speed:		defb 0	; [0-1]
+burstplayer.device: defb 0  ; [0-7]
 
-    pal:		equ 0		;use which Amiga to calculate sample
-    ntsc:		equ 1		;speeds
+    device.clut:        equ 0
+    device.saa:         equ 1
+    device.samdac.1:    equ 2
+    device.samdac.2:    equ 3
+    device.dac.1:       equ 4
+    device.dac.2:       equ 5
+    device.bluealpha:   equ 6
+    device.quazar:      equ 7
 
-burstplayer.external.ram:	defb 0	; [0-4]
+    defb 0 ; burstplayer.port
 
-burstplayer.page:		defb page.burstplayer
+burstplayer.amiga:      defb 0  ; [0-1]
+
+    pal:        equ 0       ;use which Amiga to calculate sample
+    ntsc:       equ 1       ;speeds
+
+burstplayer.external.ram:   defb 0  ; [0-4]
+
+burstplayer.page:           defb page.burstplayer
 
     defm "                         "
-    defm "MAKEBURST (C)2019 Stefan Drissen"
+    defm "MAKEBURST (C)20"
+    defw copyright.year
+    defm "Stefan Drissen"
     defm "Thanks to Edwin Blink for the   "
     defm "original burst idea and code...."
 
@@ -114,16 +125,13 @@ maker:
     ld hl,playtab1 + ( 2 * 208 )
     ld bc,2 * 208
     ld a,(burstplayer.device)
-    cp device.quazar			; if QSS -> playtab2 higher
+    cp device.quazar            ; if QSS -> playtab2 higher
     jr nz,not.qss.pt
     add hl,bc
     ld bc,4 * 208
 not.qss.pt:
     ex af,af'
-    ld a,l
-    ld (qs.playtab2.1+1),a
-    ld a,h
-    ld (qs.playtab2.2+1),a
+    ld (qs.playtab2+1),hl
     add hl,bc
     ld (no.function+1),hl
     ex af,af'
@@ -134,7 +142,7 @@ not.qss.pt:
     add a,a
     add a,a
     add a,a
-    add a,e		; * 18
+    add a,e     ; * 18
     add a,l
     ld l,a
     jr nc,$+3
@@ -179,10 +187,6 @@ not.qss.pt:
 
     inc hl
     inc hl
-    ld e,(hl)
-    inc hl
-    ld d,(hl)
-    jr @ok
 
 @no.megabyte:
 
@@ -190,18 +194,23 @@ not.qss.pt:
     inc hl
     ld d,(hl)
     inc hl
+
+    jr nz,@megabyte
+
     inc hl
-@ok:
     inc hl
-    ld (mk.timing+2),de
+
+@megabyte:
+
+    ld (mk.timing+2),de     ; pointing to either timing.device or timing.device.megabyte
 
     ex de,hl
     ld bc,129
     add hl,bc
-    ld a,(hl)
+    ld a,(hl)               ; line interrupt timing byte
     ld (no.func.wait+1),a
 
-    sub 15	;+1 for jr being done
+    sub 15  ;+1 for jr being done
             ;+2 for ld a,jr
             ;+4 for ld (jr+1),a
             ;+4 for ld (cp+1),a
@@ -225,9 +234,9 @@ not.qss.pt:
 
 
 ;---------------------------------------------------------------
-;interrupt routine (00056)
+;interrupt routine (0x0038)
 interrupt:
-    ld hl,00056
+    ld hl,0x0038
     ld (hl),opcode.ex_af_af
     inc hl
     ld (hl),opcode.exx
@@ -239,7 +248,7 @@ interrupt:
     inc hl
     ld (hl),opcode.jr_z_n
     inc hl
-    ld (mk.sto1+1),hl		;jr z,prep.bord.play
+    ld (mk.sto1+1),hl           ; jr z,prepare.border.player
     ld (mk.sto1.1+1),hl
     ld (mk.recjradd+1),hl
     inc hl
@@ -253,7 +262,7 @@ interrupt:
     inc hl
     ld (hl),opcode.jp_nn
     inc hl
-    ld (mk.sto2+1),hl		;jp no.function
+    ld (mk.sto2+1),hl           ; jp no.function
     inc hl
     inc hl
 
@@ -336,18 +345,18 @@ endif
 mk.recjr191:
     ld hl,0
     ld (hl),e
-    pop hl             ;prep.bord.play:
+    pop hl             ; prep.bord.play:
     ld (hl),opcode.ld_a_n
     inc hl
 mk.stojr188:
-    ld (hl),0		;ld a,jr188
+    ld (hl),0           ; ld a,jr188
     inc hl
     ld (hl),opcode.ld_nn_a
     inc hl
     ld de,(mk.recjradd+1)
     ld (hl),e
     inc hl
-    ld (hl),d         ;ld (jradd+1),a
+    ld (hl),d           ; ld (jradd+1),a
     inc hl
     ld (hl),opcode.ld_a_n
     inc hl
@@ -359,7 +368,7 @@ mk.stojr188:
     inc hl
     ld (hl),e
     inc hl
-    ld (hl),d         ;ld (cp188+1),a
+    ld (hl),d           ; ld (cp188+1),a
     inc hl
 
     ld (hl),opcode.in_a_n
@@ -368,7 +377,7 @@ mk.stojr188:
     inc hl
     ld (hl),opcode.ld_nn_a
     inc hl
-    ld (mk.sto3+1),hl			;ld (prog.p+1),a
+    ld (mk.sto3+1),hl           ;ld (prog.p+1),a
     inc hl
     inc hl
     ld (hl),opcode.ex_af_af
@@ -391,13 +400,13 @@ mk.stojr188:
     inc hl
     ld (hl),opcode.ld_nn_sp
     inc hl
-    ld (mk.sto4+1),hl			;ld (prog.sp+1),sp
+    ld (mk.sto4+1),hl           ; ld (prog.sp+1),sp
     inc hl
     inc hl
-    ld (mk.rec2+1),hl ;playerselect:
+    ld (mk.rec2+1),hl           ; playerselect:
     ld (hl),opcode.jp_nn
     inc hl
-    ld (mk.sto5+1),hl ;jp borderplay1
+    ld (mk.sto5+1),hl           ; jp border.player.1
     inc hl
     inc hl
 
@@ -490,7 +499,7 @@ output.bits:
 
     add hl,de
 
-get.pattern.size:	equ 49
+get.pattern.size:   equ 49
 
 ;---------------------------------------------------------------
 ;call far routine, C=page, HL=address
@@ -527,12 +536,12 @@ get.pattern.size:	equ 49
     ex de,hl
     ld (hl),e
     inc hl
-    ld (hl),d								;ld (call+1),hl
+    ld (hl),d                               ; ld (call+1),hl
     inc hl
 
     ld (hl),opcode.call_nn
     inc hl
-    inc hl									;call hl
+    inc hl                                  ; call hl
     inc hl
 
     ld (hl),opcode.ld_a_n
@@ -548,7 +557,7 @@ get.pattern.size:	equ 49
     ld (hl),opcode.ret
     inc hl
 
-far.call.size:	equ 19
+far.call.size:  equ 19
 
 ;---------------------------------------------------------------
 ; ldir.from.far:
@@ -570,38 +579,6 @@ far.call.size:	equ 19
     inc hl
     ld (hl),opcode.ld_a_b
     inc hl
-
-    ld a,(burstplayer.external.ram)
-    or a
-    jr z,@no.megabyte.2
-
-    ld (hl),opcode.out_n_a
-    inc hl
-    ld (hl),port.xmpr.c
-    inc hl
-
-    ld (hl),opcode.inc_a
-    inc hl
-
-    ld (hl),opcode.out_n_a
-    inc hl
-    ld (hl),port.xmpr.d
-    inc hl
-
-    ld (hl),opcode.ld_a_n
-    inc hl
-    ld (hl),high.memory.external
-    inc hl
-
-    ld bc,1
-
-    jr @continue.2
-
-@no.megabyte.2:
-
-    ld bc,8
-
-@continue.2:
 
     ld (hl),opcode.out_n_a
     inc hl
@@ -642,9 +619,7 @@ far.call.size:	equ 19
 
     ld (hl),opcode.ret
 
-    add hl,bc
-
-ldir.from.far.size:	equ 27
+ldir.from.far.size: equ 19
 
 ;---------------------------------------------------------------
 ; ldir.to.far:
@@ -665,30 +640,6 @@ ldir.from.far.size:	equ 27
     inc hl
     ld (hl),opcode.ld_a_b
     inc hl
-
-    ld a,(burstplayer.external.ram)
-    or a
-    jr z,@no.megabyte.3
-
-    ld (hl),opcode.out_n_a
-    inc hl
-    ld (hl),port.xmpr.c
-    inc hl
-
-    ld (hl),opcode.inc_a
-    inc hl
-
-    ld (hl),opcode.out_n_a
-    inc hl
-    ld (hl),port.xmpr.d
-    inc hl
-
-    ld (hl),opcode.ld_a_n
-    inc hl
-    ld (hl),high.memory.external
-    inc hl
-
-@no.megabyte.3:
 
     ld (hl),opcode.out_n_a
     inc hl
@@ -730,7 +681,7 @@ ldir.from.far.size:	equ 27
     ld (hl),opcode.ret
     inc hl
 
-ldir.to.far.size:	equ 27
+ldir.to.far.size:   equ 19
 
 ;---------------------------------------------------------------
 
@@ -762,7 +713,7 @@ ins.nf.nop:
     jr c,ins.nf.notjr
     ld (hl),opcode.jr_n
     inc hl
-    ; ld (hl),0		;jr $+2
+    ; ld (hl),0     ; jr $+2
     inc hl
     sub 3
     jr   ins.nf.nop
@@ -814,7 +765,7 @@ ins.nf.nop2:
     jr c,ins.nf.notjr2
     ld (hl),opcode.jr_n
     inc hl
-    ; ld (hl),0		;jr $+2
+    ; ld (hl),0     ; jr $+2
     inc hl
     sub 3
     jr   ins.nf.nop2
@@ -844,39 +795,41 @@ ins.nf.all2:
     ld (hl),opcode.ret
     inc hl
 
-
 ;---------------------------------------------------------------
-;border player 1  - all get data routines included in here
-border.play.1:
+border.player.1:
+
+; all get data routines included in here
+;---------------------------------------------------------------
 
 mk.timing:
-    ld ix,0					; IX = timing.<device>
+    ld ix,0                 ; IX = timing.<device>
 
-    ld a,opcode.nop
+    ld a,opcode.nop         ; reset error on out counter
     ld (insert.xout),a
 
-    ld a,(ix)				; A = number of operations until sample out
+    ld a,(ix)               ; A = number of operations until sample out
     inc ix
 
-    ex de,hl				; borderplay1:
+    ex de,hl                ; borderplay1:
 mk.sto5:
     ld hl,0
     ld (hl),e
     inc hl
     ld (hl),d
     ex de,hl
+
     ld (mk.rec32+1),hl
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.ld_ix_nn
     inc hl
-    ld (mk.sto10+1),hl		; ld ix,bord.pl11
+    ld (mk.sto10+1),hl      ; ld ix,bord.pl11
     inc hl
     inc hl
     ld (hl),opcode.jp_nn
     inc hl
     ld (mk.sto24+1),hl
-    inc hl					; jp get.c1.data
+    inc hl                  ; jp get.c1.data
     inc hl
 
 ;=====----- get channel 1 data
@@ -904,7 +857,7 @@ mk.sto24:
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c1.page),hl	;c1.page:
+    ld (bp.c1.page),hl  ; c1.page:
     inc hl
 
     cp 3
@@ -913,7 +866,7 @@ mk.sto24:
 
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.c1.offs),hl	;c1.off:
+    ld (bp.c1.offs),hl  ; c1.offset:
     inc hl
     inc hl
 
@@ -932,7 +885,7 @@ mk.sto24:
     call c,insert.xout
     sub 2
 
-    ld (hl),opcode.ld_d_n			; d -> volume.table
+    ld (hl),opcode.ld_d_n           ; d -> volume.table
     inc hl
     ld (bp.c1.vol),hl ;c1.tab:
     inc hl
@@ -1178,7 +1131,7 @@ mk.paltabsel:
     inc hl
     ld (hl),port.clut
     inc hl
-    ld (hl),16					; ld bc,16*256+port.clut
+    ld (hl),16                  ; ld bc,16*256+port.clut
     inc hl
 
     ld b,16
@@ -1187,20 +1140,20 @@ mk.paltabsel:
     ld a,(burstplayer.device)
     cp device.clut
     jr nz,@not.clut
-    dec b						; palette 0 = sample output, so do not set
+    dec b                       ; palette 0 = sample output, so do not set
 
 @not.clut:
     pop af
 
 @mk.outd:
 
-    cp 6
+    cp 5
     call c,insert.xout
-    sub 6
+    sub 5
 
     ld (hl),opcode.ed
     inc hl
-    ld (hl),opcode.outd			; outd (16*)
+    ld (hl),opcode.outd         ; outd (16*)
     inc hl
     djnz @mk.outd
 
@@ -1239,7 +1192,7 @@ mk.paltabsel:
     inc hl
     ld (hl),opcode.jr_nz_n
     inc hl
-    ld (hl),1				;jr nz,$+3
+    ld (hl),1               ; jr nz,$+3
     inc hl
     ld (hl),opcode.ld_a_e
     inc hl
@@ -1571,11 +1524,11 @@ mk.sto14:
 
     ld (hl),opcode.ld_de_nn
     inc hl
-qs.playtab2.1:
-    ld (hl),0
+qs.playtab2:
+    ld de,0
+    ld (hl),e
     inc hl
-qs.playtab2.2:
-    ld (hl),0			;ld de,playtab2
+    ld (hl),d           ; ld de,playtab2
     inc hl
 
     cp 3
@@ -1584,7 +1537,7 @@ qs.playtab2.2:
 
     ld (hl),opcode.jp_nn
     inc hl
-    ld (mk.sto16+1),hl ;jp player.rejoin
+    ld (mk.sto16+1),hl  ; jp player.rejoin
     inc hl
     inc hl
 
@@ -1623,7 +1576,7 @@ mk.get.c1.data:
     ld de,0
     ld (hl),e
     inc hl
-    ld (hl),d		; jp get.c1.data
+    ld (hl),d       ; jp get.c1.data
     inc hl
 mk.sto17:
     ld de,0
@@ -2012,7 +1965,7 @@ mk.sto3:
 ;---------------------------------------------------------------
 ;enable burstplayer
 enable:
-    ld (bp.pointer.addr.enable),hl		;enableplayer:
+    ld (bp.pointer.addr.enable),hl      ; enableplayer:
 
     ld (hl),opcode.in_a_n
     inc hl
@@ -2051,7 +2004,7 @@ enable:
     inc de
     ld (hl),e
     inc hl
-    ld (hl),d          ;ld (playerselect+1),hl
+    ld (hl),d           ; ld (playerselect+1),hl
     inc hl
     ld (hl),opcode.ex_af_af
     inc hl
@@ -2060,10 +2013,10 @@ enable:
     ld (hl),opcode.ld_bc_nn
     inc hl
 sample.port:
-    ld de,232			; unnecessary default?
+    ld de,232           ; unnecessary default?
     ld (hl),e
     inc hl
-    ld (hl),d          ;ld bc,sample.port
+    ld (hl),d           ; ld bc,sample.port
     inc hl
     ld (hl),opcode.ld_hl_nn
     inc hl
@@ -2077,12 +2030,12 @@ sample.ctrl:
     ld de,1
     ld (hl),e
     inc hl
-    ld (hl),d          ;ld de,sample.ctrl
+    ld (hl),d           ; ld de,sample.ctrl
     inc hl
     ld (hl),opcode.ld_a_n
     inc hl
 ras.start.2:
-    ld (hl),0			; ld a,ras.start
+    ld (hl),0           ; ld a,ras.start
     inc hl
     ld (hl),opcode.out_n_a
     inc hl
@@ -2100,12 +2053,12 @@ ras.start.2:
 ;---------------------------------------------------------------
 set.silence:
 
-    ld (mk.rec37+1),hl		; set.silence
+    ld (mk.rec37+1),hl      ; set.silence
     ld (hl),opcode.ld_hl_nn
     inc hl
     ld (hl),playtab1 \ 256
     inc hl
-    ld (hl),playtab1 // 256	; ld hl,playtab1
+    ld (hl),playtab1 // 256 ; ld hl,playtab1
     inc hl
     ld (hl),opcode.ld_d_h
     inc hl
@@ -2117,9 +2070,9 @@ set.silence:
     inc hl
     ld a,(burstplayer.device)
     cp device.saa
-    ld a,%10001000		; saa
+    ld a,%10001000      ; saa
     jr z,@is.saa
-    ld a,%10000000		; others
+    ld a,%10000000      ; others
 @is.saa:
     ld (hl),a
     inc hl
@@ -2144,11 +2097,11 @@ set.silence:
 ;---------------------------------------------------------------
 ;test
 ;
-;	call sound.driver.reset
-;	call set.silence
-;	ld a,page.sequencer
-;	out (port.hmpr),a
-;	jp addr.demo
+;   call sound.driver.reset
+;   call set.silence
+;   ld a,page.sequencer
+;   out (port.hmpr),a
+;   jp addr.demo
 
     ld (run.program+1),hl
     ld (hl),opcode.call_nn
@@ -2163,7 +2116,7 @@ mk.rec37:
     ld de,0
     ld (hl),e
     inc hl
-    ld (hl),d				;call set.silence
+    ld (hl),d               ; call set.silence
     inc hl
 
     ld (hl),opcode.ld_a_n
@@ -2271,12 +2224,12 @@ populate.pitch.table:
     ld ix,pitch.table+4
 
     ; ld b,4
-    ; pitch.clp:	; ld (ix),0         ;for nocalc on lowest two div
+    ; pitch.clp:    ; ld (ix),0         ;for nocalc on lowest two div
     ; inc ix
     ; djnz pitch.clp
 
     ld hl,43544       ;PAL  -> CHL=7093789.2
-    ld a,(burstplayer.speed)
+    ld a,(burstplayer.amiga)
     cp pal
     jr z,not.ntsc
     ld hl,45152       ;NTSC -> CHL=7159090.5
@@ -2293,8 +2246,8 @@ pitch.loop:
     exx
 
 lo.amiga:
-    ld de,43544		;CHL=7093789.2*128/10400
-    ld c,2			;value in table = HL / offs * 2 for rounding at end
+    ld de,43544     ; CHL=7093789.2*128/10400
+    ld c,2          ; value in table = HL / offs * 2 for rounding at end
     ld b,24
     exx
 ;divide:
@@ -2361,24 +2314,27 @@ insert.xout:
 
 ; insert output commands for sound device, but with timing padding and exx
 
-    ret
+    nop                     ; set to ret when error
 
     cp 3
     jr c,ins.notjr
-    ld (hl),opcode.jr_n		;a = 3 or 4 or 5
+    ld (hl),opcode.jr_n     ; a = 3 or 4 or 5
     inc hl
-    ld (hl),0				;jr $+2
+    ld (hl),0               ; jr $+2
     inc hl
     sub 3
-    jr   insert.xout
+    jr insert.xout
+
 ins.notjr:
     or a
     jr z,ins.allnop
+
 ins.noplp:
     ld (hl),opcode.nop
     inc hl
     dec a
     jr nz,ins.noplp
+
 ins.allnop:
     ld a,(maker+1)
     and 1
@@ -2402,12 +2358,12 @@ ins.allnop:
 
     push af
     ld a,opcode.ret
-    ld (insert.xout),a	; stop output when 0 encountered
+    ld (insert.xout),a  ; stop output when 0 encountered
     pop af
 
 @nz:
     inc a
-;	jr z,@bad.timing
+    jr z,@bad.timing
     dec a
 
     inc ix
@@ -2435,7 +2391,7 @@ poke.count:
     ld (hl),opcode.ld_a_n
     inc hl
 border.col:
-    ld (hl),&70       ;ld a,3
+    ld (hl),0x70        ; ld a,3
     inc hl
     ld (hl),opcode.out_n_a
     inc hl
@@ -2642,54 +2598,54 @@ mk.bp23:
 ;---------------------------------------------------------------
 ;make get first sample byte routine
 
-;	d = volume.table
+;   d = volume.table
 
-;	hl = sample pointer
-;	a  = sample pointer fraction
+;   hl = sample pointer
+;   a  = sample pointer fraction
 
-;	sp = pitch
-;	c  = pitch fraction
+;   sp = pitch
+;   c  = pitch fraction
 
-;	ld e,(hl)
-;	add a,c
-;	adc hl,sp
-;	ld b,(hl)
-;	add a,c
-;	adc hl,sp
-;	ex af,af'
-;	ld a,(de)
-;	ld (nn),a	save for channel mix
-;	ld e,b
-;	ld a,(de)
-;	ld (nn),a	save for channel mix
-;	ld e,(hl)
-;	ld a,(de)
-;	ld (nn),a
-;	ex af,af'
-;	add a,c
-;	adc hl,sp
+;   ld e,(hl)   get byte
+;   add a,c
+;   adc hl,sp
+;   ld b,(hl)   get byte
+;   add a,c
+;   adc hl,sp
+;   ex af,af'
+;   ld a,(de)   apply volume
+;   ld (nn),a   save for channel mix
+;   ld e,b
+;   ld a,(de)   apply volume
+;   ld (nn),a   save for channel mix
+;   ld e,(hl)   get byte
+;   ld a,(de)   apply volume
+;   ld (nn),a
+;   ex af,af'
+;   add a,c
+;   adc hl,sp
 
-;	REPEAT 68 times
+;   REPEAT 68 times ( 3 x 68 = 204 )
 
-;	ld e,hl
-;	add a,c
-;	adc hl,sp
-;	ld (nn),a
-;	ld a,(de)
-;	ld (nn),a
-;	in a,(hmpr)			<- !!!
-;	bit 6,h
-;	jr z,+3
-;	inc a
-;	ld (nn),a			<-
-;	res 6,h
-;	ld (nn),hl
+;   ld e,hl
+;   add a,c
+;   adc hl,sp
+;   ld (nn),a
+;   ld a,(de)
+;   ld (nn),a
+;   in a,(hmpr)         <- !!!
+;   bit 6,h
+;   jr z,+3
+;   inc a
+;   ld (nn),a           <-
+;   res 6,h
+;   ld (nn),hl
 
 mk.bp.get1st:
     pop af
     ld iy,mk.store
 
-    ld b,208 // 3		; bytes per frame
+    ld b,208 // 3       ; bytes per frame
 @loop1.1:
     cp 2
     call c,insert.xout
@@ -2923,7 +2879,7 @@ mk.bp.get1st:
     inc hl
     ld (hl),opcode.jr_z_n
     inc hl
-    ld (hl),1				; jr z,$+3
+    ld (hl),1           ; jr z,$+3
     inc hl
     ld (hl),opcode.inc_a
     inc hl
@@ -2937,7 +2893,7 @@ mk.bp.get1st:
     ld bc,(mk.gd.page)
     ld (hl),c
     inc hl
-    ld (hl),b         ;ld (samplepage+1),a
+    ld (hl),b           ; ld (samplepage+1),a
     inc hl
 
     cp 2
@@ -2958,7 +2914,7 @@ mk.bp.get1st:
     ld bc,(mk.gd.offs)
     ld (hl),c
     inc hl
-    ld (hl),b         ;ld (sample.offs+1),hl
+    ld (hl),b          ; ld (sample.offs+1),hl
     inc hl
 
     ret
@@ -2966,44 +2922,44 @@ mk.bp.get1st:
 ;---------------------------------------------------------------
 ;make get second sample byte and add to first routine
 
-;	ld e,(hl)
-;	add a,c
-;	adc hl,sp
-;	ld b,(hl)
-;	add a,c
-;	adc hl,sp
-;	ex af,af'
-;	ld a,(de)
-;	add a,n		<- from make first sample
-;	ld (nn),a	-> buffer
-;	ld e,b
-;	ld a,(de)
-;	add a,n		<- from make first sample
-;	ld (nn),a	-> buffer
-;	ld e,(hl)
-;	ld a,(de)
-;	add a,n		<- from make first sample
-;	ld (nn),a	-> buffer
-;	ex af,af'
-;	add a,c
-;	adc hl,sp
+;   ld e,(hl)
+;   add a,c
+;   adc hl,sp
+;   ld b,(hl)
+;   add a,c
+;   adc hl,sp
+;   ex af,af'
+;   ld a,(de)
+;   add a,n     <- from make first sample
+;   ld (nn),a   -> buffer
+;   ld e,b
+;   ld a,(de)
+;   add a,n     <- from make first sample
+;   ld (nn),a   -> buffer
+;   ld e,(hl)
+;   ld a,(de)
+;   add a,n     <- from make first sample
+;   ld (nn),a   -> buffer
+;   ex af,af'
+;   add a,c
+;   adc hl,sp
 
-;	REPEAT 68 times
+;   REPEAT 68 times
 
-;	ld e,(hl)
-;	add a,c
-;	adc hl,sp
-;	ld (nn),a	-> store sample pointer fraction
-;	ld a,(de)
-;	add a,n
-;	ld (nn),a	-> buffer
-;	in a,(hmpr)	!!!
-;	bit 6,h
-;	jr z,+1
-;	inc a
-;	ld (nn),a	->
-;	res 6,h
-;	ld (nn),a	->
+;   ld e,(hl)
+;   add a,c
+;   adc hl,sp
+;   ld (nn),a   -> store sample pointer fraction
+;   ld a,(de)
+;   add a,n
+;   ld (nn),a   -> buffer
+;   in a,(hmpr) !!!
+;   bit 6,h
+;   jr z,+1
+;   inc a
+;   ld (nn),a   ->
+;   res 6,h
+;   ld (nn),a   ->
 
 
 mk.bp.get2nd:
@@ -3088,7 +3044,7 @@ blp1.4:
     ld de,(mk.playtab)
     ld (hl),e
     inc hl
-    ld (hl),d			; ld (2*x+playtab2),a
+    ld (hl),d           ; ld (2*x+playtab2),a
     inc hl
     inc de
     inc de
@@ -3134,7 +3090,7 @@ blp1.4:
     ld de,(mk.playtab)
     ld (hl),e
     inc hl
-    ld (hl),d			; ld (2*x+playtab2),a
+    ld (hl),d           ; ld (2*x+playtab2),a
     inc hl
     inc de
     inc de
@@ -3236,7 +3192,7 @@ blp1.4:
     ld bc,(mk.gd.spfr)
     ld (hl),c
     inc hl
-    ld (hl),b		; ld (speedfract+1),a
+    ld (hl),b       ; ld (speedfract+1),a
     inc hl
 
     cp 2
@@ -3272,7 +3228,7 @@ blp1.4:
     ld de,(mk.playtab)
     ld (hl),e
     inc hl
-    ld (hl),d			; ld (2*x+playtab2),a
+    ld (hl),d           ; ld (2*x+playtab2),a
     inc hl
     inc de
     inc de
@@ -3334,7 +3290,7 @@ blp1.4:
     ld bc,(mk.gd.page)
     ld (hl),c
     inc hl
-    ld (hl),b			; ld (samplepage+1),a
+    ld (hl),b           ; ld (samplepage+1),a
     inc hl
 
     cp 2
@@ -3355,7 +3311,7 @@ blp1.4:
     ld bc,(mk.gd.offs)
     ld (hl),c
     inc hl
-    ld (hl),b			; ld (sample.offs+1),hl
+    ld (hl),b           ; ld (sample.offs+1),hl
     inc hl
 
     ret
@@ -3611,7 +3567,7 @@ q.blp1.4:
     inc hl
     ld (hl),opcode.jr_z_n
     inc hl
-    ld (hl),1			; jr z,$+3
+    ld (hl),1           ; jr z,$+3
     inc hl
     ld (hl),opcode.inc_a
     inc hl
@@ -3625,7 +3581,7 @@ q.blp1.4:
     ld bc,(mk.gd.page)
     ld (hl),c
     inc hl
-    ld (hl),b			; ld (samplepage+1),a
+    ld (hl),b           ; ld (samplepage+1),a
     inc hl
 
     cp 2
@@ -3646,7 +3602,7 @@ q.blp1.4:
     ld bc,(mk.gd.offs)
     ld (hl),c
     inc hl
-    ld (hl),b			; ld (sample.offs+1),hl
+    ld (hl),b           ; ld (sample.offs+1),hl
     inc hl
 
     ret
@@ -3660,7 +3616,7 @@ timeline:
     inc hl
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (hl),&70
+    ld (hl),0x70
     inc hl
     ld (hl),opcode.out_n_a
     inc hl
@@ -3674,26 +3630,26 @@ endif
 ;---------------------------------------------------------------
 ;memory needed for mk.bp routines
 
-mk.playtab:	defw 0
-mk.gd.spfr:	defw 0
-mk.gd.page:	defw 0
-mk.gd.offs:	defw 0
+mk.playtab: defw 0
+mk.gd.spfr: defw 0
+mk.gd.page: defw 0
+mk.gd.offs: defw 0
 
-mk.store:	defs 208 * 2	; stores adresses
+mk.store:   defs 208 * 2    ; stores adresses
 
 ;===============================================================
 device.list:
 
     ;clut
-    defw 0,0					; init, length
-    defw sd.clut,10				; sound driver, length
-    defw port.clut	            ; output port
-    defb &34                    ; control
-    defb &17		            ; control
-    defw timing.clut          	; timing table
-    defw timing.clut.megabyte	; timing table
-    defb 22 * 3 + 2           	; raster interrupts - related to count to 0 in timing.<device>
-    defb 6                    	; number of bits
+    defw 0,0                    ; init, length
+    defw sd.clut,10             ; sound driver, length
+    defw port.clut              ; output port
+    defb 0x34                   ; control
+    defb 0x17                   ; control
+    defw timing.clut            ; timing table
+    defw timing.clut.megabyte   ; timing table
+    defb 22 * 3 + 2             ; raster interrupts - related to count to 0 in timing.<device>
+    defb 6                      ; number of bits
 
     ;saa
     defw init.saa, init.saa.length
@@ -3710,7 +3666,7 @@ device.list:
     defw 0,0
     defw sd.samdac,12
     defw port.printer_1.data
-    defw &0001
+    defw 0x0001
     defw timing.samdac
     defw timing.samdac.megabyte
     defb 21 * 3 + 2
@@ -3720,7 +3676,7 @@ device.list:
     defw 0,0
     defw sd.samdac,12
     defw port.printer_2.data
-    defw &0001
+    defw 0x0001
     defw timing.samdac
     defw timing.samdac.megabyte
     defb 21 * 3 + 2
@@ -3759,8 +3715,8 @@ device.list:
     ;quazar surround soundcard
     defw init.quazar, init.quazar.length
     defw sd.qss,9
-    defw &06D0
-    defw &0006					; +1 for OUTI
+    defw 0x06d0
+    defw 0x0006                 ; +1 for OUTI
     defw timing.qss
     defw timing.qss.megabyte
     defb 16 * 3 + 2
@@ -3770,16 +3726,16 @@ device.list:
 ;initialise device subroutines
 
 init.saa:
-;	ld a,%10001000    ;A=silence value ???
+;   ld a,%10001000    ;A=silence value ???
     ld bc,port.sound.address
-;	ld de,32 * 256 + 31
-;	xor a
+;   ld de,32 * 256 + 31
+;   xor a
 bp.res.saa:
-;	out (c),e
-;	out (port.sound.data),a
-;	dec e
-;	dec d
-;	jr nz,bp.res.saa
+;   out (c),e
+;   out (port.sound.data),a
+;   dec e
+;   dec d
+;   jr nz,bp.res.saa
 
 if 1 > 0
 
@@ -3788,7 +3744,7 @@ if 1 > 0
     ld e,saa.register.sound_enable
     out (c),e
     dec b
-    ld e,saa.se.enabled
+    ld e,saa.se.channels.enabled
     out (c),e
 
     ld e,saa.envelope.enabled | saa.envelope.mode.maximum
@@ -3814,75 +3770,75 @@ endif
     init.saa.length:    equ $ - init.saa
 
 init.blue_alpha:
-    ld bc,127 * 256 + 127
+    ld bc,port.blue_alpha.control
     ld a,255
     out (c),a
-    ld b,125
+    ld bc,125   ; port.blue_alpha.b
     ld a,253
     out (c),a
     init.blue_alpha.length: equ $ - init.blue_alpha
 
 init.quazar:
-    ld bc,&06D0
-    in a,(c)			; mode 1
+    ld bc,0x06d0
+    in a,(c)            ; mode 1
     ld a,128
     dec b
-    out (c),a			; rear right
+    out (c),a           ; rear right
     dec b
-    out (c),a			; rear left
+    out (c),a           ; rear left
     dec b
-    out (c),a			; front right
+    out (c),a           ; front right
     dec b
-    out (c),a			; front left
+    out (c),a           ; front left
     init.quazar.length: equ $ - init.quazar
 
 ;---------------------------------------------------------------
 ;sound drivers
 
 sd.clut:
-    out (c),e		; 16   2
-    inc b			;  4   1
-    outi			; 24   2
-    out (c),d		; 16   2
-    inc b			;  4   1
-    outi			; 24   2  = 22
+    out (c),e       ; 16   2
+    inc b           ;  4   1
+    outi            ; 24   2
+    out (c),d       ; 16   2
+    inc b           ;  4   1
+    outi            ; 24   2  = 22
 
 sd.saa:
-    out (c),e		; 16   2
-    outi			; 24   2
-    inc b			;  4   1
-    out (c),d		; 16   2
-    outi			; 24   2
-    inc b			;  4   1  = 26
+    out (c),e       ; 16   2
+    outi            ; 24   2
+    inc b           ;  4   1
+    out (c),d       ; 16   2
+    outi            ; 24   2
+    inc b           ;  4   1  = 26
 
 sd.samdac:
-    outi			; 20   2         data: sample out (left)
-    inc c			;  4   1
-    out (c),e		; 12   2         strobe: 1
-    dec c			;  4   1
-    outi			; 20   2         data: sample out (right)
-    inc c			;  4   1
-    out (c),d		; 20   2         strobe: 0
-    dec c			;  4   1
+    outi            ; 20   2         data: sample out (left)
+    inc c           ;  4   1
+    out (c),e       ; 12   2         strobe: 1
+    dec c           ;  4   1
+    outi            ; 20   2         data: sample out (right)
+    inc c           ;  4   1
+    out (c),d       ; 20   2         strobe: 0
+    dec c           ;  4   1
 
 sd.dac:
-    ld e,a			;  4   1
-    ld a,(hl)		;  8   1
-    inc hl			;  8   1
-    add (hl)		;  8   1
-    inc hl			;  8   1
-    out (c),a		; 12   2
-    ld a,e			;  4   1
+    ld e,a          ;  4   1
+    ld a,(hl)       ;  8   1
+    inc hl          ;  8   1
+    add (hl)        ;  8   1
+    inc hl          ;  8   1
+    out (c),a       ; 12   2
+    ld a,e          ;  4   1
 
 sd.qss:
-    ld b,e			;  4   1
-    outi			; 20   2
-    outi			; 20   2
-    outi			; 20   2
-    outi			; 20   2  = 21
+    ld b,e          ;  4   1
+    outi            ; 20   2
+    outi            ; 20   2
+    outi            ; 20   2
+    outi            ; 20   2  = 21
 
 ;---------------------------------------------------------------
-; timing tables for sound devices
+; timing tables for sound devices - (130 bytes)
 ; last byte in table is delay during line interrupt to get to 1.5
 ;
 ; 208 bytes per frame, one byte per 1.5 line -> 312 lines of which 192 screen
@@ -3894,13 +3850,16 @@ sd.qss:
 ; if -1 reached -> error, double 0 indicates something went wrong in timing
 
 
+; lets try actual t-states 384 states per line, with a counter for when contended memory is encountered
+
 timing.clut:
     defb  33,121,121,121,121,121,121,121,121,121  ; 1
     defb 121,121,121,121,121,121,121,121,121,121  ; 2
     defb 121,121,121,121,121,122,121,121,121,121  ; 3
     defb 121,121,121,121,121,121,121,121,121,121  ; 4
     defb 121,121,121,121,121,121,121,121,121,121  ; 5
-    defb 121,121,121,122,123,121,121,121,121,121  ; 6
+;    defb 121,121,121,122,123,121,121,121,121,121  ; 6 - different timing must mean bad counting?
+    defb 121,121,121,121,121,121,121,121,121,121  ; 6
     defb 121,121,121,121,121,121,121,121,121,121  ; 7
     defb 121,121,121,121,121,121,121,121,121,122  ; 8
     defb 110, 76, 79, 76, 78, 76, 79, 77, 82, 77  ; 9
@@ -4050,7 +4009,7 @@ mk.movecode:
 
     di
     in a,(port.vmpr)
-;	and %00111111
+;   and %00111111
     push af
     ld (bp.stsp+32769),sp
     in a,(port.lmpr)
@@ -4062,7 +4021,7 @@ mk.movecode:
     out (port.lmpr),a
     ld sp,32768
 run.program:
-    jp 0		;test
+    jp 0        ; test
 
 bp.exit:
     di
@@ -4080,69 +4039,69 @@ bp.stsp:
     ld sp,0
     pop af
     out (port.vmpr),a
-; 	ei
+;   ei
     ret
 
 bp.id:
 
-    defm "BUR"			;ID code (at 00053)
+    defm "BUR"          ; ID code (at 00053)
 
 ;---------------------------------------------------------------
-    defs 102 - $		;NMI - corrupts player
+    defs 102 - $        ; NMI - corrupts player
 
     jp bp.exit
 
 ; pointers to variables in generated burstplayer code
 
 
-bp.device:			defb 0
+bp.device:          defb 0
 
 bp.pointers:
 
-bp.point.addr.sequencer:	defw 0
-bp.point.page.sequencer:	defw 0
-bp.pointer.addr.demo:		defw 0
-bp.pointer.page.demo:		defw 0
+bp.point.addr.sequencer:    defw 0
+bp.point.page.sequencer:    defw 0
+bp.pointer.addr.demo:       defw 0
+bp.pointer.page.demo:       defw 0
 
-bp.pointer.addr.enable:		defw 0
-bp.pointer.addr.exit:		defw bp.exit
+bp.pointer.addr.enable:     defw 0
+bp.pointer.addr.exit:       defw bp.exit
 
 bp.pointers.sample:
 
-bp.c1.page:			defw 0
-bp.c1.offs:			defw 0
-bp.c1.vol:			defw 0
-bp.c1.speedlo:		defw 0
-bp.c1.speedhi:		defw 0
-bp.c1.sp.frct:		defw 0
+bp.c1.page:         defw 0
+bp.c1.offs:         defw 0
+bp.c1.vol:          defw 0
+bp.c1.speedlo:      defw 0
+bp.c1.speedhi:      defw 0
+bp.c1.sp.frct:      defw 0
 
-bp.pointers.length:	equ $ - bp.pointers.sample
+bp.pointers.length: equ $ - bp.pointers.sample
 
-bp.c2.page:			defw 0
-bp.c2.offs:			defw 0
-bp.c2.vol:			defw 0
-bp.c2.speedlo:		defw 0
-bp.c2.speedhi:		defw 0
-bp.c2.sp.frct:		defw 0
+bp.c2.page:         defw 0
+bp.c2.offs:         defw 0
+bp.c2.vol:          defw 0
+bp.c2.speedlo:      defw 0
+bp.c2.speedhi:      defw 0
+bp.c2.sp.frct:      defw 0
 
-bp.c3.page:			defw 0
-bp.c3.offs:			defw 0
-bp.c3.vol:			defw 0
-bp.c3.speedlo:		defw 0
-bp.c3.speedhi:		defw 0
-bp.c3.sp.frct:		defw 0
+bp.c3.page:         defw 0
+bp.c3.offs:         defw 0
+bp.c3.vol:          defw 0
+bp.c3.speedlo:      defw 0
+bp.c3.speedhi:      defw 0
+bp.c3.sp.frct:      defw 0
 
-bp.c4.page:			defw 0
-bp.c4.offs:			defw 0
-bp.c4.vol:			defw 0
-bp.c4.speedlo:		defw 0
-bp.c4.speedhi:		defw 0
-bp.c4.sp.frct:		defw 0
+bp.c4.page:         defw 0
+bp.c4.offs:         defw 0
+bp.c4.vol:          defw 0
+bp.c4.speedlo:      defw 0
+bp.c4.speedhi:      defw 0
+bp.c4.sp.frct:      defw 0
 
 
 if 0 > 1
 ;set saa for samples
-bp.saa.init:	defb saa.register.sound_enable        , saa.se.enabled
+bp.saa.init:    defb saa.register.sound_enable        , saa.se.enabled
                 defb saa.register.envelope_generator_1, saa.envelope.enabled | saa.envelope.mode.maximum
                 defb saa.register.envelope_generator_0, saa.envelope.enabled | saa.envelope.mode.maximum
 endif
@@ -4150,7 +4109,7 @@ endif
 mk.mv.end:
 sound.driver.reset:
 
-length:	equ  mk.movecode - 32768 + sound.driver.reset
+length: equ  mk.movecode - 32768 + sound.driver.reset
 
 if defined( testing )
 
@@ -4172,12 +4131,12 @@ if defined( testing )
 demo:
     call 0
 
-    ld bc,keyboard.caps_esc * 256 + port.status
+    ld bc,keyboard.caps_tab_esc * 256 + port.status
 demoloop:
     xor a
     out (port.clut),a
     in a,(c)
-    bit 5,a	; escape
+    bit 5,a     ; escape
     jr nz,demoloop
 still:
     in a,(c)

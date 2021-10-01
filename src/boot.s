@@ -1,6 +1,6 @@
 ; SAM MOD player
 
-; (C) 2019 Stefan Drissen
+; (C) 2019-2021 Stefan Drissen
 
 ; boot file to load the rest
 
@@ -8,12 +8,12 @@
 
     include "memory.i"
     include "opcodes.i"
-    include "ports.i"
+    include "ports/internal.i"
     include "dos.i"
 
 ;---------------------------------------------------------------
 
-    org &8000
+    org 0x8000
 
     autoexec
 
@@ -23,31 +23,31 @@
 
 ;---------------------------------------------------------------
 
-file.loading.scr:	defm "loading.$    "
-file.sequencer:		defm "sequencer    "
-file.burstplayer:	defm "burstplayer  "
-file.loader:		defm "loader       "
-file.demo:			defm "demo         "
+file.loading.scr:   defm "loading.$    "
+file.sequencer:     defm "sequencer    "
+file.burstplayer:   defm "burstplayer  "
+file.loader:        defm "loader       "
+file.demo:          defm "demo         "
 
-@palette:	defb &7f,&00,&6b,&63,&2c,&24,&77,&78,&70,&2a,&22,&28,&20,&7d,&5f,&6a
+@palette:   defb 0x7f,0x00,0x6b,0x63,0x2c,0x24,0x77,0x78,0x70,0x2a,0x22,0x28,0x20,0x7d,0x5f,0x6a
 
 @boot:
 
 ; first set palette (hard coded from loading.$)
 
-    ld hl,@palette + &0f
+    ld hl,@palette + 0x0f
     ld c,port.color_look_up_table
-    ld b,&10
+    ld b,0x10
     otdr
 
     ld hl,@palette
     ld de,palette.table
-    ld bc,&10
+    ld bc,0x10
     ldir
 
     ld hl,@palette
-    ld de,palette.table + &14
-    ld bc,&10
+    ld de,palette.table + 0x14
+    ld bc,0x10
     ldir
 
     ld a,page.burstplayer + video.mode.4
@@ -71,12 +71,12 @@ file.demo:			defm "demo         "
     call load.file
 
     ld a,page.loader
-    ld de,&8000+&2000
+    ld de,0x8000 + 0x2000
     ld hl,file.demo
     call load.file.address
 
     ld a,page.loader - 1
-    ld hl,&c000
+    ld hl,0xc000
     jp inst.buffer.jump_ahl
 
 @exit:
@@ -96,13 +96,13 @@ file.demo:			defm "demo         "
 ;------------------------------------------------------------------------------
 load.file:
 
-;	hl -> file name
-;	a  =  page
-;   de =  address (when load.file.address - must be >= &8000)
+;   hl -> file name
+;   a  =  page
+;   de =  address (when load.file.address - must be >= 0x8000)
 
 ;------------------------------------------------------------------------------
 
-    ld de,&8000
+    ld de,0x8000
 
 load.file.address:
 
@@ -116,7 +116,7 @@ load.file.address:
     ld hl,uifa
     ld de,uifa+1
     ld (hl),0
-    ld bc,&30-1
+    ld bc,0x30-1
     ldir
 
     ld hl,@load.relocate
@@ -163,7 +163,7 @@ inst.buffer.load:
     ld (@store.hmpr+1),a
     pop af
 
-    out	(port.hmpr),a
+    out (port.hmpr),a
 
     rst 8
     defb dos.hload
@@ -201,7 +201,7 @@ inst.buffer.jump_ahl:
     jp (hl)
 
 
-@load.len:	equ $ - inst.buffer.load
+@load.len:  equ $ - inst.buffer.load
 
     org @load.relocate + @load.len
 

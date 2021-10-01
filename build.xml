@@ -1,10 +1,12 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="sam-mod-player">
+<project name="sam-mod-player" xmlns:if="ant:if">
 
-	<property name="python" location="d:/sam/python36/python.exe" />
+	<property name="python" location="../../AppData/Local/Programs/Python/Python38/python.exe" />
 	<property name="pyz80" location="../pyz80/pyz80.py" />
 	<property name="simcoupe" location="C:\Program Files (x86)\SimCoupe\SimCoupe.exe" />
 	<property name="mapfile" value="true" />
+
+	<!-- assemble -->
 
 	<macrodef name="assemble">
 		<attribute name="source" />
@@ -12,7 +14,7 @@
 		<attribute name="mapfile" default="false" />
 		<attribute name="debug" default="false" />
 
-		<sequential xmlns:if="ant:if">
+		<sequential>
 
 			<echo message="compiling: @{source} mapfile:@{mapfile}" />
 
@@ -60,12 +62,15 @@
 
 	</target>
 
-	<target name="create-disk" depends="assemble-loader,assemble-demo,assemble-burstplayer,assemble-sequencer,assemble-test-mod" xmlns:if="ant:if">
+	<!-- create-disk -->
+
+	<target name="create-disk" depends="assemble-loader,assemble-demo,assemble-burstplayer,assemble-sequencer,assemble-test-mod">
 
 		<exec executable="${python}" failonerror="true">
 			<arg value="${pyz80}" />
-			<!--            <arg value="-Ires/B-DOS15a" /> -->
-			<arg value="-Ires/AL-BDOS15a" />
+			<!-- <arg value="-Ires/B-DOS15a" /> -->
+			<!-- <arg value="-Ires/AL-BDOS15a" /> -->
+			<arg value="-Ires/bdos15t-6" />
 			<arg value="-Ires/loading.$" />
 			<arg value="-Iobj/sequencer" />
 			<arg value="-Iobj/burstplayer" />
@@ -78,18 +83,34 @@
 		</exec>
 
 		<!-- adjust to what needs debugging -->
-		<copy file="obj/loader.map" tofile="obj/modplayer.map" if:true="${mapfile}" />
+		<copy file="obj/sequencer.map" tofile="obj/modplayer.map" if:true="${mapfile}" />
 
 	</target>
 
+	<!-- simcoupe -->
+
+	<macrodef name="simcoupe">
+		<attribute name="disk" />
+
+		<sequential>
+
+			<exec executable="${simcoupe}" spawn="true">
+				<arg value="obj/@{disk}.dsk" />
+			</exec>
+
+		</sequential>
+
+	</macrodef>
+
+	<!-- all -->
 
 	<target name="all" description="compile all, create disk and launch" depends="create-disk">
 
-		<exec executable="${simcoupe}" spawn="true">
-			<arg value="obj/modplayer.dsk" />
-		</exec>
+		<simcoupe disk="modplayer" />
 
 	</target>
+
+	<!-- assemble-test-mod -->
 
 	<target name="assemble-test-mod">
 
@@ -99,8 +120,9 @@
 			<arg value="src/test.mod.s" />
 		</exec>
 
-
 	</target>
+
+	<!-- create-example -->
 
 	<target name="create-example" depends="assemble-burstplayer,assemble-sequencer">
 
@@ -114,6 +136,8 @@
 		</exec>
 
 	</target>
+
+	<!-- clean -->
 
 	<target name="clean" description="clean obj">
 

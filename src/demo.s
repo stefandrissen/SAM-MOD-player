@@ -1,9 +1,11 @@
 ;SAM MOD player - DEMO routine for BURST + SEQUENCER
 
-;(C) 1996-2019 Stefan Drissen
+;(C) 1996-2021 Stefan Drissen
 
 include "memory.i"
-include "ports.i"
+include "ports/internal.i"
+include "ports/megabyte.i"
+include "ports/keyboard.i"
 include "opcodes.i"
 
 ;---------------------------------------------------------------
@@ -15,7 +17,7 @@ demo.device:    equ 49152+3     ; device, set by loader [0-5]   ; !!! external r
 ;demo is the program that runs in "foreground" mode
 ;   the sequencer is called by the burst routine every frame
 
-    org demo.setup  ; &6000 - aBcd
+    org demo.setup  ; 0x6000 - aBcd
 
 ;---------------------------------------------------------------
 
@@ -45,8 +47,8 @@ demo.external.ram:  defb 0  ; [0-4]
 @no.megabyte.1:
     out (port.hmpr),a
 
-    ld hl,&8000
-    ld de,mod.header-32768
+    ld hl,0x8000
+    ld de,mod.header - 0x8000
     ld bc,mod.header.len
     ldir
 
@@ -58,7 +60,7 @@ demo.external.ram:  defb 0  ; [0-4]
     ld (sq.pointer.page.demo),a
     ex af,af'
     ld (sq.octaves),a
-    ld hl,tracker.display - &8000
+    ld hl,tracker.display - 0x8000
     cp 3
     jr nz,@display.periods
     ld a,opcode.nop
@@ -103,7 +105,7 @@ seq.setup:
 
 ;---------------------------------------------------------------
 
-    org  $ + &8000  ; abcD
+    org  $ + 0x8000  ; abcD
 
 demo.palette:
     defb %0000000 ;    0
@@ -147,7 +149,7 @@ col.samples:
 
 demo:
 
-    ld bc,&0f00 + port.clut
+    ld bc,0x0f00 + port.clut
     xor a
 black:
     out (c),a
@@ -257,7 +259,7 @@ skip.patpos:
 
 skip.speed:
 
-    ld bc,keyboard.cursors_ctrl * 256 + port.keyboard
+    ld bc,keyboard.cursors_cntrl * 256 + port.keyboard
     in c,(c)
     bit 3,c
     jr nz,not.left
@@ -489,7 +491,7 @@ not.c:
     jr nz,$+5
     ld bc,256
 
-    ld a,keyboard.plus_minus
+    ld a,keyboard.delete_plus_minus
     in a,(port.status)
     and %01000000   ; +
     jr nz,not.plus
@@ -506,7 +508,7 @@ not.c:
     call z,pr.amp.fac
 not.plus:
 
-    ld a,keyboard.plus_minus
+    ld a,keyboard.delete_plus_minus
     in a,(port.status)
     and %00100000   ; -
     jr nz,not.minus
@@ -520,7 +522,7 @@ not.plus:
     call z,pr.amp.fac
 not.minus:
     ld bc,0
-    ld a,keyboard.caps_esc
+    ld a,keyboard.caps_tab_esc
     in a,(port.status)
     and %00100000
     jr z,exit
@@ -544,15 +546,15 @@ exit:
     ld hl,(exit.burst)
     jp (hl)
 not.f9:
-    ld a,keyboard.caps_esc
+    ld a,keyboard.caps_tab_esc
     in a,(port.status)
     and %10000000           ; caps
     jr nz,@not.reset
-    ld a,keyboard.cursors_ctrl
+    ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
     and %00000001           ; control
     jr nz,@not.reset
-    ld a,keyboard.edit
+    ld a,keyboard.edit_colon_semicolon
     in a,(port.status)
     and %10000000           ; edit
     jr nz,@not.reset
@@ -561,15 +563,15 @@ not.f9:
     xor a
     out (port.vmpr),a
 still.res2:
-    ld a,keyboard.caps_esc
+    ld a,keyboard.caps_tab_esc
     in a,(port.status)
     and %10000000           ; caps
     jr z,still.res2
-    ld a,keyboard.cursors_ctrl
+    ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
     and %00000001           ; control
     jr z,still.res2
-    ld a,keyboard.edit
+    ld a,keyboard.edit_colon_semicolon
     in a,(port.status)
     and %10000000           ; edit
     jr z,still.res2
@@ -786,11 +788,11 @@ print.channel:
 
     ld a,(ix+0)             ; instrument hi
     ld d,a
-    and &f0
+    and 0xf0
     jr nz,@not.blank
     ld a,(ix+2)
     ld e,a
-    and &f0
+    and 0xf0
     jr z,@blank
 
 @not.blank:
@@ -855,7 +857,7 @@ display.notes:
 display.period_values:
 
     ld a,d                  ; period value
-    and &0f
+    and 0x0f
     jr nz,@not.blank
     ld a,(ix+1)
     or a
@@ -884,7 +886,7 @@ display.period_values:
     inc l
 
     ld a,(ix+2)             ; command
-    and &0f
+    and 0x0f
 
     jr z,@blank
 
@@ -915,7 +917,7 @@ print.hi.nibble:
 ; print high nibble of A register at HL
 ;------------------------------------------------------------------------------
 
-    and &f0
+    and 0xf0
     rrca
     rrca
     rrca
@@ -934,7 +936,7 @@ print.lo.nibble:
 ; print low nibble of A register at HL
 ;------------------------------------------------------------------------------
 
-    and &0f
+    and 0x0f
     rlca
     push hl
     ld h,char.list // 256
@@ -963,14 +965,14 @@ print.fast.char:
 
 print.num:
     ld b,a
-    and &F0
+    and 0xf0
     rrca
     rrca
     rrca
     rrca
     call pr.num.hex
     ld a,b
-    and &0F
+    and 0x0f
 pr.num.hex:
     add "0"
     cp ":"
@@ -1573,13 +1575,13 @@ pr.ins.exis2:
     inc l
 
     ld a,(de)
-    and &0F
+    and 0x0f
     bit 3,a
     jr z,tune.plus
     ld a,"-"
     call print.chr
     ld a,(de)
-    and &0F
+    and 0x0f
     ld b,a
     ld a,16
     sub b
@@ -1588,7 +1590,7 @@ tune.plus:
     ld a,"+"
     call print.chr
     ld a,(de)
-    and &0F
+    and 0x0f
 got.tune:
     add  "0"
     call print.chr
@@ -1821,12 +1823,12 @@ instr.point:
 
     ld hl,mod.current.row
     ld a,(hl)
-    and &10
+    and 0x10
     ld c,a
     inc l
     inc l
     ld a,(hl)
-    and &F0
+    and 0xf0
     rrca
     rrca
     rrca
@@ -1838,12 +1840,12 @@ instr.point:
     inc l
 
     ld a,(hl)
-    and &10
+    and 0x10
     ld c,a
     inc l
     inc l
     ld a,(hl)
-    and &F0
+    and 0xf0
     rrca
     rrca
     rrca
@@ -1855,12 +1857,12 @@ instr.point:
     inc l
 
     ld a,(hl)
-    and &10
+    and 0x10
     ld c,a
     inc l
     inc l
     ld a,(hl)
-    and &F0
+    and 0xf0
     rrca
     rrca
     rrca
@@ -1872,12 +1874,12 @@ instr.point:
     inc l
 
     ld a,(hl)
-    and &10
+    and 0x10
     ld c,a
     inc l
     inc l
     ld a,(hl)
-    and &F0
+    and 0xf0
     rrca
     rrca
     rrca
@@ -2040,8 +2042,10 @@ col.point2:
 
 txt.help:
     defm "SAM MOD player             v"
-    defb version.major, ".", version.minor.1, version.minor.2
-    defm "(C) 2019 Stefan Drissen"
+    defw version.major, version.minor
+    defm "(C) 20"
+    defw copyright.year
+    defm " Stefan Drissen"
     defb 0,0
     defm "           HELP PAGE"
     defb 0,0
@@ -2078,8 +2082,10 @@ col.help:
 
 txt.prosummary:
     defm "SAM MOD player             v"
-    defb version.major, ".", version.minor.1, version.minor.2
-    defm "(C) 2019 Stefan Drissen"
+    defw version.major, version.minor
+    defm "(C) 20"
+    defw copyright.year
+    defm " Stefan Drissen"
     defb 0,0
     defm " SUMMARY OF PROTRACKER EFFECTS"
     defb 0,0
@@ -2122,8 +2128,10 @@ col.pro:
 
 txt.burst:
     defm "SAM MOD player             v"
-    defb version.major, ".", version.minor.1, version.minor.2
-    defm "(C) 2019 Stefan Drissen"
+    defw version.major, version.minor
+    defm "(C) 20"
+    defw copyright.year
+    defm " Stefan Drissen"
     defm "CHANNEL "
     defm "Page Offs Vol SLo SHi"
 
@@ -2142,8 +2150,10 @@ txt.channel:    defm "Channel "
 
 txt.volume:     defm "Vol: 000%  Speed: 00  Tempo: 000"
 txt.keys:       defm "F1-F6 1234 C <> P ESC -+ Loop:  "
-txt.author:     defm "(C) 2019 Stefan Drissen    v"
-                defb version.major, ".", version.minor.1, version.minor.2
+txt.author:     defm "(C) 20"
+                defw copyright.year
+                defm " Stefan Drissen    v"
+                defw version.major, version.minor
 
 
 pr.amp.fac:
@@ -2411,48 +2421,48 @@ period.note.notes:
 
 period.note.periods:
 
-    defw &358   ; octave 1
-    defw &328
-    defw &2FA
-    defw &2D0
-    defw &2A6
-    defw &280
-    defw &25C
-    defw &23A
-    defw &21A
-    defw &1FC
-    defw &1E0
-    defw &1C5
-    defw &1AC   ; octave 2
-    defw &194
-    defw &17D
-    defw &168
-    defw &153
-    defw &140
-    defw &12E
-    defw &11D
-    defw &10D
-    defw &FE
-    defw &F0
-    defw &E2
-    defw &D6    ; octave 3
-    defw &CA
-    defw &BE
-    defw &B4
-    defw &AA
-    defw &A0
-    defw &97
-    defw &8F
-    defw &87
-    defw &7F
-    defw &78
-    defw &71
+    defw 0x358  ; octave 1
+    defw 0x328
+    defw 0x2fa
+    defw 0x2d0
+    defw 0x2a6
+    defw 0x280
+    defw 0x25c
+    defw 0x23a
+    defw 0x21a
+    defw 0x1fc
+    defw 0x1e0
+    defw 0x1c5
+    defw 0x1ac  ; octave 2
+    defw 0x194
+    defw 0x17d
+    defw 0x168
+    defw 0x153
+    defw 0x140
+    defw 0x12E
+    defw 0x11d
+    defw 0x10d
+    defw 0xfe
+    defw 0xf0
+    defw 0xe2
+    defw 0xd6   ; octave 3
+    defw 0xca
+    defw 0xbe
+    defw 0xb4
+    defw 0xaa
+    defw 0xa0
+    defw 0x97
+    defw 0x8f
+    defw 0x87
+    defw 0x7f
+    defw 0x78
+    defw 0x71
 
-    defs align 256
+    defs align 0x100
 
 period.note.table:
 
-     defs 512
+     defs 0x200
 ;------------------------------------------------------------------------------
 
 build.font:
