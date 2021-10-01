@@ -29,7 +29,7 @@ jobs:
         distribution: 'adopt'
         
     - name: Set up pyz80
-      run: wget https://github.com/simonowen/pyz80/blob/master/pyz80.py
+      run: wget https://raw.githubusercontent.com/simonowen/pyz80/master/pyz80.py
     
     - name: Build with Ant
       run: ant create-disk -Dpython=python -Dpyz80=pyz80.py -Dmapfile=false
