@@ -826,7 +826,7 @@ display.notes:
 
     add a,a
     ld e,a
-    ld d,period.note.table // 256
+    ld d,period.note.table / 256
     jr nc,@no.overflow.2
     inc d
 @no.overflow.2:
@@ -922,7 +922,7 @@ print.hi.nibble:
     rrca
     rrca
     push hl
-    ld h,char.list // 256
+    ld h,char.list / 256
     ld l,a
     ld a,(hl)
     inc l
@@ -939,7 +939,7 @@ print.lo.nibble:
     and 0x0f
     rlca
     push hl
-    ld h,char.list // 256
+    ld h,char.list / 256
     ld l,a
     ld a,(hl)
     inc l
@@ -955,7 +955,7 @@ print.fast.char:
 
     rlca
     push hl
-    ld h,char.list // 256
+    ld h,char.list / 256
     ld l,a
     ld a,(hl)
     inc l
@@ -1011,7 +1011,7 @@ print.space.c:
 @error:
     di
     ld a,4
-    out (254),a
+    out (port.border),a
     jr @error
 
 
@@ -1787,7 +1787,7 @@ col.blp2:
     inc ix
 
     ld a,h
-    cp ( video.memory.high.attributes + 6144 ) // 256
+    cp ( video.memory.high.attributes + 6144 ) / 256
     jr nz,col.loop
     ret
 
@@ -2328,7 +2328,7 @@ create.note.table:
     ld a,(ix)
     add a,a
     ld e,a
-    ld d,period.note.table // 256
+    ld d,period.note.table / 256
     jr nc,@no.over
     inc d
 @no.over:

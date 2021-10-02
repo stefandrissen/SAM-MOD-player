@@ -232,7 +232,7 @@ interrupt.off:
 example.int:
     ld a,r
     and 7
-    out (254),a
+    out (port.border),a
     ret
 
 length: equ $-32768

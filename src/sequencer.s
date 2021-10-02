@@ -89,7 +89,7 @@ sq.instruments:         defb 0
     ld de,finelist
     ld bc,4 * 12 * 256
 set.finetune:
-    ld h,finet.tab // 256
+    ld h,finet.tab / 256
     ld a,(de)
     inc de
     ld l,a
@@ -204,7 +204,7 @@ mk.c.on.lp:
     ld h,(iy + bp.pointer.addr.sequencer - bp.pointers + 1)
     ld (hl),sequencer \ 256
     inc hl
-    ld (hl),sequencer // 256
+    ld (hl),sequencer / 256
 
     ld a,page.sequencer
     ld l,(iy + bp.pointer.page.sequencer - bp.pointers)
@@ -1990,7 +1990,7 @@ no.new.all:
 get.new.note:
     ld a,(song.pos)
     ld l,a
-    ld h,song.tab // 256
+    ld h,song.tab / 256
     ld a,(hl)               ;get pattern
     ld (pattern.num),a
     ld d,a
@@ -2277,7 +2277,7 @@ r1.004:
 
     ex de,hl            ; DE = d
 
-    ld h,sample.table // 256
+    ld h,sample.table / 256
     ld a,(de)
     and 0x10
     jr z,@sample.lt.16
@@ -2428,7 +2428,7 @@ set.per:
 r1.023:
     ld hl,(note+1)
     ld a,h
-    add finet.tab // 256
+    add finet.tab / 256
     ld h,a
 
     ld l,(hl)           ; get note number (*2)
@@ -2446,7 +2446,7 @@ finetune:
     srl a
     jr nc,$+4
     set 7,l
-    add finelist // 256
+    add finelist / 256
     ld h,a
 
     ld a,(hl)
@@ -2572,7 +2572,7 @@ per.nop2:
     sla e               ;convert pitch
     rl d
     ld a,d
-    add pitch.table // 256
+    add pitch.table / 256
     ld d,a
     ld a,(de)
 mk.slo:
@@ -2604,7 +2604,7 @@ mk.tab:
 ;---------------------------------------------------------------
 arpeggio:
     ld a,(counter)          ;1-31
-    ld h,arpeg.table // 256 ;table on 256 boundary
+    ld h,arpeg.table / 256 ;table on 256 boundary
     ld l,a
     ld a,(hl)               ;counter mod 3
     or a
@@ -2641,7 +2641,7 @@ r1.042:
     srl a
     jr nc,$+4
     set 7,l
-    add finelist // 256
+    add finelist / 256
     ld h,a
     ld e,(hl)
     inc l
@@ -2716,7 +2716,7 @@ set.tone:
 note:
     ld hl,0
     ld a,h
-    add finet.tab // 256
+    add finet.tab / 256
     ld h,a
 
     ld l,(hl)           ;get note number (*2)
@@ -2733,7 +2733,7 @@ r1.054:
     srl a
     jr nc,$+4
     set 7,l
-    add finelist // 256
+    add finelist / 256
     ld h,a
 
     ld a,(hl)
@@ -2813,7 +2813,7 @@ r1.063:
     srl a
     jr nc,$+4
     set 7,c
-    add finelist // 256
+    add finelist / 256
     ld b,a
 glissloop:
     ld a,(bc)
@@ -2905,7 +2905,7 @@ vib.ramp2:
     ld e,b
     jr vib.set
 vib.sine:
-    ld h,vibrato.table // 256
+    ld h,vibrato.table / 256
     ld l,b                      ;sine waveform  /\  /\
     set 5,l                 ;table offset 32  \/  \/
     ld e,(hl)
@@ -3044,7 +3044,7 @@ tre.ramp2:
     ld e,b
     jr tre.set
 tre.sine:
-    ld h,vibrato.table // 256
+    ld h,vibrato.table / 256
     ld l,b
     set 5,l                 ;table offset 32
     ld e,(hl)
@@ -3282,7 +3282,7 @@ r1.116:
     ret
 
 setbpm:
-    ld h,bpm.table // 256
+    ld h,bpm.table / 256
     add a,a
     jr nc,$+3
     inc h

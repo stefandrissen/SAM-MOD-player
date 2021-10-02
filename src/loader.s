@@ -794,7 +794,7 @@ pc.rd.more:
     call fat.read_cluster
     call fat.get_entry
     ld a,h
-    cp ( temp.spc + 1084 ) // 256 + 1
+    cp ( temp.spc + 1084 ) / 256 + 1
     jr c,pc.rd.more
 
     ld hl,temp.spc+1083
@@ -2622,7 +2622,7 @@ next @fill
     inc ix
 
     ld a,h
-    cp ( video.memory.high.attributes + 6144 ) // 256
+    cp ( video.memory.high.attributes + 6144 ) / 256
     jr nz,col.loop
     ret
 

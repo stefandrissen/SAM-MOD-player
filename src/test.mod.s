@@ -31,14 +31,14 @@ song.name:
 sample.info:                                    ; 31 samples
 
     defm "sample one            "
-    defb ( sample.1.length // 2 ) // 256        ; length - in big endian WORDS
-    defb ( sample.1.length // 2 ) \ 256         ;
+    defb ( sample.1.length / 2 ) / 256          ; length - in big endian WORDS
+    defb ( sample.1.length / 2 ) \ 256          ;
     defb 0                                      ; finetune
     defb 0x40                                   ; volume
-    defb ( sample.1.repeat.offset // 2 ) // 256 ; repeat offset - in big endian WORDS
-    defb ( sample.1.repeat.offset // 2 ) \ 256
-    defb ( sample.1.repeat.length // 2 ) // 256 ; repeat length - in big endian WORDS
-    defb ( sample.1.repeat.length // 2 ) \ 256
+    defb ( sample.1.repeat.offset / 2 ) / 256   ; repeat offset - in big endian WORDS
+    defb ( sample.1.repeat.offset / 2 ) \ 256
+    defb ( sample.1.repeat.length / 2 ) / 256   ; repeat length - in big endian WORDS
+    defb ( sample.1.repeat.length / 2 ) \ 256
 
     defs 30 * ( $ - sample.info )
 
@@ -128,7 +128,7 @@ patterns:
     note.B_4:   equ 57
 
     note.test:  equ 341 ; pitch has speed 1, fraction 0
-    note.test.h:    equ note.test // 256
+    note.test.h:    equ note.test / 256
     note.test.l:    equ note.test \ 256
 
 row.1:

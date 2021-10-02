@@ -17,7 +17,7 @@ include "opcodes.i"
 ; samdac routine uses most memory!
 ; quazar needs largest playback buffers
 
-count:      equ 255     ;number of outs before border change
+count:      equ 255     ; number of outs before border change
 linetest:   equ 0
 
 ;---------------------------------------------------------------
@@ -46,8 +46,8 @@ burstplayer.device: defb 0  ; [0-7]
 
 burstplayer.amiga:      defb 0  ; [0-1]
 
-    pal:        equ 0       ;use which Amiga to calculate sample
-    ntsc:       equ 1       ;speeds
+    pal:        equ 0       ; use which Amiga to calculate sample
+    ntsc:       equ 1       ; speeds
 
 burstplayer.external.ram:   defb 0  ; [0-4]
 
@@ -231,8 +231,10 @@ not.qss.pt:
 
 
 ;---------------------------------------------------------------
-;interrupt routine (0x0038)
+; interrupt routine (0x0038)
+
 interrupt:
+
     ld hl,0x0038
     ld (hl),opcode.ex_af_af
     inc hl
@@ -284,7 +286,7 @@ mk.recjradd:
     ld de,0
     ld (hl),e
     inc hl
-    ld (hl),d         ;ld (jr+1),a
+    ld (hl),d         ; ld (jr+1),a
     inc hl
     ld (hl),opcode.ld_a_n
     inc hl
@@ -296,7 +298,7 @@ mk.recjradd:
     dec de
     ld (hl),e
     inc hl
-    ld (hl),d         ;ld (cp191+1),a
+    ld (hl),d         ; ld (cp191+1),a
     inc hl
 
     ld (hl),opcode.out_n_a
@@ -305,12 +307,12 @@ mk.recjradd:
     inc hl
     ld (hl),opcode.jp_nn
     inc hl
-    ld (mk.sto2.1+1),hl ;jp nofunction2
+    ld (mk.sto2.1+1),hl ; jp nofunction2
     inc hl
     inc hl
 
 ;---------------------------------------------------------------
-;reset output device
+; reset output device
 
     ld de,sound.driver.reset
 sound.driver.reset.address:
@@ -327,7 +329,7 @@ ro.no.silence:
     inc hl
 
 ;---------------------------------------------------------------
-;select border player
+; select border player
 
 mk.sto1:
     ld de,0
@@ -374,7 +376,7 @@ mk.stojr188:
     inc hl
     ld (hl),opcode.ld_nn_a
     inc hl
-    ld (mk.sto3+1),hl           ;ld (prog.p+1),a
+    ld (mk.sto3+1),hl           ; ld (prog.p+1),a
     inc hl
     inc hl
     ld (hl),opcode.ex_af_af
@@ -465,7 +467,7 @@ output.bits:
     inc hl
     ld (hl),mod.current.row \ 256
     inc hl
-    ld (hl),mod.current.row // 256
+    ld (hl),mod.current.row / 256
     inc hl
 
     ld b,15
@@ -499,7 +501,7 @@ output.bits:
 get.pattern.size:   equ 49
 
 ;---------------------------------------------------------------
-;call far routine, C=page, HL=address
+; call far routine, C=page, HL=address
 
     ld (hl),opcode.in_a_n
     inc hl
@@ -586,7 +588,7 @@ far.call.size:  equ 19
     inc hl
     ld (hl),ldir.far.buffer \ 256
     inc hl
-    ld (hl),ldir.far.buffer // 256
+    ld (hl),ldir.far.buffer / 256
     inc hl
 
     ld (hl),opcode.ld_b_n
@@ -647,7 +649,7 @@ ldir.from.far.size: equ 19
     inc hl
     ld (hl),ldir.far.buffer \ 256
     inc hl
-    ld (hl),ldir.far.buffer // 256
+    ld (hl),ldir.far.buffer / 256
     inc hl
 
     ld (hl),opcode.ld_b_n
@@ -682,12 +684,12 @@ ldir.to.far.size:   equ 19
 
 ;---------------------------------------------------------------
 
-;play tables (208*2*2)    if QSS -> 208*4*2
+; play tables (208*2*2)    if QSS -> 208*4*2
 
 ;---------------------------------------------------------------
-;interrupt function
+; interrupt function
 no.function:
-    ld de,0           ;after playtab2 (QSS or not)
+    ld de,0           ; after playtab2 (QSS or not)
 mk.sto2:
     ld hl,0
     ld (hl),e
@@ -710,15 +712,14 @@ ins.nf.nop:
     jr c,ins.nf.notjr
     ld (hl),opcode.jr_n
     inc hl
-    ; ld (hl),0     ; jr $+2
     inc hl
     sub 3
-    jr   ins.nf.nop
+    jr ins.nf.nop
 ins.nf.notjr:
     or a
     jr z,ins.nf.all
 ins.nf.lp:
-    ; ld (hl),opcode.nop
+    ld (hl),opcode.nop
     inc hl
     dec a
     jr nz,ins.nf.lp
@@ -762,15 +763,14 @@ ins.nf.nop2:
     jr c,ins.nf.notjr2
     ld (hl),opcode.jr_n
     inc hl
-    ; ld (hl),0     ; jr $+2
     inc hl
     sub 3
-    jr   ins.nf.nop2
+    jr ins.nf.nop2
 ins.nf.notjr2:
     or a
     jr z,ins.nf.all2
 ins.nf.lp2:
-    ; ld (hl),opcode.nop
+    ld (hl),opcode.nop
     inc hl
     dec a
     jr nz,ins.nf.lp2
@@ -884,7 +884,7 @@ mk.sto24:
 
     ld (hl),opcode.ld_d_n           ; d -> volume.table
     inc hl
-    ld (bp.c1.vol),hl ;c1.tab:
+    ld (bp.c1.vol),hl ; c1.tab:
     inc hl
 
     cp 2
@@ -902,7 +902,7 @@ mk.sto24:
 
     ld (hl),opcode.ld_sp_nn
     inc hl
-    ld (bp.c1.speedhi),hl ;c1.speedhi:
+    ld (bp.c1.speedhi),hl ; c1.speedhi:
     inc hl
     inc hl
 
@@ -912,7 +912,7 @@ mk.sto24:
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c1.sp.frct),hl ;c1.sp.frct:
+    ld (bp.c1.sp.frct),hl ; c1.sp.frct:
     inc hl
 
     cp 2
@@ -941,7 +941,7 @@ mk.sto10:
     ld (hl),d
     ex de,hl
 
-    call mk.bp11         ;inc "bp11"
+    call mk.bp11        ; inc "bp11"
 
     cp 4
     call c,insert.xout
@@ -951,7 +951,7 @@ mk.sto10:
     inc hl
     ld (hl),opcode.ld_ix_nn
     inc hl
-    ld (mk.sto11+1),hl ;ld ix,bord.pl14
+    ld (mk.sto11+1),hl  ; ld ix,bord.pl14
     inc hl
     inc hl
 
@@ -962,17 +962,17 @@ mk.sto10:
     ld (hl),opcode.jp_nn
     inc hl
     ld (mk.sto25+1),hl
-    inc hl              ;jp get.c4.data
+    inc hl              ; jp get.c4.data
     inc hl
 
-;=====----- start get channel 4 data
+; =====----- start get channel 4 data
 
-;fetch channel 4 data
+; fetch channel 4 data
 
     ld (mk.getc4data+1),hl
     ex de,hl
 mk.sto25:
-    ld hl,0            ;get.c4.data:
+    ld hl,0             ; get.c4.data:
     ld (hl),e
     inc hl
     ld (hl),d
@@ -984,7 +984,7 @@ mk.sto25:
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c4.page),hl ;c4.pag:
+    ld (bp.c4.page),hl  ; c4.pag:
     inc hl
 
     cp 3
@@ -993,7 +993,7 @@ mk.sto25:
 
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.c4.offs),hl ;c4.off:
+    ld (bp.c4.offs),hl  ; c4.off:
     inc hl
     inc hl
 
@@ -1014,8 +1014,7 @@ mk.sto25:
 
     ld (hl),opcode.ld_d_n
     inc hl
-    ld (bp.c4.vol),hl ;c4.tab:
-    ; ld (hl),32         ;ld d,32
+    ld (bp.c4.vol),hl   ; c4.tab:
     inc hl
 
     cp 2
@@ -1024,7 +1023,7 @@ mk.sto25:
 
     ld (hl),opcode.ld_c_n
     inc hl
-    ld (bp.c4.speedlo),hl ;c4.speedlo:
+    ld (bp.c4.speedlo),hl   ; c4.speedlo:
     inc hl
 
     cp 3
@@ -1033,7 +1032,7 @@ mk.sto25:
 
     ld (hl),opcode.ld_sp_nn
     inc hl
-    ld (bp.c4.speedhi),hl ;c4.speedhi:
+    ld (bp.c4.speedhi),hl   ; c4.speedhi:
     inc hl
     inc hl
 
@@ -1043,7 +1042,7 @@ mk.sto25:
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c4.sp.frct),hl ;c4.sp.frct:
+    ld (bp.c4.sp.frct),hl   ; c4.sp.frct:
     inc hl
 
     cp 2
@@ -1072,7 +1071,7 @@ mk.sto11:
     ld (hl),d
     ex de,hl
 
-    call mk.bp14         ;inc "bp14"
+    call mk.bp14            ; inc "bp14"
 
     cp 4
     call c,insert.xout
@@ -1082,7 +1081,7 @@ mk.sto11:
     inc hl
     ld (hl),opcode.ld_ix_nn
     inc hl
-    ld (mk.sto12+1),hl ;ld ix,bordpl1f
+    ld (mk.sto12+1),hl      ; ld ix,bordpl1f
     inc hl
     inc hl
 
@@ -1093,17 +1092,17 @@ mk.sto11:
     ld (hl),opcode.jp_nn
     inc hl
     ld (mk.paltabsel+1),hl
-    inc hl              ;jp paltabselect
+    inc hl                  ; jp paltabselect
     inc hl
 
-;=====----- start paltabselect
+; =====----- start paltabselect
 
-;frame palette and screen select
+; frame palette and screen select
 
     ld (mk.paltabselr+1),hl
     ex de,hl
 mk.paltabsel:
-    ld hl,0            ;paltabselect
+    ld hl,0             ; paltabselect
     ld (hl),e
     inc hl
     ld (hl),d
@@ -1117,7 +1116,7 @@ mk.paltabsel:
     inc hl
     ld (hl),( frame.palette + 15 ) \ 256
     inc hl
-    ld (hl),( frame.palette + 15 ) // 256
+    ld (hl),( frame.palette + 15 ) / 256
     inc hl
 
     cp 3
@@ -1178,7 +1177,7 @@ mk.paltabsel:
     inc hl
     ld (hl),frame.screen \ 256
     inc hl
-    ld (hl),frame.screen // 256
+    ld (hl),frame.screen / 256
     inc hl
 
     cp 1+3
@@ -1223,7 +1222,7 @@ mk.paltabsel:
 
     ex de,hl
 mk.sto12:
-    ld hl,0            ;bordpl1f:
+    ld hl,0             ; bordpl1f:
     ld (hl),e
     inc hl
     ld (hl),d
@@ -1237,7 +1236,7 @@ mk.sto12:
     inc hl
     ld (hl),opcode.ld_ix_nn
     inc hl
-    ld (mk.sto13+1),hl ;ld ix,bord.pl12
+    ld (mk.sto13+1),hl  ; ld ix,bord.pl12
     inc hl
     inc hl
 
@@ -1248,17 +1247,17 @@ mk.sto12:
     ld (hl),opcode.jp_nn
     inc hl
     ld (mk.sto26+1),hl
-    inc hl              ;jp get.c2.data
+    inc hl              ; jp get.c2.data
     inc hl
 
 ;=====----- start get channel 2 data
 
-;fetch channel 2 data
+; fetch channel 2 data
 
     ld (mk.getc2data+1),hl
     ex de,hl
 mk.sto26:
-    ld hl,0            ;get.c2.data:
+    ld hl,0             ; get.c2.data:
     ld (hl),e
     inc hl
     ld (hl),d
@@ -1270,8 +1269,7 @@ mk.sto26:
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c2.page),hl ;c2.pag:
-    ; ld (hl),4          ;ld a,4
+    ld (bp.c2.page),hl  ; c2.pag:
     inc hl
 
     cp 3
@@ -1280,10 +1278,8 @@ mk.sto26:
 
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.c2.offs),hl ;c2.off:
-    ; ld (hl),0
+    ld (bp.c2.offs),hl  ; c2.off:
     inc hl
-    ; ld (hl),128        ;ld hl,32768
     inc hl
 
     call select.page
@@ -1303,8 +1299,7 @@ mk.sto26:
 
     ld (hl),opcode.ld_d_n
     inc hl
-    ld (bp.c2.vol),hl ;c2.tab:
-    ; ld (hl),32         ;ld d,32
+    ld (bp.c2.vol),hl   ; c2.tab:
     inc hl
 
     cp 2
@@ -1313,8 +1308,7 @@ mk.sto26:
 
     ld (hl),opcode.ld_c_n
     inc hl
-    ld (bp.c2.speedlo),hl ;c2.speedlo:
-    ; ld (hl),128        ;ld c,128
+    ld (bp.c2.speedlo),hl ; c2.speedlo:
     inc hl
 
     cp 3
@@ -1323,10 +1317,8 @@ mk.sto26:
 
     ld (hl),opcode.ld_sp_nn
     inc hl
-    ld (bp.c2.speedhi),hl ;c2.speedhi:
-    ; ld (hl),1
+    ld (bp.c2.speedhi),hl   ; c2.speedhi:
     inc hl
-    ; ld (hl),0          ;ld sp,1
     inc hl
 
     cp 2
@@ -1335,8 +1327,7 @@ mk.sto26:
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c2.sp.frct),hl ;c2.sp.frct:
-    ; ld (hl),0          ;ld a,0
+    ld (bp.c2.sp.frct),hl   ; c2.sp.frct:
     inc hl
 
     cp 2
@@ -1408,8 +1399,7 @@ mk.sto27:
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c3.page),hl ;c3.pag:
-    ; ld (hl),4          ;ld a,4
+    ld (bp.c3.page),hl  ; c3.pag:
     inc hl
 
     cp 3
@@ -1418,10 +1408,8 @@ mk.sto27:
 
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.c3.offs),hl ;c3.off:
-    ; ld (hl),0
+    ld (bp.c3.offs),hl  ; c3.off:
     inc hl
-    ; ld (hl),128        ;ld hl,32768
     inc hl
 
     call select.page
@@ -1441,8 +1429,7 @@ mk.sto27:
 
     ld (hl),opcode.ld_d_n
     inc hl
-    ld (bp.c3.vol),hl ;c3.tab:
-    ; ld (hl),32         ;ld d,32
+    ld (bp.c3.vol),hl   ; c3.tab:
     inc hl
 
     cp 2
@@ -1451,8 +1438,7 @@ mk.sto27:
 
     ld (hl),opcode.ld_c_n
     inc hl
-    ld (bp.c3.speedlo),hl ;c3.speedlo:
-    ; ld (hl),128        ;ld c,128
+    ld (bp.c3.speedlo),hl   ; c3.speedlo:
     inc hl
 
     cp 3
@@ -1461,10 +1447,8 @@ mk.sto27:
 
     ld (hl),opcode.ld_sp_nn
     inc hl
-    ld (bp.c3.speedhi),hl ;c3.speedhi:
-    ; ld (hl),1
+    ld (bp.c3.speedhi),hl   ; c3.speedhi:
     inc hl
-    ; ld (hl),0          ;ld sp,1
     inc hl
 
     cp 2
@@ -1473,8 +1457,7 @@ mk.sto27:
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c3.sp.frct),hl ;c3.sp.frct:
-    ; ld (hl),0          ;ld a,0
+    ld (bp.c3.sp.frct),hl   ; c3.sp.frct:
     inc hl
 
     cp 2
@@ -1782,7 +1765,7 @@ mk.rec32:
     inc hl
     ld (hl),playtab1 \ 256
     inc hl
-    ld (hl),playtab1 // 256
+    ld (hl),playtab1 / 256
     inc hl
 
     cp 3
@@ -1917,13 +1900,13 @@ mk.sto23:
 
     ld (hl),opcode.ei
     inc hl
+
     ld (hl),opcode.call_nn
     inc hl
     ld (bp.pointer.addr.sequencer),hl
-    ; ld (hl),0
     inc hl
-    ; ld (hl),0          ;call sequencer
     inc hl
+
     ld (hl),opcode.xor_a
     inc hl
     ld (hl),opcode.out_n_a
@@ -2019,7 +2002,7 @@ sample.port:
     inc hl
     ld (hl),playtab1 \ 256
     inc hl
-    ld (hl),playtab1 // 256 ;ld hl,playtab1
+    ld (hl),playtab1 / 256 ;ld hl,playtab1
     inc hl
     ld (hl),opcode.ld_de_nn
     inc hl
@@ -2055,7 +2038,7 @@ set.silence:
     inc hl
     ld (hl),playtab1 \ 256
     inc hl
-    ld (hl),playtab1 // 256 ; ld hl,playtab1
+    ld (hl),playtab1 / 256 ; ld hl,playtab1
     inc hl
     ld (hl),opcode.ld_d_h
     inc hl
@@ -2105,7 +2088,7 @@ set.silence:
     inc hl
     ld (hl),sound.driver.reset \ 256
     inc hl
-    ld (hl),sound.driver.reset // 256  ;call reset sound dev
+    ld (hl),sound.driver.reset / 256  ;call reset sound dev
     inc hl
     ld (hl),opcode.call_nn
     inc hl
@@ -2216,7 +2199,7 @@ include "volume.i"
 ;---------------------------------------------------------------
 populate.pitch.table:
 
-;populate pitch table for Amiga -> SAM sample rate
+; populate pitch table for Amiga -> SAM sample rate
 ;---------------------------------------------------------------
     ld ix,pitch.table+4
 
@@ -2225,29 +2208,29 @@ populate.pitch.table:
     ; inc ix
     ; djnz pitch.clp
 
-    ld hl,43544       ;PAL  -> CHL=7093789.2
+    ld hl,43544       ;PAL  -> chl = 7093789.2
     ld a,(burstplayer.amiga)
     cp pal
     jr z,not.ntsc
-    ld hl,45152       ;NTSC -> CHL=7159090.5
+    ld hl,45152       ;NTSC -> chl = 7159090.5
 not.ntsc:
     ld (lo.amiga+1),hl
 
     ld de,2
     ld c,0
 
-;divide CDE by CDE'
-;put result in (IX+0), (ix+1)
+; divide cde by cde'
+; put result in (ix+0), (ix+1)
 
 pitch.loop:
     exx
 
 lo.amiga:
-    ld de,43544     ; CHL=7093789.2*128/10400
-    ld c,2          ; value in table = HL / offs * 2 for rounding at end
+    ld de,43544     ; chl = 7093789.2 * 128 / 10400
+    ld c,2          ; value in table = hl / offs * 2 for rounding at end
     ld b,24
     exx
-;divide:
+; divide:
     ld b,0
     ld hl,0
     exx
@@ -2286,7 +2269,7 @@ mp.divskip1:
     inc de
 
     ld a,d
-    cp 1024 // 256
+    cp 1024 / 256
     jr nz,pitch.loop
     ret
 
@@ -2306,7 +2289,7 @@ sound.driver.length:
     ex de,hl
     ret
 
-;---------------------------------------------------------------
+; ------------------------------------------------------------------------------
 insert.xout:
 
 ; insert output commands for sound device, but with timing padding and exx
@@ -2370,7 +2353,7 @@ ins.allnop:
 @bad.timing:
 
     ld a,r
-    out (254),a
+    out (port.border),a
     jr @bad.timing
 
 
@@ -2642,7 +2625,7 @@ mk.bp.get1st:
     pop af
     ld iy,mk.store
 
-    ld b,208 // 3       ; bytes per frame
+    ld b,208 / 3        ; bytes per frame
 @loop1.1:
     cp 2
     call c,insert.xout
@@ -2963,7 +2946,7 @@ mk.bp.get2nd:
     pop af
     ld iy,mk.store
 
-    ld b,208 // 3        ;bytes per frame
+    ld b,208 / 3        ; bytes per frame
 blp1.4:
     cp 2
     call c,insert.xout
@@ -3319,7 +3302,7 @@ blp1.4:
 mk.qss.get:
     pop af
 
-    ld b,208 // 3        ;bytes per frame
+    ld b,208 / 3        ; bytes per frame
 q.blp1.4:
     cp 2
     call c,insert.xout
@@ -3411,7 +3394,7 @@ q.blp1.4:
     ld de,(mk.playtab)
     ld (hl),e
     inc hl
-    ld (hl),d         ;ld (4*x+playtabx),a
+    ld (hl),d         ; ld (4*x+playtabx),a
     inc hl
     inc de
     inc de
@@ -3442,7 +3425,7 @@ q.blp1.4:
     ld de,(mk.playtab)
     ld (hl),e
     inc hl
-    ld (hl),d         ;ld (4*x+playtabx),a
+    ld (hl),d         ; ld (4*x+playtabx),a
     inc hl
     inc de
     inc de
@@ -3471,7 +3454,7 @@ q.blp1.4:
     dec b
     jp nz,q.blp1.4
 
-;now get last byte and store sample pointer
+; now get last byte and store sample pointer
 
     cp 2
     call c,insert.xout
@@ -3500,7 +3483,7 @@ q.blp1.4:
     ld bc,(mk.gd.spfr)
     ld (hl),c
     inc hl
-    ld (hl),b         ;ld (speedfract+1),a
+    ld (hl),b         ; ld (speedfract+1),a
     inc hl
 
     cp 2
@@ -3519,7 +3502,7 @@ q.blp1.4:
     ld de,(mk.playtab)
     ld (hl),e
     inc hl
-    ld (hl),d         ;ld (4*x+playtabx),a
+    ld (hl),d         ; ld (4*x+playtabx),a
     inc hl
 
     cp 4
@@ -3625,7 +3608,7 @@ timeline:
 
 endif
 ;---------------------------------------------------------------
-;memory needed for mk.bp routines
+; memory needed for mk.bp routines
 
 mk.playtab: defw 0
 mk.gd.spfr: defw 0
@@ -3750,7 +3733,7 @@ bp.c4.sp.frct:      defw 0
 
 
 if 0 > 1
-;set saa for samples
+; set saa for samples
 bp.saa.init:    defb saa.register.sound_enable        , saa.se.enabled
                 defb saa.register.envelope_generator_1, saa.envelope.enabled | saa.envelope.mode.maximum
                 defb saa.register.envelope_generator_0, saa.envelope.enabled | saa.envelope.mode.maximum
@@ -3765,11 +3748,11 @@ if defined( testing )
 
 ;===============================================================
 
-;rasterline = 384 T-states / 4 = 96 * 1.5 = 144
-;bytes per frame = 10400 Hz / 50 = 208
-;192 screen lines
-;120 border lines
-;312 total lines / 208 = 1.5
+; rasterline = 384 T-states / 4 = 96 * 1.5 = 144
+; bytes per frame = 10400 Hz / 50 = 208
+; 192 screen lines
+; 120 border lines
+; 312 total lines / 208 = 1.5
 
 ;===============================================================
 
@@ -3806,7 +3789,7 @@ init.sq:
     ld hl,(bp.sequence)
     ld (hl),sequencer \ 256
     inc hl
-    ld (hl),sequencer // 256
+    ld (hl),sequencer / 256
     ld hl,demo+1
     ld de,(bp.enable)
     ld (hl),e
@@ -3815,7 +3798,7 @@ init.sq:
     ld hl,(bp.demo)
     ld (hl),demo \ 256
     inc hl
-    ld (hl),demo // 256
+    ld (hl),demo / 256
 
 is.stlmpr:
     ld a,0
