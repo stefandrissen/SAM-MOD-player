@@ -2652,11 +2652,9 @@ colour.yellow:  equ 5
 
 
 device.screen:
-    defm "SAM MOD player             v"
-    defw version.major, version.minor
-    defm "(C) 20"
-    defw copyright.year
-    defm " Stefan Drissen"
+    defm "SAM MOD player             "
+    include "txt.version.i"
+    include "txt.copyright.i"
     defb 0,0
 row.device: equ 5
     defm "SOUND DEVICE"
@@ -2728,11 +2726,9 @@ text.surround:
 
 
 load.screen:
-    defm "SAM MOD player             v"
-    defw version.major, version.minor
-    defm "(C) 20"
-    defw copyright.year
-    defm " Stefan Drissen"
+    defm "SAM MOD player             "
+    include "txt.version.i"
+    include "txt.copyright.i"
     defb 0,0,0,0,0,0,0
     defb 0,0,0,0,0,0,0,0
     defb 0,0,0,0,0,0,0,0

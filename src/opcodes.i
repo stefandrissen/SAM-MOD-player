@@ -57,6 +57,7 @@ opcode.add_a_n:     equ 0xc6 ; add a,n
 opcode.rst_00:      equ 0xc7 ; rst 0x00
 opcode.ret:         equ 0xc9 ; ret
 opcode.call_nn:     equ 0xcd ; call nn
+opcode.adc_a_n:     equ 0xce ; adc a,n
 opcode.rst_08:      equ 0xcf ; rst 0x08
 
 opcode.pop_de:      equ 0xd1 ; pop de
@@ -84,6 +85,7 @@ opcode.rst_38:      equ 0xff ; rst 0x38
 
 opcode.cb:          equ 0xcb ; cb modifier
 
+opcode.rlc_h:       equ 0x04 ; rlc h
 opcode.bit_6_h:     equ 0x74 ; bit 6,h
 opcode.res_6_h:     equ 0xb4 ; res 6,h
 opcode.res_7_l:     equ 0xbd ; res 7,l

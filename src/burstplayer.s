@@ -54,9 +54,8 @@ burstplayer.external.ram:   defb 0  ; [0-4]
 burstplayer.page:           defb page.burstplayer
 
     defm "                         "
-    defm "MAKEBURST (C)20"
-    defw copyright.year
-    defm "Stefan Drissen"
+    defm "MAKEBURST "
+    include "txt.copyright.i"
     defm "Thanks to Edwin Blink for the   "
     defm "original burst idea and code...."
 
@@ -199,7 +198,7 @@ not.qss.pt:
 
 @megabyte:
 
-    ld (mk.timing+2),de     ; pointing to either timing.device or timing.device.megabyte
+    ld (mk.timing+2),de     ; pointing to either timing.contended or timing.uncontended
 
     ex de,hl
     ld bc,129
@@ -851,7 +850,6 @@ mk.sto24:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_n
     inc hl
     ld (bp.c1.page),hl  ; c1.page:
@@ -860,7 +858,6 @@ mk.sto24:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_hl_nn
     inc hl
     ld (bp.c1.offs),hl  ; c1.offset:
@@ -872,7 +869,6 @@ mk.sto24:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.hmpr
@@ -881,7 +877,6 @@ mk.sto24:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_d_n           ; d -> volume.table
     inc hl
     ld (bp.c1.vol),hl ; c1.tab:
@@ -890,7 +885,6 @@ mk.sto24:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_c_n
     inc hl
     ld (bp.c1.speedlo),hl
@@ -899,7 +893,6 @@ mk.sto24:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_sp_nn
     inc hl
     ld (bp.c1.speedhi),hl ; c1.speedhi:
@@ -909,7 +902,6 @@ mk.sto24:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_n
     inc hl
     ld (bp.c1.sp.frct),hl ; c1.sp.frct:
@@ -918,7 +910,6 @@ mk.sto24:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.jp_ix
@@ -941,12 +932,11 @@ mk.sto10:
     ld (hl),d
     ex de,hl
 
-    call mk.bp11        ; inc "bp11"
+    call mk.bp11        ;
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.ld_ix_nn
@@ -958,7 +948,6 @@ mk.sto10:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.jp_nn
     inc hl
     ld (mk.sto25+1),hl
@@ -981,7 +970,6 @@ mk.sto25:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_n
     inc hl
     ld (bp.c4.page),hl  ; c4.pag:
@@ -990,7 +978,6 @@ mk.sto25:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_hl_nn
     inc hl
     ld (bp.c4.offs),hl  ; c4.off:
@@ -1002,7 +989,6 @@ mk.sto25:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.hmpr
@@ -1011,7 +997,6 @@ mk.sto25:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_d_n
     inc hl
     ld (bp.c4.vol),hl   ; c4.tab:
@@ -1020,7 +1005,6 @@ mk.sto25:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_c_n
     inc hl
     ld (bp.c4.speedlo),hl   ; c4.speedlo:
@@ -1029,7 +1013,6 @@ mk.sto25:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_sp_nn
     inc hl
     ld (bp.c4.speedhi),hl   ; c4.speedhi:
@@ -1039,7 +1022,6 @@ mk.sto25:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_n
     inc hl
     ld (bp.c4.sp.frct),hl   ; c4.sp.frct:
@@ -1048,7 +1030,6 @@ mk.sto25:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.jp_ix
@@ -1071,12 +1052,11 @@ mk.sto11:
     ld (hl),d
     ex de,hl
 
-    call mk.bp14            ; inc "bp14"
+    call mk.bp14            ;
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.ld_ix_nn
@@ -1088,7 +1068,6 @@ mk.sto11:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.jp_nn
     inc hl
     ld (mk.paltabsel+1),hl
@@ -1111,7 +1090,6 @@ mk.paltabsel:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_hl_nn
     inc hl
     ld (hl),( frame.palette + 15 ) \ 256
@@ -1122,7 +1100,6 @@ mk.paltabsel:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_bc_nn
     inc hl
     ld (hl),port.clut
@@ -1146,17 +1123,16 @@ mk.paltabsel:
     cp 5
     call c,insert.xout
     sub 5
-
     ld (hl),opcode.ed
     inc hl
     ld (hl),opcode.outd         ; outd (16*)
     inc hl
+
     djnz @mk.outd
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.in_a_n
     inc hl
     ld (hl),port.vmpr
@@ -1165,14 +1141,12 @@ mk.paltabsel:
     cp 1
     call c,insert.xout
     sub 1
-
     ld (hl),opcode.ld_e_a
     inc hl
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ld_a_nn
     inc hl
     ld (hl),frame.screen \ 256
@@ -1183,7 +1157,6 @@ mk.paltabsel:
     cp 1+3
     call c,insert.xout
     sub 1+3
-
     ld (hl),opcode.and_a
     inc hl
     ld (hl),opcode.jr_nz_n
@@ -1196,7 +1169,6 @@ mk.paltabsel:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.vmpr
@@ -1205,7 +1177,6 @@ mk.paltabsel:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.jp_ix
@@ -1231,7 +1202,6 @@ mk.sto12:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.ld_ix_nn
@@ -1243,7 +1213,6 @@ mk.sto12:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.jp_nn
     inc hl
     ld (mk.sto26+1),hl
@@ -1266,7 +1235,6 @@ mk.sto26:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_n
     inc hl
     ld (bp.c2.page),hl  ; c2.pag:
@@ -1275,7 +1243,6 @@ mk.sto26:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_hl_nn
     inc hl
     ld (bp.c2.offs),hl  ; c2.off:
@@ -1287,7 +1254,6 @@ mk.sto26:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.hmpr
@@ -1296,7 +1262,6 @@ mk.sto26:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_d_n
     inc hl
     ld (bp.c2.vol),hl   ; c2.tab:
@@ -1305,7 +1270,6 @@ mk.sto26:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_c_n
     inc hl
     ld (bp.c2.speedlo),hl ; c2.speedlo:
@@ -1314,7 +1278,6 @@ mk.sto26:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_sp_nn
     inc hl
     ld (bp.c2.speedhi),hl   ; c2.speedhi:
@@ -1324,7 +1287,6 @@ mk.sto26:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_n
     inc hl
     ld (bp.c2.sp.frct),hl   ; c2.sp.frct:
@@ -1333,7 +1295,6 @@ mk.sto26:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.jp_ix
@@ -1356,12 +1317,11 @@ mk.sto13:
     ld (hl),d
     ex de,hl
 
-    call mk.bp12         ;inc "bp12"
+    call mk.bp12
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.ld_ix_nn
@@ -1373,7 +1333,6 @@ mk.sto13:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.jp_nn
     inc hl
     ld (mk.sto27+1),hl
@@ -1396,7 +1355,6 @@ mk.sto27:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_n
     inc hl
     ld (bp.c3.page),hl  ; c3.pag:
@@ -1405,7 +1363,6 @@ mk.sto27:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_hl_nn
     inc hl
     ld (bp.c3.offs),hl  ; c3.off:
@@ -1417,7 +1374,6 @@ mk.sto27:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.hmpr
@@ -1426,7 +1382,6 @@ mk.sto27:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_d_n
     inc hl
     ld (bp.c3.vol),hl   ; c3.tab:
@@ -1435,7 +1390,6 @@ mk.sto27:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_c_n
     inc hl
     ld (bp.c3.speedlo),hl   ; c3.speedlo:
@@ -1444,7 +1398,6 @@ mk.sto27:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_sp_nn
     inc hl
     ld (bp.c3.speedhi),hl   ; c3.speedhi:
@@ -1454,7 +1407,6 @@ mk.sto27:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_n
     inc hl
     ld (bp.c3.sp.frct),hl   ; c3.sp.frct:
@@ -1463,7 +1415,6 @@ mk.sto27:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.jp_ix
@@ -1486,12 +1437,11 @@ mk.sto14:
     ld (hl),d
     ex de,hl
 
-    call mk.bp13         ;inc "bp13"
+    call mk.bp13
 
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_hl_nn
     inc hl
     ld (mk.sto15+1),hl ;ld hl,borderplay2
@@ -1501,7 +1451,6 @@ mk.sto14:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_de_nn
     inc hl
 qs.playtab2:
@@ -1514,7 +1463,6 @@ qs.playtab2:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.jp_nn
     inc hl
     ld (mk.sto16+1),hl  ; jp player.rejoin
@@ -1574,12 +1522,11 @@ mk.ix1:
 mk.a1:
     ld a,0
 
-    call mk.bp21         ;inc "bp21"
+    call mk.bp21
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.ld_ix_nn
@@ -1591,7 +1538,6 @@ mk.a1:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.jp_nn
     inc hl
 mk.getc4data:
@@ -1616,12 +1562,11 @@ mk.ix4:
 mk.a4:
     ld a,0
 
-    call mk.bp24         ;inc "bp24"
+    call mk.bp24
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.ld_ix_nn
@@ -1633,7 +1578,6 @@ mk.a4:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.jp_nn
     inc hl
 mk.paltabselr:
@@ -1663,7 +1607,6 @@ mk.sto19:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.ld_ix_nn
@@ -1675,7 +1618,6 @@ mk.sto19:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.jp_nn
     inc hl
 mk.getc2data:
@@ -1700,12 +1642,11 @@ mk.ix2:
 mk.a2:
     ld a,0
 
-    call mk.bp22         ;inc "bp22"
+    call mk.bp22
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.ld_ix_nn
@@ -1717,7 +1658,6 @@ mk.a2:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.jp_nn
     inc hl
 mk.getc3data:
@@ -1742,12 +1682,11 @@ mk.ix3:
 mk.a3:
     ld a,0
 
-    call mk.bp23         ;inc "bp23"
+    call mk.bp23
 
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_hl_nn
     inc hl
 mk.rec32:
@@ -1760,7 +1699,6 @@ mk.rec32:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_de_nn
     inc hl
     ld (hl),playtab1 \ 256
@@ -1771,7 +1709,6 @@ mk.rec32:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.jp_nn
     inc hl
     ld (mk.sto22+1),hl ;jp player.rejoin
@@ -1797,7 +1734,6 @@ mk.sto22:
     cp 5
     call c,insert.xout
     sub 5
-
     ld (hl),opcode.ld_nn_hl
     inc hl
 mk.rec2:
@@ -1811,7 +1747,6 @@ mk.rec2:
     cp 6
     call c,insert.xout
     sub 6
-
     ld (hl),opcode.ed
     inc hl
     ld (hl),opcode.ld_nn_de
@@ -1823,7 +1758,6 @@ mk.rec2:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_n
     inc hl
     ld (bp.pointer.page.sequencer),hl
@@ -1833,7 +1767,6 @@ mk.rec2:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.hmpr
@@ -1842,7 +1775,6 @@ mk.rec2:
     cp 3
     call c,insert.xout
     sub 3
-
     ld (hl),opcode.ld_sp_nn
     inc hl
     ex de,hl
@@ -1858,7 +1790,6 @@ mk.sto4:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_n
     inc hl
 ras.start.1:
@@ -1868,7 +1799,6 @@ ras.start.1:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.line_interrupt
@@ -2152,7 +2082,6 @@ select.page:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.xmpr.c
@@ -2161,14 +2090,12 @@ select.page:
     cp 1
     call c,insert.xout
     sub 1
-
     ld (hl),opcode.inc_a
     inc hl
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.xmpr.d
@@ -2177,7 +2104,6 @@ select.page:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_n
     inc hl
     ld (hl),high.memory.external
@@ -2578,7 +2504,7 @@ mk.bp23:
 ;---------------------------------------------------------------
 ;make get first sample byte routine
 
-;   d = volume.table
+;   d  = volume.table
 
 ;   hl = sample pointer
 ;   a  = sample pointer fraction
@@ -2621,67 +2547,65 @@ mk.bp23:
 ;   res 6,h
 ;   ld (nn),hl
 
+; https://simonowen.com/sam/timings/
+;
+; cp / call c / sub counters are based on t-states / 4
+; a | b = t-states border | screen
+
 mk.bp.get1st:
     pop af
     ld iy,mk.store
 
-    ld b,208 / 3        ; bytes per frame
+    ld b,208 / 3                ; 208 bytes per frame, each iteration outputs 3 sample bytes
 @loop1.1:
     cp 2
     call c,insert.xout
     sub 2
-
-    ld (hl),opcode.ld_e_hl
+    ld (hl),opcode.ld_e_hl      ; 8 | 16
     inc hl
 
     cp 1+4
     call c,insert.xout
-    sub 1+4
-
-    ld (hl),opcode.add_a_c
+    sub 1+4                     ; combined -> carry flag modified by xout
+    ld (hl),opcode.add_a_c      ; 4 | 8
     inc hl
     ld (hl),opcode.ed
     inc hl
-    ld (hl),opcode.adc_hl_sp
+    ld (hl),opcode.adc_hl_sp    ; 16 | 24
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
-    ld (hl),opcode.ld_b_hl
+    ld (hl),opcode.ld_b_hl      ; 8 | 16
     inc hl
 
     cp 1+4
     call c,insert.xout
     sub 1+4
-
-    ld (hl),opcode.add_a_c
+    ld (hl),opcode.add_a_c      ; 4 | 8
     inc hl
     ld (hl),opcode.ed
     inc hl
-    ld (hl),opcode.adc_hl_sp
+    ld (hl),opcode.adc_hl_sp    ; 16 | 24
     inc hl
 
     cp 1
     call c,insert.xout
     sub 1
-
-    ld (hl),opcode.ex_af_af
+    ld (hl),opcode.ex_af_af     ; 4 | 8
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
-    ld (hl),opcode.ld_a_de
+    ld (hl),opcode.ld_a_de      ; 8 | 16
     inc hl
 
     cp 4
     call c,insert.xout
     sub 4
-
-    ld (hl),opcode.ld_nn_a
+    ld (hl),opcode.ld_nn_a      ; 16 | 32
     inc hl
     ld (iy+0),l
     ld (iy+1),h
@@ -2693,22 +2617,19 @@ mk.bp.get1st:
     cp 1
     call c,insert.xout
     sub 1
-
-    ld (hl),opcode.ld_e_b
+    ld (hl),opcode.ld_e_b       ; 4 | 8
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
-    ld (hl),opcode.ld_a_de
+    ld (hl),opcode.ld_a_de      ; 8 | 16
     inc hl
 
     cp 4
     call c,insert.xout
     sub 4
-
-    ld (hl),opcode.ld_nn_a
+    ld (hl),opcode.ld_nn_a      ; 16 | 32
     inc hl
     ld (iy+0),l
     ld (iy+1),h
@@ -2720,22 +2641,19 @@ mk.bp.get1st:
     cp 2
     call c,insert.xout
     sub 2
-
-    ld (hl),opcode.ld_e_hl
+    ld (hl),opcode.ld_e_hl      ; 8 | 16
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
-    ld (hl),opcode.ld_a_de
+    ld (hl),opcode.ld_a_de      ; 8 | 16
     inc hl
 
     cp 4
     call c,insert.xout
     sub 4
-
-    ld (hl),opcode.ld_nn_a
+    ld (hl),opcode.ld_nn_a      ; 16 | 32
     inc hl
     ld (iy+0),l
     ld (iy+1),h
@@ -2747,19 +2665,17 @@ mk.bp.get1st:
     cp 1
     call c,insert.xout
     sub 1
-
-    ld (hl),opcode.ex_af_af
+    ld (hl),opcode.ex_af_af     ; 4 | 8
     inc hl
 
     cp 1+4
     call c,insert.xout
     sub 1+4
-
-    ld (hl),opcode.add_a_c
+    ld (hl),opcode.add_a_c      ; 4 | 8
     inc hl
     ld (hl),opcode.ed
     inc hl
-    ld (hl),opcode.adc_hl_sp
+    ld (hl),opcode.adc_hl_sp    ; 16 | 24
     inc hl
 
     dec b
@@ -2770,26 +2686,23 @@ mk.bp.get1st:
     cp 2
     call c,insert.xout
     sub 2
-
-    ld (hl),opcode.ld_e_hl
+    ld (hl),opcode.ld_e_hl      ; 8 | 16
     inc hl
 
     cp 1+4
     call c,insert.xout
     sub 1+4
-
-    ld (hl),opcode.add_a_c
+    ld (hl),opcode.add_a_c      ; 4 | 8
     inc hl
     ld (hl),opcode.ed
     inc hl
-    ld (hl),opcode.adc_hl_sp
+    ld (hl),opcode.adc_hl_sp    ; 16 | 24
     inc hl
 
     cp 4
     call c,insert.xout
     sub 4
-
-    ld (hl),opcode.ld_nn_a
+    ld (hl),opcode.ld_nn_a      ; 16 | 32
     inc hl
     ld bc,(mk.gd.spfr)
     ld (hl),c
@@ -2800,15 +2713,13 @@ mk.bp.get1st:
     cp 2
     call c,insert.xout
     sub 2
-
-    ld (hl),opcode.ld_a_de
+    ld (hl),opcode.ld_a_de      ; 8 | 16
     inc hl
 
     cp 4
     call c,insert.xout
     sub 4
-
-    ld (hl),opcode.ld_nn_a
+    ld (hl),opcode.ld_nn_a      ; 16 | 32
     inc hl
     ld (iy+0),l
     ld (iy+1),h
@@ -2817,9 +2728,10 @@ mk.bp.get1st:
     inc hl
     inc hl
 
-    cp 4
-    call c,insert.xout
-    sub 4
+    jp @update.page.sample
+
+;-------------------------------------------------------------------------------
+@update.page.sample:
 
     push af
     ld a,(burstplayer.external.ram)
@@ -2828,7 +2740,10 @@ mk.bp.get1st:
 
     pop af
 
-    ld (hl),opcode.ld_a_nn
+    cp 4
+    call c,insert.xout
+    sub 4
+    ld (hl),opcode.ld_a_nn      ; 16 | 32
     inc hl
     ld bc,(mk.gd.page)
     ld (hl),c
@@ -2842,7 +2757,10 @@ mk.bp.get1st:
 
     pop af
 
-    ld (hl),opcode.in_a_n
+    cp 4
+    call c,insert.xout
+    sub 4
+    ld (hl),opcode.in_a_n       ; 16 | 24
     inc hl
     ld (hl),port.hmpr
     inc hl
@@ -2852,49 +2770,45 @@ mk.bp.get1st:
     cp 2+3
     call c,insert.xout
     sub 2+3
-
     ld (hl),opcode.cb
     inc hl
-    ld (hl),opcode.bit_6_h
+    ld (hl),opcode.bit_6_h      ; 8 | 16
     inc hl
-    ld (hl),opcode.jr_z_n
+    ld (hl),opcode.jr_z_n       ; 12/8 | 16/16 !!! contended timing effected by data
     inc hl
-    ld (hl),1           ; jr z,$+3
+    ld (hl),1                   ; jr z,$+3
     inc hl
-    ld (hl),opcode.inc_a
+    ld (hl),opcode.inc_a        ; 4 | 8
     inc hl
 
     cp 4
     call c,insert.xout
     sub 4
-
-    ld (hl),opcode.ld_nn_a
+    ld (hl),opcode.ld_nn_a      ; 16 | 32
     inc hl
     ld bc,(mk.gd.page)
     ld (hl),c
     inc hl
-    ld (hl),b           ; ld (samplepage+1),a
+    ld (hl),b                   ; ld (samplepage+1),a
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.cb
     inc hl
-    ld (hl),opcode.res_6_h
+    ld (hl),opcode.res_6_h      ; 8 | 16
     inc hl
 
     cp 5
     call c,insert.xout
     sub 5
-
-    ld (hl),opcode.ld_nn_hl
+    ld (hl),opcode.ld_nn_hl     ; 20 | 40
     inc hl
     ld bc,(mk.gd.offs)
     ld (hl),c
     inc hl
-    ld (hl),b          ; ld (sample.offs+1),hl
+    ld (hl),b                   ; ld (sample.offs+1),hl
     inc hl
 
     ret
@@ -2951,14 +2865,12 @@ blp1.4:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_e_hl
     inc hl
 
     cp 1+4
     call c,insert.xout
     sub 1+4
-
     ld (hl),opcode.add_a_c
     inc hl
     ld (hl),opcode.ed
@@ -2969,14 +2881,12 @@ blp1.4:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_b_hl
     inc hl
 
     cp 1+4
     call c,insert.xout
     sub 1+4
-
     ld (hl),opcode.add_a_c
     inc hl
     ld (hl),opcode.ed
@@ -2987,21 +2897,18 @@ blp1.4:
     cp 1
     call c,insert.xout
     sub 1
-
     ld (hl),opcode.ex_af_af
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_de
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.add_a_n
     inc hl
     ex de,hl
@@ -3018,7 +2925,6 @@ blp1.4:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ld_nn_a
     inc hl
     ld de,(mk.playtab)
@@ -3033,21 +2939,18 @@ blp1.4:
     cp 1
     call c,insert.xout
     sub 1
-
     ld (hl),opcode.ld_e_b
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_de
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.add_a_n
     inc hl
     ex de,hl
@@ -3064,7 +2967,6 @@ blp1.4:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ld_nn_a
     inc hl
     ld de,(mk.playtab)
@@ -3079,21 +2981,18 @@ blp1.4:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_e_hl
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_de
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.add_a_n
     inc hl
     ex de,hl
@@ -3110,7 +3009,6 @@ blp1.4:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ld_nn_a
     inc hl
     ld de,(mk.playtab)
@@ -3125,14 +3023,12 @@ blp1.4:
     cp 1
     call c,insert.xout
     sub 1
-
     ld (hl),opcode.ex_af_af
     inc hl
 
     cp 1+4
     call c,insert.xout
     sub 1+4
-
     ld (hl),opcode.add_a_c
     inc hl
     ld (hl),opcode.ed
@@ -3148,14 +3044,12 @@ blp1.4:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_e_hl
     inc hl
 
     cp 1+4
     call c,insert.xout
     sub 1+4
-
     ld (hl),opcode.add_a_c
     inc hl
     ld (hl),opcode.ed
@@ -3166,7 +3060,6 @@ blp1.4:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ld_nn_a
     inc hl
     ld bc,(mk.gd.spfr)
@@ -3178,14 +3071,12 @@ blp1.4:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_de
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.add_a_n
     inc hl
     ex de,hl
@@ -3202,7 +3093,6 @@ blp1.4:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ld_nn_a
     inc hl
     ld de,(mk.playtab)
@@ -3214,87 +3104,7 @@ blp1.4:
     inc de
     ld (mk.playtab),de
 
-    cp 4
-    call c,insert.xout
-    sub 4
-
-    push af
-    ld a,(burstplayer.external.ram)
-    or a
-    jr z,@no.megabyte.6
-
-    pop af
-
-    ld (hl),opcode.ld_a_nn
-    inc hl
-    ld bc,(mk.gd.page)
-    ld (hl),c
-    inc hl
-    ld (hl),b
-    inc hl
-
-    jr @continue.6
-
-@no.megabyte.6:
-
-    pop af
-
-    ld (hl),opcode.in_a_n
-    inc hl
-    ld (hl),port.hmpr
-    inc hl
-
-@continue.6:
-
-    cp 2+3
-    call c,insert.xout
-    sub 2+3
-
-    ld (hl),opcode.cb
-    inc hl
-    ld (hl),opcode.bit_6_h
-    inc hl
-    ld (hl),opcode.jr_z_n
-    inc hl
-    ld (hl),1
-    inc hl
-    ld (hl),opcode.inc_a
-    inc hl
-
-    cp 4
-    call c,insert.xout
-    sub 4
-
-    ld (hl),opcode.ld_nn_a
-    inc hl
-    ld bc,(mk.gd.page)
-    ld (hl),c
-    inc hl
-    ld (hl),b           ; ld (samplepage+1),a
-    inc hl
-
-    cp 2
-    call c,insert.xout
-    sub 2
-
-    ld (hl),opcode.cb
-    inc hl
-    ld (hl),opcode.res_6_h
-    inc hl
-
-    cp 5
-    call c,insert.xout
-    sub 5
-
-    ld (hl),opcode.ld_nn_hl
-    inc hl
-    ld bc,(mk.gd.offs)
-    ld (hl),c
-    inc hl
-    ld (hl),b           ; ld (sample.offs+1),hl
-    inc hl
-
-    ret
+    jp @update.page.sample
 
 ;---------------------------------------------------------------
 ;make get sample byte for QSS - no mixing -> same routine 4*
@@ -3307,14 +3117,12 @@ q.blp1.4:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_e_hl
     inc hl
 
     cp 1+4
     call c,insert.xout
     sub 1+4
-
     ld (hl),opcode.add_a_c
     inc hl
     ld (hl),opcode.ed
@@ -3325,14 +3133,12 @@ q.blp1.4:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_b_hl
     inc hl
 
     cp 1+4
     call c,insert.xout
     sub 1+4
-
     ld (hl),opcode.add_a_c
     inc hl
     ld (hl),opcode.ed
@@ -3343,21 +3149,18 @@ q.blp1.4:
     cp 1
     call c,insert.xout
     sub 1
-
     ld (hl),opcode.ex_af_af
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_de
     inc hl
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ld_nn_a
     inc hl
     ld de,(mk.playtab)
@@ -3374,21 +3177,18 @@ q.blp1.4:
     cp 1
     call c,insert.xout
     sub 1
-
     ld (hl),opcode.ld_e_b
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_de
     inc hl
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ld_nn_a
     inc hl
     ld de,(mk.playtab)
@@ -3405,21 +3205,18 @@ q.blp1.4:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_e_hl
     inc hl
 
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_de
     inc hl
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ld_nn_a
     inc hl
     ld de,(mk.playtab)
@@ -3436,14 +3233,12 @@ q.blp1.4:
     cp 1
     call c,insert.xout
     sub 1
-
     ld (hl),opcode.ex_af_af
     inc hl
 
     cp 1+4
     call c,insert.xout
     sub 1+4
-
     ld (hl),opcode.add_a_c
     inc hl
     ld (hl),opcode.ed
@@ -3459,14 +3254,12 @@ q.blp1.4:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_e_hl
     inc hl
 
     cp 1+4
     call c,insert.xout
     sub 1+4
-
     ld (hl),opcode.add_a_c
     inc hl
     ld (hl),opcode.ed
@@ -3477,7 +3270,6 @@ q.blp1.4:
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ld_nn_a
     inc hl
     ld bc,(mk.gd.spfr)
@@ -3489,14 +3281,12 @@ q.blp1.4:
     cp 2
     call c,insert.xout
     sub 2
-
     ld (hl),opcode.ld_a_de
     inc hl
 
     cp 4
     call c,insert.xout
     sub 4
-
     ld (hl),opcode.ld_nn_a
     inc hl
     ld de,(mk.playtab)
@@ -3505,88 +3295,7 @@ q.blp1.4:
     ld (hl),d         ; ld (4*x+playtabx),a
     inc hl
 
-    cp 4
-    call c,insert.xout
-    sub 4
-
-    push af
-    ld a,(burstplayer.external.ram)
-    or a
-    jr z,@no.megabyte.7
-
-    pop af
-
-    ld (hl),opcode.ld_a_nn
-    inc hl
-    ld bc,(mk.gd.page)
-    ld (hl),c
-    inc hl
-    ld (hl),b
-    inc hl
-
-    jr @continue.7
-
-@no.megabyte.7:
-
-    pop af
-
-    ld (hl),opcode.in_a_n
-    inc hl
-    ld (hl),port.hmpr
-    inc hl
-
-@continue.7:
-
-    cp 2+3
-    call c,insert.xout
-    sub 2+3
-
-    ld (hl),opcode.cb
-    inc hl
-    ld (hl),opcode.bit_6_h
-    inc hl
-    ld (hl),opcode.jr_z_n
-    inc hl
-    ld (hl),1           ; jr z,$+3
-    inc hl
-    ld (hl),opcode.inc_a
-    inc hl
-
-    cp 4
-    call c,insert.xout
-    sub 4
-
-    ld (hl),opcode.ld_nn_a
-    inc hl
-    ld bc,(mk.gd.page)
-    ld (hl),c
-    inc hl
-    ld (hl),b           ; ld (samplepage+1),a
-    inc hl
-
-    cp 2
-    call c,insert.xout
-    sub 2
-
-    ld (hl),opcode.cb
-    inc hl
-    ld (hl),opcode.res_6_h
-    inc hl
-
-    cp 5
-    call c,insert.xout
-    sub 5
-
-    ld (hl),opcode.ld_nn_hl
-    inc hl
-    ld bc,(mk.gd.offs)
-    ld (hl),c
-    inc hl
-    ld (hl),b           ; ld (sample.offs+1),hl
-    inc hl
-
-    ret
-
+    jp @update.page.sample
 
 ;---------------------------------------------------------------
 if defined(testing)

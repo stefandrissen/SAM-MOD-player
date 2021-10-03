@@ -1,11 +1,3 @@
-
-; version 2.30
-version.major:      equ "2" + "." * 0x100
-version.minor:      equ "3" + "0" * 0x100
-
-; 2021
-copyright.year:     equ "2" + "1" * 0x100
-
 ; memory layout
 
 ;   0x00 0x40   for basic - can use approx 7k (clear 0x61ff -> 0x1e00 bytes)

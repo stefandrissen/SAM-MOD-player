@@ -2041,11 +2041,9 @@ col.point2:
 ;---------------------------------------------------------------
 
 txt.help:
-    defm "SAM MOD player             v"
-    defw version.major, version.minor
-    defm "(C) 20"
-    defw copyright.year
-    defm " Stefan Drissen"
+    defm "SAM MOD player             "
+    include "txt.version.i"
+    include "txt.copyright.i"
     defb 0,0
     defm "           HELP PAGE"
     defb 0,0
@@ -2081,11 +2079,9 @@ col.help:
     defb 3,2,2,4,5,1,2,3,2,1,2,3,2,1,2,3,5,1,3,3,4,1
 
 txt.prosummary:
-    defm "SAM MOD player             v"
-    defw version.major, version.minor
-    defm "(C) 20"
-    defw copyright.year
-    defm " Stefan Drissen"
+    defm "SAM MOD player             "
+    include "txt.version.i"
+    include "txt.copyright.i"
     defb 0,0
     defm " SUMMARY OF PROTRACKER EFFECTS"
     defb 0,0
@@ -2127,11 +2123,9 @@ col.pro:
     defb 3,2,2,4,17,1,2,4,8,3
 
 txt.burst:
-    defm "SAM MOD player             v"
-    defw version.major, version.minor
-    defm "(C) 20"
-    defw copyright.year
-    defm " Stefan Drissen"
+    defm "SAM MOD player             "
+    include "txt.version.i"
+    include "txt.copyright.i"
     defm "CHANNEL "
     defm "Page Offs Vol SLo SHi"
 
@@ -2150,10 +2144,9 @@ txt.channel:    defm "Channel "
 
 txt.volume:     defm "Vol: 000%  Speed: 00  Tempo: 000"
 txt.keys:       defm "F1-F6 1234 C <> P ESC -+ Loop:  "
-txt.author:     defm "(C) 20"
-                defw copyright.year
-                defm " Stefan Drissen    v"
-                defw version.major, version.minor
+txt.author:     include "txt.copyright.i"
+                defm "    "
+                include "txt.version.i"
 
 
 pr.amp.fac:

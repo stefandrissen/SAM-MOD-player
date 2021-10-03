@@ -28,15 +28,6 @@ sq.external.ram:        defb 0              ; [0-4]
 sq.gap:                 defb 0
 sq.instruments:         defb 0
 
-    defm "MOD SEQUENCER "
-    defw version.major, version.minor
-    defm "(C) 20"
-    defw copyright.year
-    defm " Stefan Drissen"
-    defm " Needs BURST to run, also (C) 20"
-    defw copyright.year
-    defm " S.D. "
-
 @init.seq:
     di
     in a,(port.lmpr)
