@@ -996,19 +996,19 @@ sm.file.ok:
 sm.check.date:
     ld a,(ix+11)
     or a
-    jr z,sm.done.date       ; 0->invalid date
+    jr z,sm.done.date       ; 0 -> invalid date
     cp 32
-    jr nc,sm.done.date      ; day>31 = invalid date
+    jr nc,sm.done.date      ; day > 31 = invalid date
     ld a,(ix+12)
     or a
-    jr z,sm.done.date       ; 0->invalid date
+    jr z,sm.done.date       ; 0 -> invalid date
     cp 13
-    jr nc,sm.done.date      ; month>12 = invalid date
+    jr nc,sm.done.date      ; month > 12 = invalid date
     ld a,(ix+15)
     or a
-    jr z,sm.done.date ; 0->invalid date
+    jr z,sm.done.date       ; 0 -> invalid date
     inc a
-    jr z,sm.done.date ; 255->invalid date
+    jr z,sm.done.date       ; 255 -> invalid date
 
     ld a,(ix+11)
     call cnv.a.to.de
