@@ -1,6 +1,6 @@
 ; SAM MOD player - EXAMPLE routine for BURST+SequENCER
 
-; (C) 1996-2019 Stefan Drissen
+; (C) 1996-2021 Stefan Drissen
 
     include "memory.i"
     include "ports.i"
@@ -22,11 +22,11 @@
 ; The make burstplayer routine only needs to be called once, the
 ; routine may then be wiped from memory.
 
-make.burst: equ 32768
+make.burst: equ 0x8000
 
 ;set the following address with the desired sound device
 
-burstplayer.device:     equ 32771
+burstplayer.device:     equ 0x8003
     clut:       equ 0
     saa:        equ 1
     samdac1:    equ 2
@@ -38,7 +38,7 @@ burstplayer.device:     equ 32771
 
 ;set the following address with the desired Amiga speed
 
-burstplayer.speed:      equ 32772
+burstplayer.speed:      equ 0x8004
     pal:        equ 0
     ntsc:       equ 1
 
@@ -48,7 +48,7 @@ burstplayer.page:       equ 32774
 
 page.example:           equ 1
 
-    org 32768
+    org 0x8000
 
     di
     in a,(port.lmpr)
@@ -58,10 +58,10 @@ page.example:           equ 1
     or low.memory.ram.0
     out (port.lmpr),a
     ld (st.stpr+1),sp
-    ld sp,16384
+    ld sp,0x4000
     jp @low
 
-    org $-32768
+    org $-0x8000
 @low:
     ld a,(seq.setup+1) ;don't build if already done
     or a
@@ -121,12 +121,12 @@ seq.setup:
 
     ld a,page.mod
     out (port.hmpr),a
-    ld a,(32768)
-    cp 255
+    ld a,(0x8000)
+    cp 0xff
     jr z,already.inst
 
-    ld a,255
-    ld (32768),a
+    ld a,0xff
+    ld (0x8000),a
 
     ld a,page.sequencer
     out (port.hmpr),a
@@ -143,7 +143,7 @@ test:
     out (port.hmpr),a
     jp high
 
-    org  $+32768
+    org  $+0x8000
 high:
 st.lmpr:
     ld a,0
@@ -177,7 +177,7 @@ mk.enable:
 
     ld hl,my.palette    ; the palette is set by the burstplayer at the start of a frame
     ld de,frame.palette
-    ld bc,16
+    ld bc,0x10
     ldir
 
 @demo.loop:
@@ -186,9 +186,9 @@ mk.enable:
     out (c),a
 
     ld bc,0
-    ld a,247
+    ld a,keyboard.caps_tab_esc
     in a,(port.status)  ; escape key
-    and 32
+    and %100000
     jr z,@exit
 
     ld a,(mstatus)          ; 1=music stopped
@@ -203,7 +203,7 @@ mk.enable:
 
 
 my.palette:
-    defb 0,16,32,48,64,80,96,112
+    defb 0,16,32,48,64,80, 96,112
     defb 8,17,34,51,68,85,102,119
 
 ;if the value of int.rtn.pag is 255 then no user interrupts are
@@ -225,14 +225,14 @@ interrupt.on:
     ret
 
 interrupt.off:
-    ld a,255
+    ld a,0xff
     ld (int.rtn.pag),a
     ret
 
 example.int:
     ld a,r
-    and 7
+    and %111
     out (port.border),a
     ret
 
-length: equ $-32768
+length: equ $-0x8000
