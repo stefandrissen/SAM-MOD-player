@@ -2,7 +2,7 @@
 <project name="sam-mod-player" xmlns:if="ant:if">
 
 	<property name="python" location="../../AppData/Local/Programs/Python/Python38/python.exe" />
-	<property name="pyz80" location="../pyz80/pyz80.py" />
+	<property name="pyz80" value="../pyz80/pyz80.py" />
 	<property name="simcoupe" location="C:\Program Files (x86)\SimCoupe\SimCoupe.exe" />
 	<property name="mapfile" value="true" />
 
@@ -24,7 +24,7 @@
 				<arg value="${pyz80}" />
 				<arg value="--obj=obj/@{obj}" />
 				<arg value="--mapfile=obj/@{source}.map" if:true="@{mapfile}" />
-				<arg value="-Ddebug=1" if:true="@{debug}" />
+				<arg line="-D debug" if:true="@{debug}" />
 				<arg value="src/@{source}.s" />
 			</exec>
 
@@ -67,23 +67,23 @@
 	<target name="create-disk" depends="assemble-loader,assemble-demo,assemble-burstplayer,assemble-sequencer,assemble-test-mod">
 
 		<exec executable="${python}" failonerror="true">
-			<arg value="${pyz80}" />
-			<!-- <arg value="-Ires/B-DOS15a" /> -->
-			<!-- <arg value="-Ires/AL-BDOS15a" /> -->
-			<arg value="-Ires/bdos15t-6" />
-			<arg value="-Ires/loading.$" />
-			<arg value="-Iobj/sequencer" />
-			<arg value="-Iobj/burstplayer" />
-			<arg value="-Iobj/loader" />
-			<arg value="-Iobj/demo" />
-			<arg value="-Ires/test.m" />
-			<arg value="-oobj/modplayer.dsk" />
+			<arg file="${pyz80}" />
+			<!-- <arg line="-I res/B-DOS15a" /> -->
+			<!-- <arg line="-I res/AL-BDOS15a" /> -->
+			<arg line="-I res/bdos15t-6" />
+			<arg line="-I res/loading.$" />
+			<arg line="-I obj/sequencer" />
+			<arg line="-I obj/burstplayer" />
+			<arg line="-I obj/loader" />
+			<arg line="-I obj/demo" />
+			<arg line="-I res/test.m" />
+			<arg line="-o obj/modplayer.dsk" />
 			<arg value="--mapfile=obj/boot.map" if:true="${mapfile}" />
 			<arg value="src/boot.s" />
 		</exec>
 
 		<!-- adjust to what needs debugging -->
-		<copy file="obj/sequencer.map" tofile="obj/modplayer.map" if:true="${mapfile}" />
+		<copy file="obj/burstplayer.map" tofile="obj/modplayer.map" if:true="${mapfile}" />
 
 	</target>
 
@@ -115,7 +115,7 @@
 	<target name="assemble-test-mod">
 
 		<exec executable="${python}" failonerror="true">
-			<arg value="${pyz80}" />
+			<arg file="${pyz80}" />
 			<arg value="--obj=res/test.m" />
 			<arg value="src/test.mod.s" />
 		</exec>
@@ -127,13 +127,29 @@
 	<target name="create-example" depends="assemble-burstplayer,assemble-sequencer">
 
 		<exec executable="${python}" failonerror="true">
-			<arg value="${pyz80}" />
-			<arg value="-Ires/buena vi.m" />
-			<arg value="-Iobj/burstplayer" />
-			<arg value="-Iobj/sequencer" />
-			<arg value="-oobj/example.dsk" />
+			<arg file="${pyz80}" />
+			<arg line="-I res/buena vi.m" />
+			<arg line="-I obj/burstplayer" />
+			<arg line="-I obj/sequencer" />
+			<arg line="-o obj/example.dsk" />
 			<arg value="src/example.s" />
 		</exec>
+
+	</target>
+
+	<!-- test bustplayer -->
+
+	<target name="test-burstplayer" description="test burstplayer">
+
+		<exec executable="${python}" failonerror="true">
+			<arg file="${pyz80}" />
+			<arg line="-D testing" />
+			<arg value="--mapfile=obj/burstplayer.map" />
+			<arg line="-o obj/burstplayer.dsk" />
+			<arg value="src/burstplayer.s" />
+		</exec>
+
+		<simcoupe disk="burstplayer" />
 
 	</target>
 
