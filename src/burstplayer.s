@@ -2,8 +2,9 @@
 
 ; (C) 1995-2021 Stefan Drissen
 
-; 384 t-states per line, 312 lines = 119808 t-states per frame * 50 = 5,990,400 = 6 MHz?
-; !!! use better timing - see T in simcoupe
+; 384 t-states per line, 312 lines = 119808 t-states per frame
+; 6MHz / 119808 = 50.08 Hz
+;
 
 ;---------------------------------------------------------------
 
@@ -18,7 +19,6 @@ include "opcodes.i"
 ; quazar needs largest playback buffers
 
 count:      equ 255     ; number of outs before border change
-linetest:   equ 0
 
 ;---------------------------------------------------------------
 
@@ -70,7 +70,7 @@ burstplayer.page:           defb page.burstplayer
     or low.memory.ram.0
     out (port.lmpr),a
     ld (@sp+1),sp
-    ld sp,49152
+    ld sp,0xc000
     call maker
 @lmpr:
     ld a,0
@@ -114,7 +114,7 @@ maker:
 
     ld hl,0
     ld de,1
-    ld bc,32767
+    ld bc,0x7fff
     ld (hl),l
     ldir
 
@@ -235,29 +235,37 @@ not.qss.pt:
 interrupt:
 
     ld hl,0x0038
+
     ld (hl),opcode.ex_af_af
     inc hl
+
     ld (hl),opcode.exx
     inc hl
+
     call insert.outs
+
     ld (hl),opcode.cp_n
     inc hl
-    ld (hl),191 - 3
+    ld (hl),191 - 3             ; 0xbc - second to last line interrupt
     inc hl
+
     ld (hl),opcode.jr_z_n
     inc hl
     ld (mk.sto1+1),hl           ; jr z,prepare.border.player
     ld (mk.sto1.1+1),hl
     ld (mk.recjradd+1),hl
     inc hl
+
     ld (hl),opcode.add_a_n
     inc hl
     ld (hl),3
     inc hl
+
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.line_interrupt
     inc hl
+
     ld (hl),opcode.jp_nn
     inc hl
     ld (mk.sto2+1),hl           ; jp no.function
@@ -275,35 +283,40 @@ endif
     ld a,l
     pop hl
     ld (mk.stojr188+1),a
+
     ld (hl),opcode.ld_a_n
     inc hl
     ld (mk.recjr191+1),hl
     inc hl
+
     ld (hl),opcode.ld_nn_a
     inc hl
 mk.recjradd:
     ld de,0
     ld (hl),e
     inc hl
-    ld (hl),d         ; ld (jr+1),a
+    ld (hl),d           ; ld (jr+1),a
     inc hl
+
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (hl),191
+    ld (hl),191         ; screen.last.line
     inc hl
+
     ld (hl),opcode.ld_nn_a
     inc hl
     dec de
     dec de
     ld (hl),e
     inc hl
-    ld (hl),d         ; ld (cp191+1),a
+    ld (hl),d           ; ld (cp191+1),a
     inc hl
 
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.line_interrupt
     inc hl
+
     ld (hl),opcode.jp_nn
     inc hl
     ld (mk.sto2.1+1),hl ; jp nofunction2
@@ -320,9 +333,9 @@ sound.driver.reset.length:
     ld bc,0
     ld a,b
     or c
-    jr z,ro.no.silence
+    jr z,@ro.no.silence
     ldir
-ro.no.silence:
+@ro.no.silence:
     ex de,hl
     ld (hl),opcode.ret
     inc hl
@@ -343,12 +356,14 @@ endif
 mk.recjr191:
     ld hl,0
     ld (hl),e
-    pop hl             ; prep.bord.play:
+    pop hl             ; prepare.border.player:
+
     ld (hl),opcode.ld_a_n
     inc hl
 mk.stojr188:
     ld (hl),0           ; ld a,jr188
     inc hl
+
     ld (hl),opcode.ld_nn_a
     inc hl
     ld de,(mk.recjradd+1)
@@ -356,10 +371,12 @@ mk.stojr188:
     inc hl
     ld (hl),d           ; ld (jradd+1),a
     inc hl
+
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (hl),188
+    ld (hl),191 - 3     ; second to last line interrupt
     inc hl
+
     dec de
     dec de
     ld (hl),opcode.ld_nn_a
@@ -373,27 +390,36 @@ mk.stojr188:
     inc hl
     ld (hl),port.hmpr
     inc hl
+
     ld (hl),opcode.ld_nn_a
     inc hl
     ld (mk.sto3+1),hl           ; ld (prog.p+1),a
     inc hl
     inc hl
+
     ld (hl),opcode.ex_af_af
     inc hl
+
     ld (hl),opcode.exx
     inc hl
+
     ld (hl),opcode.push_af
     inc hl
+
     ld (hl),opcode.push_bc
     inc hl
+
     ld (hl),opcode.push_de
     inc hl
+
     ld (hl),opcode.push_hl
     inc hl
+
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.push_ix
     inc hl
+
     ld (hl),opcode.ed
     inc hl
     ld (hl),opcode.ld_nn_sp
@@ -401,9 +427,10 @@ mk.stojr188:
     ld (mk.sto4+1),hl           ; ld (prog.sp+1),sp
     inc hl
     inc hl
-    ld (mk.rec2+1),hl           ; playerselect:
+
     ld (hl),opcode.jp_nn
     inc hl
+    ld (mk.rec2+1),hl           ; playerselect:
     ld (mk.sto5+1),hl           ; jp border.player.1
     inc hl
     inc hl
@@ -697,14 +724,7 @@ mk.sto2:
     ex de,hl
 
 no.func.wait:
-    ld e,0
-
-    ld a,linetest
-    or a
     ld a,0
-    jr z,$+4
-    ld a,-4
-    add a,e
 
 ins.nf.nop:
     cp 3
@@ -723,10 +743,6 @@ ins.nf.lp:
     dec a
     jr nz,ins.nf.lp
 ins.nf.all:
-
-    ; ld a,linetest
-    ; or a
-    ; call nz,timeline
 
     call insert.outs
     ld (hl),opcode.exx
@@ -748,14 +764,7 @@ mk.sto2.1:
     ex de,hl
 
 no.func.wait2:
-    ld e,0
-
-    ld a,linetest
-    or a
     ld a,0
-    jr z,$+4
-    ld a,-4
-    add a,e
 
 ins.nf.nop2:
     cp 3
@@ -774,10 +783,6 @@ ins.nf.lp2:
     dec a
     jr nz,ins.nf.lp2
 ins.nf.all2:
-
-    ; ld a,linetest
-    ; or a
-    ; call nz,timeline
 
     call insert.outs
     ld (hl),opcode.exx
@@ -833,10 +838,13 @@ get.c1.data:
 
 ; hla = sample pointer (hl = address, a = fraction)
 ; spc = speed (sp = bytes, c = fraction)
-; d = volume table high byte
+; d   = volume table high byte
 
 ; result from channel 1 put into channel 2 player which
 ; "mixes" (adds 7 bit + 7 bit in case of samdac) and puts into playback buffer
+
+    ; !!! a (t-state counter) has no meaningful value here
+
 
     ld (mk.get.c1.data+1),hl
     ex de,hl
@@ -852,7 +860,7 @@ mk.sto24:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c1.page),hl  ; c1.page:
+    ld (bp.chan1.page),hl  ; c1.page:
     inc hl
 
     cp 3
@@ -860,7 +868,7 @@ mk.sto24:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.c1.offs),hl  ; c1.offset:
+    ld (bp.chan1.offs),hl  ; c1.offset:
     inc hl
     inc hl
 
@@ -879,7 +887,7 @@ mk.sto24:
     sub 2
     ld (hl),opcode.ld_d_n           ; d -> volume.table
     inc hl
-    ld (bp.c1.vol),hl ; c1.tab:
+    ld (bp.chan1.vol),hl ; c1.tab:
     inc hl
 
     cp 2
@@ -887,7 +895,7 @@ mk.sto24:
     sub 2
     ld (hl),opcode.ld_c_n
     inc hl
-    ld (bp.c1.speedlo),hl
+    ld (bp.chan1.speedlo),hl
     inc hl
 
     cp 3
@@ -895,7 +903,7 @@ mk.sto24:
     sub 3
     ld (hl),opcode.ld_sp_nn
     inc hl
-    ld (bp.c1.speedhi),hl ; c1.speedhi:
+    ld (bp.chan1.speedhi),hl ; c1.speedhi:
     inc hl
     inc hl
 
@@ -904,7 +912,7 @@ mk.sto24:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c1.sp.frct),hl ; c1.sp.frct:
+    ld (bp.chan1.sp.frct),hl ; c1.sp.frct:
     inc hl
 
     cp 2
@@ -932,7 +940,7 @@ mk.sto10:
     ld (hl),d
     ex de,hl
 
-    call mk.bp11        ;
+    call mk.bp1.chan1
 
     cp 4
     call c,insert.xout
@@ -972,7 +980,7 @@ mk.sto25:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c4.page),hl  ; c4.pag:
+    ld (bp.chan4.page),hl  ; c4.pag:
     inc hl
 
     cp 3
@@ -980,7 +988,7 @@ mk.sto25:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.c4.offs),hl  ; c4.off:
+    ld (bp.chan4.offs),hl  ; c4.off:
     inc hl
     inc hl
 
@@ -999,7 +1007,7 @@ mk.sto25:
     sub 2
     ld (hl),opcode.ld_d_n
     inc hl
-    ld (bp.c4.vol),hl   ; c4.tab:
+    ld (bp.chan4.vol),hl   ; c4.tab:
     inc hl
 
     cp 2
@@ -1007,7 +1015,7 @@ mk.sto25:
     sub 2
     ld (hl),opcode.ld_c_n
     inc hl
-    ld (bp.c4.speedlo),hl   ; c4.speedlo:
+    ld (bp.chan4.speedlo),hl   ; c4.speedlo:
     inc hl
 
     cp 3
@@ -1015,7 +1023,7 @@ mk.sto25:
     sub 3
     ld (hl),opcode.ld_sp_nn
     inc hl
-    ld (bp.c4.speedhi),hl   ; c4.speedhi:
+    ld (bp.chan4.speedhi),hl   ; c4.speedhi:
     inc hl
     inc hl
 
@@ -1024,7 +1032,7 @@ mk.sto25:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c4.sp.frct),hl   ; c4.sp.frct:
+    ld (bp.chan4.sp.frct),hl   ; c4.sp.frct:
     inc hl
 
     cp 2
@@ -1052,7 +1060,7 @@ mk.sto11:
     ld (hl),d
     ex de,hl
 
-    call mk.bp14            ;
+    call mk.bp1.chan4
 
     cp 4
     call c,insert.xout
@@ -1237,7 +1245,7 @@ mk.sto26:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c2.page),hl  ; c2.pag:
+    ld (bp.chan2.page),hl  ; c2.pag:
     inc hl
 
     cp 3
@@ -1245,7 +1253,7 @@ mk.sto26:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.c2.offs),hl  ; c2.off:
+    ld (bp.chan2.offs),hl  ; c2.off:
     inc hl
     inc hl
 
@@ -1264,7 +1272,7 @@ mk.sto26:
     sub 2
     ld (hl),opcode.ld_d_n
     inc hl
-    ld (bp.c2.vol),hl   ; c2.tab:
+    ld (bp.chan2.vol),hl   ; c2.tab:
     inc hl
 
     cp 2
@@ -1272,7 +1280,7 @@ mk.sto26:
     sub 2
     ld (hl),opcode.ld_c_n
     inc hl
-    ld (bp.c2.speedlo),hl ; c2.speedlo:
+    ld (bp.chan2.speedlo),hl ; c2.speedlo:
     inc hl
 
     cp 3
@@ -1280,7 +1288,7 @@ mk.sto26:
     sub 3
     ld (hl),opcode.ld_sp_nn
     inc hl
-    ld (bp.c2.speedhi),hl   ; c2.speedhi:
+    ld (bp.chan2.speedhi),hl   ; c2.speedhi:
     inc hl
     inc hl
 
@@ -1289,7 +1297,7 @@ mk.sto26:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c2.sp.frct),hl   ; c2.sp.frct:
+    ld (bp.chan2.sp.frct),hl   ; c2.sp.frct:
     inc hl
 
     cp 2
@@ -1317,7 +1325,7 @@ mk.sto13:
     ld (hl),d
     ex de,hl
 
-    call mk.bp12
+    call mk.bp1.chan2
 
     cp 4
     call c,insert.xout
@@ -1357,7 +1365,7 @@ mk.sto27:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c3.page),hl  ; c3.pag:
+    ld (bp.chan3.page),hl  ; c3.pag:
     inc hl
 
     cp 3
@@ -1365,7 +1373,7 @@ mk.sto27:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.c3.offs),hl  ; c3.off:
+    ld (bp.chan3.offs),hl  ; c3.off:
     inc hl
     inc hl
 
@@ -1384,7 +1392,7 @@ mk.sto27:
     sub 2
     ld (hl),opcode.ld_d_n
     inc hl
-    ld (bp.c3.vol),hl   ; c3.tab:
+    ld (bp.chan3.vol),hl   ; c3.tab:
     inc hl
 
     cp 2
@@ -1392,7 +1400,7 @@ mk.sto27:
     sub 2
     ld (hl),opcode.ld_c_n
     inc hl
-    ld (bp.c3.speedlo),hl   ; c3.speedlo:
+    ld (bp.chan3.speedlo),hl   ; c3.speedlo:
     inc hl
 
     cp 3
@@ -1400,7 +1408,7 @@ mk.sto27:
     sub 3
     ld (hl),opcode.ld_sp_nn
     inc hl
-    ld (bp.c3.speedhi),hl   ; c3.speedhi:
+    ld (bp.chan3.speedhi),hl   ; c3.speedhi:
     inc hl
     inc hl
 
@@ -1409,7 +1417,7 @@ mk.sto27:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.c3.sp.frct),hl   ; c3.sp.frct:
+    ld (bp.chan3.sp.frct),hl   ; c3.sp.frct:
     inc hl
 
     cp 2
@@ -1437,7 +1445,7 @@ mk.sto14:
     ld (hl),d
     ex de,hl
 
-    call mk.bp13
+    call mk.bp1.chan3
 
     cp 3
     call c,insert.xout
@@ -1522,7 +1530,7 @@ mk.ix1:
 mk.a1:
     ld a,0
 
-    call mk.bp21
+    call mk.bp2.chan1
 
     cp 4
     call c,insert.xout
@@ -1562,7 +1570,7 @@ mk.ix4:
 mk.a4:
     ld a,0
 
-    call mk.bp24
+    call mk.bp2.chan4
 
     cp 4
     call c,insert.xout
@@ -1642,7 +1650,7 @@ mk.ix2:
 mk.a2:
     ld a,0
 
-    call mk.bp22
+    call mk.bp2.chan2
 
     cp 4
     call c,insert.xout
@@ -1682,7 +1690,7 @@ mk.ix3:
 mk.a3:
     ld a,0
 
-    call mk.bp23
+    call mk.bp2.chan3
 
     cp 3
     call c,insert.xout
@@ -1738,7 +1746,6 @@ mk.sto22:
     inc hl
 mk.rec2:
     ld de,0
-    inc de
     ld (hl),e
     inc hl
     ld (hl),d          ;ld (playerselect+1),hl
@@ -1881,26 +1888,32 @@ enable:
     inc hl
     ld (hl),port.status
     inc hl
+
     ld (hl),opcode.and_n
     inc hl
     ld (hl),frame.interrupt
     inc hl
+
     ld (hl),opcode.jr_nz_n
     inc hl
     ld (hl),-6         ;jr nz,$-4
     inc hl
+
     ld (hl),opcode.in_a_n
     inc hl
     ld (hl),port.status
     inc hl
+
     ld (hl),opcode.and_n
     inc hl
     ld (hl),frame.interrupt
     inc hl
+
     ld (hl),opcode.jr_z_n
     inc hl
     ld (hl),-6         ;jr z,$-4
     inc hl
+
     ld (hl),opcode.ld_hl_nn
     inc hl
     ld de,(mk.rec32+1)
@@ -1908,32 +1921,37 @@ enable:
     inc hl
     ld (hl),d          ;ld hl,borderplay1
     inc hl
+
     ld (hl),opcode.ld_nn_hl
     inc hl
     ld de,(mk.rec2+1)
-    inc de
     ld (hl),e
     inc hl
     ld (hl),d           ; ld (playerselect+1),hl
     inc hl
+
     ld (hl),opcode.ex_af_af
     inc hl
+
     ld (hl),opcode.exx
     inc hl
+
     ld (hl),opcode.ld_bc_nn
     inc hl
 sample.port:
-    ld de,232           ; unnecessary default?
+    ld de,0
     ld (hl),e
     inc hl
-    ld (hl),d           ; ld bc,sample.port
+    ld (hl),d
     inc hl
+
     ld (hl),opcode.ld_hl_nn
     inc hl
     ld (hl),playtab1 \ 256
     inc hl
     ld (hl),playtab1 / 256 ;ld hl,playtab1
     inc hl
+
     ld (hl),opcode.ld_de_nn
     inc hl
 sample.ctrl:
@@ -2020,6 +2038,7 @@ set.silence:
     inc hl
     ld (hl),sound.driver.reset / 256  ;call reset sound dev
     inc hl
+
     ld (hl),opcode.call_nn
     inc hl
 mk.rec37:
@@ -2032,18 +2051,17 @@ mk.rec37:
     ld (hl),opcode.ld_a_n
     inc hl
     ld (bp.pointer.page.demo),hl
-    ; ld (hl),page.sequencer
     inc hl
+
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.hmpr
     inc hl
+
     ld (hl),opcode.jp_nn
     inc hl
     ld (bp.pointer.addr.demo),hl
-    ; ld (hl),0
     inc hl
-    ; ld (hl),0
     inc hl
 
 ;---------------------------------------------------------------
@@ -2054,8 +2072,8 @@ mk.rec37:
     cp device.saa
     ret nz
 
-    ld hl,bp.c3.page
-    ld de,bp.c4.page
+    ld hl,bp.chan3.page
+    ld de,bp.chan4.page
     ld b,12
 mk.swap.lp:
     ld c,(hl)
@@ -2316,17 +2334,17 @@ notborder:
 
 ; there are /two/ burstplayers - while one is playing, the other is being filled
 
-mk.bp11:
+mk.bp1.chan1:
     ld de,playtab1 + ( 2 * 208 )
     ld (mk.playtab),de
 
-    ld de,(bp.c1.sp.frct)
+    ld de,(bp.chan1.sp.frct)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.c1.page)
+    ld de,(bp.chan1.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.c1.offs)
+    ld de,(bp.chan1.offs)
     ld (mk.gd.offs),de
 
     push af
@@ -2341,14 +2359,14 @@ mk.bp11:
 ;---------------------------------------------------------------
 ;make channel 4 for burstplayer 1
 
-mk.bp14:
-    ld de,(bp.c4.sp.frct)
+mk.bp1.chan4:
+    ld de,(bp.chan4.sp.frct)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.c4.page)
+    ld de,(bp.chan4.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.c4.offs)
+    ld de,(bp.chan4.offs)
     ld (mk.gd.offs),de
 
     push af
@@ -2363,17 +2381,17 @@ mk.bp14:
 ;---------------------------------------------------------------
 ;make channel 2 for burstplayer 1
 
-mk.bp12:
+mk.bp1.chan2:
     ld de,playtab1 + 1 + ( 2 * 208 )   ;playtab2
     ld (mk.playtab),de
 
-    ld de,(bp.c2.sp.frct)
+    ld de,(bp.chan2.sp.frct)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.c2.page)
+    ld de,(bp.chan2.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.c2.offs)
+    ld de,(bp.chan2.offs)
     ld (mk.gd.offs),de
 
     push af
@@ -2388,14 +2406,14 @@ mk.bp12:
 ;---------------------------------------------------------------
 ;make channel 3 for burstplayer 1
 
-mk.bp13:
-    ld de,(bp.c3.sp.frct)
+mk.bp1.chan3:
+    ld de,(bp.chan3.sp.frct)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.c3.page)
+    ld de,(bp.chan3.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.c3.offs)
+    ld de,(bp.chan3.offs)
     ld (mk.gd.offs),de
 
     push af
@@ -2410,17 +2428,17 @@ mk.bp13:
 ;---------------------------------------------------------------
 ;make channel 1 for burstplayer 2
 
-mk.bp21:
+mk.bp2.chan1:
     ld de,playtab1 + 0
     ld (mk.playtab),de
 
-    ld de,(bp.c1.sp.frct)
+    ld de,(bp.chan1.sp.frct)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.c1.page)
+    ld de,(bp.chan1.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.c1.offs)
+    ld de,(bp.chan1.offs)
     ld (mk.gd.offs),de
 
     push af
@@ -2435,14 +2453,14 @@ mk.bp21:
 ;---------------------------------------------------------------
 ;make channel 4 for burstplayer 2
 
-mk.bp24:
-    ld de,(bp.c4.sp.frct)
+mk.bp2.chan4:
+    ld de,(bp.chan4.sp.frct)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.c4.page)
+    ld de,(bp.chan4.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.c4.offs)
+    ld de,(bp.chan4.offs)
     ld (mk.gd.offs),de
 
     push af
@@ -2457,17 +2475,17 @@ mk.bp24:
 ;---------------------------------------------------------------
 ;make channel 2 for burstplayer 2
 
-mk.bp22:
+mk.bp2.chan2:
     ld de,playtab1 + 1
     ld (mk.playtab),de
 
-    ld de,(bp.c2.sp.frct)
+    ld de,(bp.chan2.sp.frct)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.c2.page)
+    ld de,(bp.chan2.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.c2.offs)
+    ld de,(bp.chan2.offs)
     ld (mk.gd.offs),de
 
     push af
@@ -2482,14 +2500,14 @@ mk.bp22:
 ;---------------------------------------------------------------
 ;make channel 3 for burstplayer 2
 
-mk.bp23:
-    ld de,(bp.c3.sp.frct)
+mk.bp2.chan3:
+    ld de,(bp.chan3.sp.frct)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.c3.page)
+    ld de,(bp.chan3.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.c3.offs)
+    ld de,(bp.chan3.offs)
     ld (mk.gd.offs),de
 
     push af
@@ -3298,25 +3316,6 @@ q.blp1.4:
     jp @update.page.sample
 
 ;---------------------------------------------------------------
-if defined(testing)
-
-timeline:
-    ld (hl),opcode.ld_e_a
-    inc hl
-    ld (hl),opcode.ld_a_n
-    inc hl
-    ld (hl),0x70
-    inc hl
-    ld (hl),opcode.out_n_a
-    inc hl
-    ld (hl),port.clut
-    inc hl
-    ld (hl),opcode.ld_a_e
-    inc hl
-    ret
-
-endif
-;---------------------------------------------------------------
 ; memory needed for mk.bp routines
 
 mk.playtab: defw 0
@@ -3353,26 +3352,31 @@ mk.movecode:
     in a,(port.vmpr)
 ;   and %00111111
     push af
-    ld (bp.stsp+32769),sp
+    ld (bp.stsp + 1 + 0x8000),sp
+
     in a,(port.lmpr)
-    ld (bp.stlmpr+32769),a
+    ld (bp.stlmpr + 1 + 0x8000),a
+
     in a,(port.hmpr)
     and high.memory.page.mask
-    ld (bp.exitpage+32769),a
+    ld (bp.exitpage + 1 + 0x8000),a
+
     or low.memory.ram.0
     out (port.lmpr),a
-    ld sp,32768
+
+    ld sp,0x8000
+
 run.program:
     jp 0        ; test
 
 bp.exit:
     di
-    ld a,255
+    ld a,0xff
     out (port.line_interrupt),a
 bp.exitpage:
     ld a,0
     out (port.hmpr),a
-    jp bp.stlmpr+32768
+    jp bp.stlmpr + 0x8000
 
 bp.stlmpr:
     ld a,0
@@ -3400,8 +3404,8 @@ bp.device:          defb 0
 
 bp.pointers:
 
-bp.point.addr.sequencer:    defw 0
-bp.point.page.sequencer:    defw 0
+bp.pointer.addr.sequencer:  defw 0
+bp.pointer.page.sequencer:  defw 0
 bp.pointer.addr.demo:       defw 0
 bp.pointer.page.demo:       defw 0
 
@@ -3410,35 +3414,35 @@ bp.pointer.addr.exit:       defw bp.exit
 
 bp.pointers.sample:
 
-bp.c1.page:         defw 0
-bp.c1.offs:         defw 0
-bp.c1.vol:          defw 0
-bp.c1.speedlo:      defw 0
-bp.c1.speedhi:      defw 0
-bp.c1.sp.frct:      defw 0
+bp.chan1.page:              defw 0
+bp.chan1.offs:              defw 0
+bp.chan1.vol:               defw 0
+bp.chan1.speedlo:           defw 0
+bp.chan1.speedhi:           defw 0
+bp.chan1.sp.frct:           defw 0
 
-bp.pointers.length: equ $ - bp.pointers.sample
+;bp.pointers.length: equ $ - bp.pointers.sample
 
-bp.c2.page:         defw 0
-bp.c2.offs:         defw 0
-bp.c2.vol:          defw 0
-bp.c2.speedlo:      defw 0
-bp.c2.speedhi:      defw 0
-bp.c2.sp.frct:      defw 0
+bp.chan2.page:              defw 0
+bp.chan2.offs:              defw 0
+bp.chan2.vol:               defw 0
+bp.chan2.speedlo:           defw 0
+bp.chan2.speedhi:           defw 0
+bp.chan2.sp.frct:           defw 0
 
-bp.c3.page:         defw 0
-bp.c3.offs:         defw 0
-bp.c3.vol:          defw 0
-bp.c3.speedlo:      defw 0
-bp.c3.speedhi:      defw 0
-bp.c3.sp.frct:      defw 0
+bp.chan3.page:              defw 0
+bp.chan3.offs:              defw 0
+bp.chan3.vol:               defw 0
+bp.chan3.speedlo:           defw 0
+bp.chan3.speedhi:           defw 0
+bp.chan3.sp.frct:           defw 0
 
-bp.c4.page:         defw 0
-bp.c4.offs:         defw 0
-bp.c4.vol:          defw 0
-bp.c4.speedlo:      defw 0
-bp.c4.speedhi:      defw 0
-bp.c4.sp.frct:      defw 0
+bp.chan4.page:              defw 0
+bp.chan4.offs:              defw 0
+bp.chan4.vol:               defw 0
+bp.chan4.speedlo:           defw 0
+bp.chan4.speedhi:           defw 0
+bp.chan4.sp.frct:           defw 0
 
 
 if 0 > 1
@@ -3451,72 +3455,171 @@ endif
 mk.mv.end:
 sound.driver.reset:
 
-length: equ  mk.movecode - 32768 + sound.driver.reset
+length: equ  mk.movecode - 0x8000 + sound.driver.reset
 
 if defined( testing )
 
-;===============================================================
+;   testing will test burstplayer only with dummy sequencer and demo
+
+    include "ports/keyboard.i"
+
+;===============================================================================
 
 ; rasterline = 384 T-states / 4 = 96 * 1.5 = 144
 ; bytes per frame = 10400 Hz / 50 = 208
 ; 192 screen lines
-; 120 border lines
+; 120 border lines (68 top, 52 bottom)
 ; 312 total lines / 208 = 1.5
 
-;===============================================================
+;===============================================================================
 
-    org 32768
-    dump page.sequencer,0
+    autoexec
 
-    jp init.sq
+    org $ + mk.movecode
 
-demo:
-    call 0
+    print $                 ; set breakpoint at this address if needed
 
-    ld bc,keyboard.caps_tab_esc * 256 + port.status
-demoloop:
-    xor a
-    out (port.clut),a
-    in a,(c)
-    bit 5,a     ; escape
-    jr nz,demoloop
-still:
-    in a,(c)
-    bit 5,a
-    jr z,still
+;-------------------------------------------------------------------------------
 
-exit:
-    jp bp.exit
+    ld a,device.samdac.1
+    ld (burstplayer.device),a
 
-init.sq:
-    di
-    in a,(port.lmpr)
-    ld (is.stlmpr+1),a
-    ld a,page.burstplayer
+    ld a,1
+    ld (burstplayer.external.ram),a
+
+    call burstplayer.create
+
+    in a,(port.hmpr)
+    and high.memory.page.mask
     or low.memory.ram.0
     out (port.lmpr),a
-    ld hl,(bp.sequence)
-    ld (hl),sequencer \ 256
-    inc hl
-    ld (hl),sequencer / 256
-    ld hl,demo+1
-    ld de,(bp.enable)
-    ld (hl),e
-    inc hl
-    ld (hl),d
-    ld hl,(bp.demo)
-    ld (hl),demo \ 256
-    inc hl
-    ld (hl),demo / 256
 
-is.stlmpr:
-    ld a,0
-    out (port.lmpr),a
-    ei
+    jp @test.low
+
+;-------------------------------------------------------------------------------
+
+    org $ - 0x8000
+
+@test.low:
+
+    in a,(port.hmpr)
+    ld c,a
+
+    ld a,page.burstplayer
+    out (port.hmpr),a
+
+    ; set sequencer
+
+    ld hl,(bp.pointer.page.sequencer + 0x8000)
+    set 7,h
+    ld (hl),c
+
+    ld hl,(bp.pointer.addr.sequencer + 0x8000)
+    set 7,h
+    ld (hl),@test.sequencer \ 256
+    inc hl
+    ld (hl),@test.sequencer / 256
+
+    ; set demo
+
+    ld hl,(bp.pointer.page.demo + 0x8000)
+    set 7,h
+    ld (hl),c
+
+    ld hl,(bp.pointer.addr.demo + 0x8000)
+    set 7,h
+    ld (hl),@test.demo \ 256
+    inc hl
+    ld (hl),@test.demo / 256
+
+    ld hl,frame.palette
+    set 7,h
+    ex de,hl
+    ld hl,@test.palette
+    ld bc,0x10
+    ldir
+
+    ; set sample pointers to 0x8000
+
+    ld hl,(bp.chan1.offs + 0x8000)
+    set 7,h
+    inc hl
+    ld (hl),0x80
+
+    ld hl,(bp.chan2.offs + 0x8000)
+    set 7,h
+    inc hl
+    ld (hl),0x80
+
+    ld hl,(bp.chan3.offs + 0x8000)
+    set 7,h
+    inc hl
+    ld (hl),0x80
+
+    ld hl,(bp.chan4.offs + 0x8000)
+    set 7,h
+    inc hl
+    ld (hl),0x80
+
+    ; start
+
+    call burstplayer.start
+
+    halt
+
     ret
 
+;-------------------------------------------------------------------------------
+@test.palette:
+    defb %0000000 ;    0
 
-sequencer:
+    defb %0011101 ;3 1 1;BLUE+green
+    defb %1011001 ;3 2 2
+    defb %1011101 ;3 3 3
+
+    defb %0101110 ;3 1 4;RED+green
+    defb %1101010 ;3 2 5
+    defb %1101110 ;3 3 6
+
+    defb %1001101 ;3 1 7;GREEN+blue
+
+    defb %0000000 ;    8;bright background
+
+    defb %1011100 ;3 2 9
+    ; defb %1011101 ;3 3  same as pen 3
+
+    defb %0101011 ;3 1 A;RED+blue
+    defb %0111010 ;3 2 B
+    defb %0111011 ;3 3 C
+
+    defb %1001110 ;3 1 D;GREEN+red
+    defb %1101100 ;3 2 E
+    ; defb %1101110 ;3 3  ;same as pen 6
+
+    defb %1110111 ;    F
+
+;-------------------------------------------------------------------------------
+
+    org $ + 0x8000
+
+@test.demo:
+
+    call @enable.burst
+
+@loop:
+    inc a
+    and %1111
+    out (port.border),a
+    jr @loop
+
+@enable.burst:
+    ld hl,(bp.pointer.addr.enable)
+    jp (hl)
+
+;-------------------------------------------------------------------------------
+
+@test.sequencer:
+
     ret
 
 endif
