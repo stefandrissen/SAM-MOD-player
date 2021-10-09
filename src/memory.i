@@ -30,13 +30,13 @@ page.demo:                  equ 0x1f
 
 page.sequencer:             equ 0x1c
 
-    sequencer.init:             equ 32768   ; initialise sequencer routine
-    sequencer.install.mod:      equ 32771   ; install mod by adding "runways"
-    sq.pointer.addr.demo:       equ 32774   ; address of foreground program (>32k)
-    sq.pointer.page.demo:       equ 32776   ; page of foreground program
-    sq.pointer.page.mod:        equ 32777   ; page mod loaded in at (at 32k)
-    sq.octaves:                 equ 32778   ; 3 or 5 octave mode
-    sq.external.ram:            equ 32779
+    sequencer.init:             equ 0x8000  ; initialise sequencer routine
+    sequencer.install.mod:      equ 0x8003  ; install mod by adding "runways"
+    sq.pointer.addr.demo:       equ 0x8006  ; address of foreground program (>32k)
+    sq.pointer.page.demo:       equ 0x8008  ; page of foreground program
+    sq.pointer.page.mod:        equ 0x8009  ; page mod loaded in at (at 32k)
+    sq.octaves:                 equ 0x800a  ; 3 or 5 octave mode
+    sq.external.ram:            equ 0x800b
 
 page.create.burstplayer:    equ 0x19    ; once created -> mode 2 screen
 
@@ -47,11 +47,11 @@ page.mod.megabyte:          equ 0x00
 ; page.burstplayer
 
 burstplayer.create:         equ 0x8000
-burstplayer.device:         equ 32771
-burstplayer.port:           equ 32772
-burstplayer.amiga:          equ 32773
-burstplayer.external.ram:   equ 32774
-burstplayer.page:           equ 32775
+burstplayer.device:         equ 0x8003
+burstplayer.port:           equ 0x8004
+burstplayer.amiga:          equ 0x8005
+burstplayer.external.ram:   equ 0x8006
+burstplayer.page:           equ 0x8007
 
 bp.id:                      equ 53      ; "BUR"
 bp.device:                  equ 105
