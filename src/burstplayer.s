@@ -1100,9 +1100,9 @@ mk.paltabsel:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (hl),( frame.palette + 15 ) \ 256
+    ld (hl),( frame.palette + 15 ) \ 0x100
     inc hl
-    ld (hl),( frame.palette + 15 ) / 256
+    ld (hl),( frame.palette + 15 ) / 0x100
     inc hl
 
     cp 3
@@ -3539,28 +3539,6 @@ if defined( testing )
     ld bc,0x10
     ldir
 
-    ; set sample pointers to 0x8000
-
-    ld hl,(bp.chan1.offs + 0x8000)
-    set 7,h
-    inc hl
-    ld (hl),0x80
-
-    ld hl,(bp.chan2.offs + 0x8000)
-    set 7,h
-    inc hl
-    ld (hl),0x80
-
-    ld hl,(bp.chan3.offs + 0x8000)
-    set 7,h
-    inc hl
-    ld (hl),0x80
-
-    ld hl,(bp.chan4.offs + 0x8000)
-    set 7,h
-    inc hl
-    ld (hl),0x80
-
     ; start
 
     call burstplayer.start
@@ -3571,30 +3549,31 @@ if defined( testing )
 
 ;-------------------------------------------------------------------------------
 @test.palette:
-    defb %0000000 ;    0
+    ;     GRB!grb         pen
+    defb %0000000   ;     0
 
-    defb %0011101 ;3 1 1;BLUE+green
-    defb %1011001 ;3 2 2
-    defb %1011101 ;3 3 3
+    defb %0011101   ; 3 1 1 BLUE + green
+    defb %1011001   ; 3 2 2
+    defb %1011101   ; 3 3 3
 
-    defb %0101110 ;3 1 4;RED+green
-    defb %1101010 ;3 2 5
-    defb %1101110 ;3 3 6
+    defb %0101110   ; 3 1 4 RED + green
+    defb %1101010   ; 3 2 5
+    defb %1101110   ; 3 3 6
 
-    defb %1001101 ;3 1 7;GREEN+blue
+    defb %1001101   ; 3 1 7 GREEN + blue
 
-    defb %0000000 ;    8;bright background
+    defb %0000000   ;     8 bright background
 
-    defb %1011100 ;3 2 9
-    ; defb %1011101 ;3 3  same as pen 3
+    defb %1011100   ; 3 2 9
+  ; defb %1011101   ; 3 3   same as pen 3
 
-    defb %0101011 ;3 1 A;RED+blue
-    defb %0111010 ;3 2 B
-    defb %0111011 ;3 3 C
+    defb %0101011   ; 3 1 A RED + blue
+    defb %0111010   ; 3 2 B
+    defb %0111011   ; 3 3 C
 
-    defb %1001110 ;3 1 D;GREEN+red
-    defb %1101100 ;3 2 E
-    ; defb %1101110 ;3 3  ;same as pen 6
+    defb %1001110   ; 3 1 D GREEN + red
+    defb %1101100   ; 3 2 E
+  ; defb %1101110   ; 3 3   same as pen 6
 
     defb %1110111 ;    F
 
@@ -3619,6 +3598,28 @@ if defined( testing )
 ;-------------------------------------------------------------------------------
 
 @test.sequencer:
+
+    ; set sample pointers to 0x8000
+
+    ld hl,(bp.chan1.offs)
+    ld (hl),0x00
+    inc hl
+    ld (hl),0x80
+
+    ld hl,(bp.chan2.offs)
+    ld (hl),0x00
+    inc hl
+    ld (hl),0x80
+
+    ld hl,(bp.chan3.offs)
+    ld (hl),0x00
+    inc hl
+    ld (hl),0x80
+
+    ld hl,(bp.chan4.offs)
+    ld (hl),0x00
+    inc hl
+    ld (hl),0x80
 
     ret
 
