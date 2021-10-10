@@ -108,32 +108,33 @@ seq.setup:
     org  $ + 0x8000  ; abcD
 
 demo.palette:
-    defb %0000000 ;    0
+    ;     GRB!grb         pen
+    defb %0000000   ;     0
 
-    defb %0011101 ;3 1 1;BLUE+green
-    defb %1011001 ;3 2 2
-    defb %1011101 ;3 3 3
+    defb %0011101   ; 3 1 1 BLUE + green
+    defb %1011001   ; 3 2 2
+    defb %1011101   ; 3 3 3
 
-    defb %0101110 ;3 1 4;RED+green
-    defb %1101010 ;3 2 5
-    defb %1101110 ;3 3 6
+    defb %0101110   ; 3 1 4 RED + green
+    defb %1101010   ; 3 2 5
+    defb %1101110   ; 3 3 6
 
-    defb %1001101 ;3 1 7;GREEN+blue
+    defb %1001101   ; 3 1 7 GREEN + blue
 
-    defb %0000000 ;    8;bright background
+    defb %0000000   ;     8 bright background
 
-    defb %1011100 ;3 2 9
-    ; defb %1011101 ;3 3  same as pen 3
+    defb %1011100   ; 3 2 9
+  ; defb %1011101   ; 3 3   same as pen 3
 
-    defb %0101011 ;3 1 A;RED+blue
-    defb %0111010 ;3 2 B
-    defb %0111011 ;3 3 C
+    defb %0101011   ; 3 1 A RED + blue
+    defb %0111010   ; 3 2 B
+    defb %0111011   ; 3 3 C
 
-    defb %1001110 ;3 1 D;GREEN+red
-    defb %1101100 ;3 2 E
-    ; defb %1101110 ;3 3  ;same as pen 6
+    defb %1001110   ; 3 1 D GREEN + red
+    defb %1101100   ; 3 2 E
+  ; defb %1101110   ; 3 3   same as pen 6
 
-    defb %1110111 ;    F
+    defb %1110111   ;     F
 
 demo.palette.two:
     defw 0,0,0,0,0,0,0,0
