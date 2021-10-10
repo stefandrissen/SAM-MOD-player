@@ -3457,170 +3457,226 @@ sound.driver.reset:
 
 length: equ  mk.movecode - 0x8000 + sound.driver.reset
 
+;===============================================================================
+
 if defined( testing )
 
-;   testing will test burstplayer only with dummy sequencer and demo
+    ; testing will test burstplayer only with dummy sequencer and demo
 
-    include "ports/keyboard.i"
+    ;-------------------------------------------------------------------------------
 
-;===============================================================================
+    @test.device:       equ device.samdac.1
+    @test.external.ram: equ 1
 
-; rasterline = 384 T-states / 4 = 96 * 1.5 = 144
-; bytes per frame = 10400 Hz / 50 = 208
-; 192 screen lines
-; 120 border lines (68 top, 52 bottom)
-; 312 total lines / 208 = 1.5
+        include "ports/keyboard.i"
 
-;===============================================================================
+    ; rasterline = 384 T-states / 4 = 96 * 1.5 = 144
+    ; bytes per frame = 10400 Hz / 50 = 208
+    ; 192 screen lines
+    ; 120 border lines (68 top, 52 bottom)
+    ; 312 total lines / 208 = 1.5
 
-    autoexec
+        autoexec
 
-    org $ + mk.movecode
+        org $ + mk.movecode
 
-    print $                 ; set breakpoint at this address if needed
+        print $                 ; set breakpoint at this address if needed
 
-;-------------------------------------------------------------------------------
+    ;-------------------------------------------------------------------------------
 
-    ld a,device.samdac.1
-    ld (burstplayer.device),a
+        ld a,@test.device
+        ld (burstplayer.device),a
 
-    ld a,1
-    ld (burstplayer.external.ram),a
+        ld a,@test.external.ram
+        ld (burstplayer.external.ram),a
 
-    call burstplayer.create
+        call burstplayer.create
 
-    in a,(port.hmpr)
-    and high.memory.page.mask
-    or low.memory.ram.0
-    out (port.lmpr),a
+        in a,(port.hmpr)
+        and high.memory.page.mask
+        or low.memory.ram.0
+        out (port.lmpr),a
 
-    jp @test.low
+        jp @test.low
 
-;-------------------------------------------------------------------------------
+    ;-------------------------------------------------------------------------------
 
-    org $ - 0x8000
+        org $ - 0x8000
 
-@test.low:
+    @test.low:
 
-    in a,(port.hmpr)
-    ld c,a
+        ld a,page.burstplayer
+        out (port.hmpr),a
 
-    ld a,page.burstplayer
-    out (port.hmpr),a
+        call @test.set.sequencer
+        call @test.set.demo
+        call @test.set.palette
 
-    ; set sequencer
+        call @test.create.sample
 
-    ld hl,(bp.pointer.page.sequencer + 0x8000)
-    set 7,h
-    ld (hl),c
+        call burstplayer.start
 
-    ld hl,(bp.pointer.addr.sequencer + 0x8000)
-    set 7,h
-    ld (hl),@test.sequencer \ 256
-    inc hl
-    ld (hl),@test.sequencer / 256
+        halt
 
-    ; set demo
+        ret
 
-    ld hl,(bp.pointer.page.demo + 0x8000)
-    set 7,h
-    ld (hl),c
+    ;-------------------------------------------------------------------------------
+    @test.set.sequencer:
 
-    ld hl,(bp.pointer.addr.demo + 0x8000)
-    set 7,h
-    ld (hl),@test.demo \ 256
-    inc hl
-    ld (hl),@test.demo / 256
+        in a,(port.lmpr)
+        and low.memory.page.mask
 
-    ld hl,frame.palette
-    set 7,h
-    ex de,hl
-    ld hl,@test.palette
-    ld bc,0x10
-    ldir
+        ld hl,(bp.pointer.page.sequencer + 0x8000)
+        set 7,h
+        ld (hl),a
 
-    ; start
+        ld hl,(bp.pointer.addr.sequencer + 0x8000)
+        set 7,h
+        ld (hl),@test.sequencer \ 256
+        inc hl
+        ld (hl),@test.sequencer / 256
 
-    call burstplayer.start
+        ret
 
-    halt
+    ;-------------------------------------------------------------------------------
+    @test.set.demo:
 
-    ret
+        in a,(port.lmpr)
+        and low.memory.page.mask
 
-;-------------------------------------------------------------------------------
-@test.palette:
-    ;     GRB!grb         pen
-    defb %0000000   ;     0
+        ld hl,(bp.pointer.page.demo + 0x8000)
+        set 7,h
+        ld (hl),a
 
-    defb %0011101   ; 3 1 1 BLUE + green
-    defb %1011001   ; 3 2 2
-    defb %1011101   ; 3 3 3
+        ld hl,(bp.pointer.addr.demo + 0x8000)
+        set 7,h
+        ld (hl),@test.demo \ 256
+        inc hl
+        ld (hl),@test.demo / 256
 
-    defb %0101110   ; 3 1 4 RED + green
-    defb %1101010   ; 3 2 5
-    defb %1101110   ; 3 3 6
+        ret
 
-    defb %1001101   ; 3 1 7 GREEN + blue
+    ;-------------------------------------------------------------------------------
+    @test.set.palette:
 
-    defb %0000000   ;     8 bright background
+        ld hl,@test.palette
+        ld de,frame.palette + 0x8000
+        ld bc,0x10
+        ldir
 
-    defb %1011100   ; 3 2 9
-  ; defb %1011101   ; 3 3   same as pen 3
+        ret
 
-    defb %0101011   ; 3 1 A RED + blue
-    defb %0111010   ; 3 2 B
-    defb %0111011   ; 3 3 C
+    @test.palette:
+        ;     GRB!grb         pen
+        defb %0000000   ;     0
 
-    defb %1001110   ; 3 1 D GREEN + red
-    defb %1101100   ; 3 2 E
-  ; defb %1101110   ; 3 3   same as pen 6
+        defb %0011101   ; 3 1 1 BLUE  + green
+        defb %1011001   ; 3 2 2
+        defb %1011101   ; 3 3 3
 
-    defb %1110111 ;    F
+        defb %0101110   ; 3 1 4 RED   + green
+        defb %1101010   ; 3 2 5
+        defb %1101110   ; 3 3 6
 
-;-------------------------------------------------------------------------------
+        defb %1001101   ; 3 1 7 GREEN + blue
 
-    org $ + 0x8000
+        defb %0000000   ;     8 bright background
 
-@test.demo:
+        defb %1011100   ; 3 2 9
+      ; defb %1011101   ; 3 3   same as pen 3
 
-    call @enable.burst
+        defb %0101011   ; 3 1 A RED   + blue
+        defb %0111010   ; 3 2 B
+        defb %0111011   ; 3 3 C
 
-@loop:
-    inc a
-    and %1111
-    out (port.border),a
-    jr @loop
+        defb %1001110   ; 3 1 D GREEN + red
+        defb %1101100   ; 3 2 E
+      ; defb %1101110   ; 3 3   same as pen 6
 
-@enable.burst:
-    ld hl,(bp.pointer.addr.enable)
-    jp (hl)
+        defb %1110111 ;    F
 
-;-------------------------------------------------------------------------------
+    ;-------------------------------------------------------------------------------
+    @test.create.sample:
 
-@test.sequencer:
+        in a,(port.hmpr)
+        push af
 
-    ; set sample pointers to 0x8000
+        ld a,@test.external.ram
+        or a
+        ld a,0
+        jr z,@no.external.ram
 
-    ld hl,(bp.chan1.offs)
-    ld (hl),0x00
-    inc hl
-    ld (hl),0x80
+        out (port.xmpr.c),a
+        ld a,high.memory.external
 
-    ld hl,(bp.chan2.offs)
-    ld (hl),0x00
-    inc hl
-    ld (hl),0x80
+    @no.external.ram:
+        out (port.hmpr),a
 
-    ld hl,(bp.chan3.offs)
-    ld (hl),0x00
-    inc hl
-    ld (hl),0x80
+        ld hl,0x8000
+        ld b,208 / 2
+    @loop:
+        ld (hl),-0x80   ; 8 bit signed integer -> -128
+        inc l
+        ld (hl),+0x7f   ; 8 bit signed integer ->  127
+        inc l
+        djnz @-loop
 
-    ld hl,(bp.chan4.offs)
-    ld (hl),0x00
-    inc hl
-    ld (hl),0x80
+        pop af
+        out (port.hmpr),a
 
-    ret
+        ret
+
+    ;-------------------------------------------------------------------------------
+
+        org $ + 0x8000
+
+    @test.demo:
+
+        call @enable.burst
+
+    @loop:
+        inc a
+        and %1111
+        out (port.border),a
+        jr @loop
+
+    @enable.burst:
+        ld hl,(bp.pointer.addr.enable)
+        jp (hl)
+
+    ;-------------------------------------------------------------------------------
+    @test.sequencer:
+
+        ; set sample pointers to 0x8000
+
+        ld hl,(bp.chan1.offs)
+        ld (hl),0x00
+        inc hl
+        ld (hl),0x80
+
+        ld hl,(bp.chan1.speedhi)
+        ld (hl),0x01                ; increase sample pointer by one byte
+
+        ld hl,(bp.chan1.vol)
+        ld (hl),0x3f                ; [0x00-0x3f]
+
+        ld hl,(bp.chan2.offs)
+        ld (hl),0x00
+        inc hl
+        ld (hl),0x80
+
+        ld hl,(bp.chan3.offs)
+        ld (hl),0x00
+        inc hl
+        ld (hl),0x80
+
+        ld hl,(bp.chan4.offs)
+        ld (hl),0x00
+        inc hl
+        ld (hl),0x80
+
+        ret
 
 endif
+
+;===============================================================================
