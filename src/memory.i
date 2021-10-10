@@ -74,7 +74,7 @@ var:                    equ 256
 mod.current.row:        equ var + 0     ; 16 bytes of current row being played
 frame.palette:          equ var + 16    ; 16 byte palette set at start frame
 frame.screen:           equ var + 32    ; screen page (+mode) set at start of frame, 0 = no change
-int.routine:            equ var + 33    ; address (>32k) or interrupt routine
+int.routine:            equ var + 33    ; address (>32K) or interrupt routine
 int.rtn.pag:            equ var + 35    ; -1 = no interrupt else page
 
 c1.on:                  equ var + 36    ; channel 1 on/off
@@ -97,17 +97,18 @@ exit.burst:             equ var + 52    ; stop burstplayer and exit
 disable.pos:            equ var + 54    ; disable "B" command (jump) + looping
 mstatus:                equ var + 55    ; 0=playing, 1=stopped
 
-@var.size:              equ 128
+@var.size:              equ 0x80
 
 ldir.far.buffer:        equ var + @var.size                     ; used by ldir.from.far / ldir.to.far, can be used for other purposes if not used
 far.ldir.buffer:        equ ldir.far.buffer                     ; bp2
-@ldir.far.size:         equ 128
+@ldir.far.size:         equ 0x80
 
-volume.table:           equ ldir.far.buffer + @ldir.far.size    ; 32 volume tables * 256 bytes = 8k
-@volume.table.size:     equ 32 * 256
+volume.table:           equ ldir.far.buffer + @ldir.far.size    ; 32 volume tables * 256 bytes = 8K
+assert volume.table == 0x200
+@volume.table.size:     equ 0x20 * 0x100
 
-pitch.table:            equ volume.table + @volume.table.size   ; 1024 pitches * 2 bytes = 2k
-@pitch.table.size:      equ 2 * 1024
+pitch.table:            equ volume.table + @volume.table.size   ; 1024 pitches * 2 bytes = 2K
+@pitch.table.size:      equ 2 * 0x400
 
 get.pattern:            equ pitch.table + @pitch.table.size     ; copies AHL -> mod.current.row, 16 bytes
 @get.pattern.size:      equ 49
@@ -122,16 +123,14 @@ ldir.to.far:            equ ldir.from.far + @ldir.from.far.size ; copy buffer to
 @ldir.to.far.size:      equ 27
 
 ; these do not need to be 256 aligned since all outs should be outi
-; play tables ( 208 * 2 * 2) if QSS -> 208 * 4 * 2
+; bp.audio_buffer ( 208 * 2 * 2) if QSS -> 208 * 4 * 2
 
-playtab1:               equ ldir.to.far + @ldir.to.far.size         ; 2 * 208
-
-; must be aligned at 0x100 boundary for relocate
-bp.audio_buffer.1:      equ 0x7800  ; !!! may need to optimize
-bp.audio_buffer.2:      equ 0x7c00  ; !!! may need to optimize
 bp.audio_buffer.bytes:  equ 208     ; 312 lines per frame / 1.5 lines per sample = 208 bytes per frame
+bp.audio_buffer.1:      equ ldir.to.far + @ldir.to.far.size         ; 2 * 208
+bp.audio_buffer.2:      equ bp.audio_buffer.1 + ( bp.audio_buffer.bytes * 2 )
+bp.audio_buffer.2.qss:  equ bp.audio_buffer.1 + ( bp.audio_buffer.bytes * 4 )
 
-burstplayer.start:  equ 0x8000
+burstplayer.start:      equ 0x8000
 
 video.memory.high:              equ 0x8000
 video.memory.high.attributes:   equ video.memory.high + 0x2000

@@ -118,13 +118,13 @@ maker:
     ld (hl),l
     ldir
 
-    ld hl,playtab1 + ( 2 * 208 )
-    ld bc,2 * 208
+    ld hl,bp.audio_buffer.2
+    ld bc,2 * bp.audio_buffer.bytes
     ld a,(burstplayer.device)
-    cp device.quazar            ; if QSS -> playtab2 higher
+    cp device.quazar            ; if QSS -> bp.audio_buffer.2 higher
     jr nz,not.qss.pt
     add hl,bc
-    ld bc,4 * 208
+    ld bc,4 * bp.audio_buffer.bytes
 not.qss.pt:
     ex af,af'
     ld (qs.playtab2+1),hl
@@ -333,9 +333,9 @@ sound.driver.reset.length:
     ld bc,0
     ld a,b
     or c
-    jr z,@ro.no.silence
+    jr z,@no.silence
     ldir
-@ro.no.silence:
+@no.silence:
     ex de,hl
     ld (hl),opcode.ret
     inc hl
@@ -491,9 +491,9 @@ output.bits:
 
     ld (hl),opcode.ld_de_nn
     inc hl
-    ld (hl),mod.current.row \ 256
+    ld (hl),mod.current.row \ 0x100
     inc hl
-    ld (hl),mod.current.row / 256
+    ld (hl),mod.current.row / 0x100
     inc hl
 
     ld b,15
@@ -612,9 +612,9 @@ far.call.size:  equ 19
 
     ld (hl),opcode.ld_de_nn
     inc hl
-    ld (hl),ldir.far.buffer \ 256
+    ld (hl),ldir.far.buffer \ 0x100
     inc hl
-    ld (hl),ldir.far.buffer / 256
+    ld (hl),ldir.far.buffer / 0x100
     inc hl
 
     ld (hl),opcode.ld_b_n
@@ -673,9 +673,9 @@ ldir.from.far.size: equ 19
 
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (hl),ldir.far.buffer \ 256
+    ld (hl),ldir.far.buffer \ 0x100
     inc hl
-    ld (hl),ldir.far.buffer / 256
+    ld (hl),ldir.far.buffer / 0x100
     inc hl
 
     ld (hl),opcode.ld_b_n
@@ -710,12 +710,12 @@ ldir.to.far.size:   equ 19
 
 ;---------------------------------------------------------------
 
-; play tables (208*2*2)    if QSS -> 208*4*2
+; audio buffers ( 208 * 2  * 2 ), if QSS -> 208 * 4 * 2
 
 ;---------------------------------------------------------------
 ; interrupt function
 no.function:
-    ld de,0           ; after playtab2 (QSS or not)
+    ld de,0           ; after bp.audio_buffer.2
 mk.sto2:
     ld hl,0
     ld (hl),e
@@ -1157,9 +1157,9 @@ mk.paltabsel:
     sub 4
     ld (hl),opcode.ld_a_nn
     inc hl
-    ld (hl),frame.screen \ 256
+    ld (hl),frame.screen \ 0x100
     inc hl
-    ld (hl),frame.screen / 256
+    ld (hl),frame.screen / 0x100
     inc hl
 
     cp 1+3
@@ -1465,7 +1465,7 @@ qs.playtab2:
     ld de,0
     ld (hl),e
     inc hl
-    ld (hl),d           ; ld de,playtab2
+    ld (hl),d           ; ld de,bp.audio_buffer.2
     inc hl
 
     cp 3
@@ -1709,9 +1709,9 @@ mk.rec32:
     sub 3
     ld (hl),opcode.ld_de_nn
     inc hl
-    ld (hl),playtab1 \ 256
+    ld (hl),bp.audio_buffer.1 \ 0x100
     inc hl
-    ld (hl),playtab1 / 256
+    ld (hl),bp.audio_buffer.1 / 0x100
     inc hl
 
     cp 3
@@ -1758,7 +1758,7 @@ mk.rec2:
     inc hl
     ld (hl),opcode.ld_nn_de
     inc hl
-    ld (mk.sto23+1),hl ;ld (playtabselect+1),de
+    ld (mk.sto23+1),hl  ; ld (bp.select.audio_buffer + 1),de
     inc hl
     inc hl
 
@@ -1825,7 +1825,7 @@ ras.start.1:
     inc hl
     ex de,hl
 mk.sto23:
-    ld hl,0            ;playtabselect:
+    ld hl,0            ;bp.select.audio_buffer:
     ld (hl),e
     inc hl
     ld (hl),d
@@ -1947,9 +1947,9 @@ sample.port:
 
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (hl),playtab1 \ 256
+    ld (hl),bp.audio_buffer.1 \ 0x100
     inc hl
-    ld (hl),playtab1 / 256 ;ld hl,playtab1
+    ld (hl),bp.audio_buffer.1 / 0x100
     inc hl
 
     ld (hl),opcode.ld_de_nn
@@ -1981,44 +1981,51 @@ ras.start.2:
 ;---------------------------------------------------------------
 set.silence:
 
-    ld (mk.rec37+1),hl      ; set.silence
+    ld (mk.rec37+1),hl
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (hl),playtab1 \ 256
+    ld (hl),bp.audio_buffer.1 \ 0x100
     inc hl
-    ld (hl),playtab1 / 256 ; ld hl,playtab1
+    ld (hl),bp.audio_buffer.1 / 0x100
     inc hl
+
     ld (hl),opcode.ld_d_h
     inc hl
+
     ld (hl),opcode.ld_e_l
     inc hl
+
     ld (hl),opcode.inc_de
     inc hl
+
     ld (hl),opcode.ld_hl_n
     inc hl
     ld a,(burstplayer.device)
     cp device.saa
     ld a,%10001000      ; saa
     jr z,@is.saa
-    ld a,%10000000      ; others
+    ld a,%10000000      ; others - click due to rest 0x00 being raised to sample rest 0x80
 @is.saa:
     ld (hl),a
     inc hl
+
     ld (hl),opcode.ld_bc_nn
     inc hl
-    ld de,8 * 208 - 1
+    ld de,8 * bp.audio_buffer.bytes - 1
     ld a,(burstplayer.device)
     cp device.quazar
     jr z,$+5
-    ld de,4 * 208 - 1
+    ld de,4 * bp.audio_buffer.bytes - 1
     ld (hl),e
     inc hl
     ld (hl),d         ;ld bc,4*208-1 (8* = QSS)
     inc hl
+
     ld (hl),opcode.ed
     inc hl
     ld (hl),opcode.ldir
     inc hl
+
     ld (hl),opcode.ret
     inc hl
 
@@ -2034,9 +2041,9 @@ set.silence:
     ld (run.program+1),hl
     ld (hl),opcode.call_nn
     inc hl
-    ld (hl),sound.driver.reset \ 256
+    ld (hl),sound.driver.reset \ 0x100
     inc hl
-    ld (hl),sound.driver.reset / 256  ;call reset sound dev
+    ld (hl),sound.driver.reset / 0x100
     inc hl
 
     ld (hl),opcode.call_nn
@@ -2213,7 +2220,7 @@ mp.divskip1:
     inc de
 
     ld a,d
-    cp 1024 / 256
+    cp 0x400 / 0x100
     jr nz,pitch.loop
     ret
 
@@ -2329,14 +2336,15 @@ notborder:
     pop af
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 ; make channel 1 for burstplayer 1
 
-; there are /two/ burstplayers - while one is playing, the other is being filled
+; there are /two/ burstplayers - while one audio_buffer is being output, the
+; other audio_buffer is being filled with new sample data from memory
 
 mk.bp1.chan1:
-    ld de,playtab1 + ( 2 * 208 )
-    ld (mk.playtab),de
+    ld de,bp.audio_buffer.2
+    ld (mk.audio_buffer),de
 
     ld de,(bp.chan1.sp.frct)
     ld (mk.gd.spfr),de
@@ -2352,8 +2360,8 @@ mk.bp1.chan1:
     cp device.quazar
     jp nz,mk.bp.get1st
 
-    ld de,playtab1 + ( 4 * 208 ) + 2  ;left
-    ld (mk.playtab),de
+    ld de,bp.audio_buffer.2.qss + 2 ; left
+    ld (mk.audio_buffer),de
     jp mk.qss.get
 
 ;---------------------------------------------------------------
@@ -2374,16 +2382,16 @@ mk.bp1.chan4:
     cp device.quazar
     jp nz,mk.bp.get2nd
 
-    ld de,playtab1 + 0 + ( 4 * 208 )  ;left
-    ld (mk.playtab),de
+    ld de,bp.audio_buffer.2.qss + 0 ; left
+    ld (mk.audio_buffer),de
     jp mk.qss.get
 
 ;---------------------------------------------------------------
 ;make channel 2 for burstplayer 1
 
 mk.bp1.chan2:
-    ld de,playtab1 + 1 + ( 2 * 208 )   ;playtab2
-    ld (mk.playtab),de
+    ld de,bp.audio_buffer.2 + 1
+    ld (mk.audio_buffer),de
 
     ld de,(bp.chan2.sp.frct)
     ld (mk.gd.spfr),de
@@ -2399,8 +2407,8 @@ mk.bp1.chan2:
     cp device.quazar
     jp nz,mk.bp.get1st
 
-    ld de,playtab1 + 3 + ( 4 * 208 )  ;right
-    ld (mk.playtab),de
+    ld de,bp.audio_buffer.2.qss + 3 ; right
+    ld (mk.audio_buffer),de
     jp mk.qss.get
 
 ;---------------------------------------------------------------
@@ -2421,16 +2429,16 @@ mk.bp1.chan3:
     cp device.quazar
     jp nz,mk.bp.get2nd
 
-    ld de,playtab1 + 1 + ( 4 * 208 )  ;right
-    ld (mk.playtab),de
+    ld de,bp.audio_buffer.2.qss + 1 ; right
+    ld (mk.audio_buffer),de
     jp mk.qss.get
 
 ;---------------------------------------------------------------
 ;make channel 1 for burstplayer 2
 
 mk.bp2.chan1:
-    ld de,playtab1 + 0
-    ld (mk.playtab),de
+    ld de,bp.audio_buffer.1 + 0
+    ld (mk.audio_buffer),de
 
     ld de,(bp.chan1.sp.frct)
     ld (mk.gd.spfr),de
@@ -2446,8 +2454,8 @@ mk.bp2.chan1:
     cp device.quazar
     jp nz,mk.bp.get1st
 
-    ld de,playtab1 + 2  ;left
-    ld (mk.playtab),de
+    ld de,bp.audio_buffer.1 + 2 ; left
+    ld (mk.audio_buffer),de
     jp mk.qss.get
 
 ;---------------------------------------------------------------
@@ -2468,16 +2476,16 @@ mk.bp2.chan4:
     cp device.quazar
     jp nz,mk.bp.get2nd
 
-    ld de,playtab1+0  ;left
-    ld (mk.playtab),de
+    ld de,bp.audio_buffer.1 + 0 ; left
+    ld (mk.audio_buffer),de
     jp mk.qss.get
 
 ;---------------------------------------------------------------
 ;make channel 2 for burstplayer 2
 
 mk.bp2.chan2:
-    ld de,playtab1 + 1
-    ld (mk.playtab),de
+    ld de,bp.audio_buffer.1 + 1
+    ld (mk.audio_buffer),de
 
     ld de,(bp.chan2.sp.frct)
     ld (mk.gd.spfr),de
@@ -2493,8 +2501,8 @@ mk.bp2.chan2:
     cp device.quazar
     jp nz,mk.bp.get1st
 
-    ld de,playtab1 + 3  ;right
-    ld (mk.playtab),de
+    ld de,bp.audio_buffer.1 + 3 ; right
+    ld (mk.audio_buffer),de
     jp mk.qss.get
 
 ;---------------------------------------------------------------
@@ -2515,8 +2523,8 @@ mk.bp2.chan3:
     cp device.quazar
     jp nz,mk.bp.get2nd
 
-    ld de,playtab1+1  ;right
-    ld (mk.playtab),de
+    ld de,bp.audio_buffer.1 + 1 ; right
+    ld (mk.audio_buffer),de
     jp mk.qss.get
 
 ;---------------------------------------------------------------
@@ -2574,7 +2582,7 @@ mk.bp.get1st:
     pop af
     ld iy,mk.store
 
-    ld b,208 / 3                ; 208 bytes per frame, each iteration outputs 3 sample bytes
+    ld b,bp.audio_buffer.bytes / 3  ; each iteration of this loop outputs 3 sample bytes
 @loop1.1:
     cp 2
     call c,insert.xout
@@ -2878,7 +2886,7 @@ mk.bp.get2nd:
     pop af
     ld iy,mk.store
 
-    ld b,208 / 3        ; bytes per frame
+    ld b,bp.audio_buffer.bytes / 3
 blp1.4:
     cp 2
     call c,insert.xout
@@ -2945,14 +2953,14 @@ blp1.4:
     sub 4
     ld (hl),opcode.ld_nn_a
     inc hl
-    ld de,(mk.playtab)
+    ld de,(mk.audio_buffer)
     ld (hl),e
     inc hl
-    ld (hl),d           ; ld (2*x+playtab2),a
+    ld (hl),d
     inc hl
     inc de
     inc de
-    ld (mk.playtab),de
+    ld (mk.audio_buffer),de
 
     cp 1
     call c,insert.xout
@@ -2987,14 +2995,14 @@ blp1.4:
     sub 4
     ld (hl),opcode.ld_nn_a
     inc hl
-    ld de,(mk.playtab)
+    ld de,(mk.audio_buffer)
     ld (hl),e
     inc hl
-    ld (hl),d           ; ld (2*x+playtab2),a
+    ld (hl),d
     inc hl
     inc de
     inc de
-    ld (mk.playtab),de
+    ld (mk.audio_buffer),de
 
     cp 2
     call c,insert.xout
@@ -3029,14 +3037,14 @@ blp1.4:
     sub 4
     ld (hl),opcode.ld_nn_a
     inc hl
-    ld de,(mk.playtab)
+    ld de,(mk.audio_buffer)
     ld (hl),e
     inc hl
-    ld (hl),d         ;ld (2*x+playtab2),a
+    ld (hl),d
     inc hl
     inc de
     inc de
-    ld (mk.playtab),de
+    ld (mk.audio_buffer),de
 
     cp 1
     call c,insert.xout
@@ -3113,14 +3121,14 @@ blp1.4:
     sub 4
     ld (hl),opcode.ld_nn_a
     inc hl
-    ld de,(mk.playtab)
+    ld de,(mk.audio_buffer)
     ld (hl),e
     inc hl
-    ld (hl),d           ; ld (2*x+playtab2),a
+    ld (hl),d
     inc hl
     inc de
     inc de
-    ld (mk.playtab),de
+    ld (mk.audio_buffer),de
 
     jp @update.page.sample
 
@@ -3130,7 +3138,7 @@ blp1.4:
 mk.qss.get:
     pop af
 
-    ld b,208 / 3        ; bytes per frame
+    ld b,bp.audio_buffer.bytes / 3
 q.blp1.4:
     cp 2
     call c,insert.xout
@@ -3181,16 +3189,16 @@ q.blp1.4:
     sub 4
     ld (hl),opcode.ld_nn_a
     inc hl
-    ld de,(mk.playtab)
+    ld de,(mk.audio_buffer)
     ld (hl),e
     inc hl
-    ld (hl),d         ;ld (4*x+playtabx),a
+    ld (hl),d
     inc hl
     inc de
     inc de
     inc de
     inc de
-    ld (mk.playtab),de
+    ld (mk.audio_buffer),de
 
     cp 1
     call c,insert.xout
@@ -3209,16 +3217,16 @@ q.blp1.4:
     sub 4
     ld (hl),opcode.ld_nn_a
     inc hl
-    ld de,(mk.playtab)
+    ld de,(mk.audio_buffer)
     ld (hl),e
     inc hl
-    ld (hl),d         ; ld (4*x+playtabx),a
+    ld (hl),d
     inc hl
     inc de
     inc de
     inc de
     inc de
-    ld (mk.playtab),de
+    ld (mk.audio_buffer),de
 
     cp 2
     call c,insert.xout
@@ -3237,16 +3245,16 @@ q.blp1.4:
     sub 4
     ld (hl),opcode.ld_nn_a
     inc hl
-    ld de,(mk.playtab)
+    ld de,(mk.audio_buffer)
     ld (hl),e
     inc hl
-    ld (hl),d         ; ld (4*x+playtabx),a
+    ld (hl),d
     inc hl
     inc de
     inc de
     inc de
     inc de
-    ld (mk.playtab),de
+    ld (mk.audio_buffer),de
 
     cp 1
     call c,insert.xout
@@ -3307,10 +3315,10 @@ q.blp1.4:
     sub 4
     ld (hl),opcode.ld_nn_a
     inc hl
-    ld de,(mk.playtab)
+    ld de,(mk.audio_buffer)
     ld (hl),e
     inc hl
-    ld (hl),d         ; ld (4*x+playtabx),a
+    ld (hl),d
     inc hl
 
     jp @update.page.sample
@@ -3318,12 +3326,12 @@ q.blp1.4:
 ;---------------------------------------------------------------
 ; memory needed for mk.bp routines
 
-mk.playtab: defw 0
-mk.gd.spfr: defw 0
-mk.gd.page: defw 0
-mk.gd.offs: defw 0
+mk.audio_buffer:    defw 0
+mk.gd.spfr:         defw 0
+mk.gd.page:         defw 0
+mk.gd.offs:         defw 0
 
-mk.store:   defs 208 * 2    ; stores adresses
+mk.store:   defs bp.audio_buffer.bytes * 2    ; stores adresses
 
 ;===============================================================
 list.device.properties:
@@ -3466,7 +3474,7 @@ if defined( testing )
     ;-------------------------------------------------------------------------------
 
     @test.device:       equ device.samdac.1
-    @test.external.ram: equ 1
+    @test.external.ram: equ 0
 
         include "ports/keyboard.i"
 
@@ -3480,7 +3488,10 @@ if defined( testing )
 
         org $ + mk.movecode
 
-        print $                 ; set breakpoint at this address if needed
+        print $                 ; 0x9b10 set breakpoint at this address if needed
+        print "audio buffers:"
+        print bp.audio_buffer.1 ; 0x2a7a
+        print bp.audio_buffer.2 ; 0x2c1a
 
     ;-------------------------------------------------------------------------------
 
@@ -3532,9 +3543,9 @@ if defined( testing )
 
         ld hl,(bp.pointer.addr.sequencer + 0x8000)
         set 7,h
-        ld (hl),@test.sequencer \ 256
+        ld (hl),@test.sequencer \ 0x100
         inc hl
-        ld (hl),@test.sequencer / 256
+        ld (hl),@test.sequencer / 0x100
 
         ret
 
@@ -3550,9 +3561,9 @@ if defined( testing )
 
         ld hl,(bp.pointer.addr.demo + 0x8000)
         set 7,h
-        ld (hl),@test.demo \ 256
+        ld (hl),@test.demo \ 0x100
         inc hl
-        ld (hl),@test.demo / 256
+        ld (hl),@test.demo / 0x100
 
         ret
 
@@ -3613,7 +3624,7 @@ if defined( testing )
         out (port.hmpr),a
 
         ld hl,0x8000
-        ld b,208 / 2
+        ld b,bp.audio_buffer.bytes / 2
     @loop:
         ld (hl),-0x80   ; 8 bit signed integer -> -128
         inc l
@@ -3658,22 +3669,31 @@ if defined( testing )
         ld (hl),0x01                ; increase sample pointer by one byte
 
         ld hl,(bp.chan1.vol)
-        ld (hl),0x3f                ; [0x00-0x3f]
+        ld (hl),volume.table / 0x100 + 0x1f ; [0x00-0x1f]
 
         ld hl,(bp.chan2.offs)
         ld (hl),0x00
         inc hl
         ld (hl),0x80
 
+        ld hl,(bp.chan2.vol)
+        ld (hl),volume.table / 0x100 + 0x00 ; [0x00-0x1f]
+
         ld hl,(bp.chan3.offs)
         ld (hl),0x00
         inc hl
         ld (hl),0x80
 
+        ld hl,(bp.chan3.vol)
+        ld (hl),volume.table / 0x100 + 0x00 ; [0x00-0x1f]
+
         ld hl,(bp.chan4.offs)
         ld (hl),0x00
         inc hl
         ld (hl),0x80
+
+        ld hl,(bp.chan4.vol)
+        ld (hl),volume.table / 0x100 + 0x00 ; [0x00-0x1f]
 
         ret
 
