@@ -246,14 +246,15 @@ interrupt:
 
     ld (hl),opcode.cp_n
     inc hl
+    ld (mk.cp.line.interrupt + 1),hl
     ld (hl),191 - 3             ; 0xbc - second to last line interrupt
     inc hl
 
     ld (hl),opcode.jr_z_n
     inc hl
-    ld (mk.sto1+1),hl           ; jr z,prepare.border.player
-    ld (mk.sto1.1+1),hl
-    ld (mk.recjradd+1),hl
+    ld (mk.sto1 + 1),hl         ; jr z,prepare.border.player
+    ld (mk.sto1.1 + 1),hl
+    ld (mk.recjradd + 1),hl
     inc hl
 
     ld (hl),opcode.add_a_n
@@ -268,7 +269,7 @@ interrupt:
 
     ld (hl),opcode.jp_nn
     inc hl
-    ld (mk.sto2+1),hl           ; jp no.function
+    ld (mk.sto2 + 1),hl           ; jp no.function
     inc hl
     inc hl
 
@@ -282,11 +283,11 @@ if defined (debug)
 endif
     ld a,l
     pop hl
-    ld (mk.stojr188+1),a
+    ld (mk.stojr188 + 1),a
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (mk.recjr191+1),hl
+    ld (mk.recjr191 + 1),hl
     inc hl
 
     ld (hl),opcode.ld_nn_a
@@ -295,21 +296,21 @@ mk.recjradd:
     ld de,0
     ld (hl),e
     inc hl
-    ld (hl),d           ; ld (jr+1),a
+    ld (hl),d                   ; ld (jr+1),a
     inc hl
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (hl),191         ; screen.last.line
+    ld (hl),191                 ; screen.last.line
     inc hl
 
     ld (hl),opcode.ld_nn_a
     inc hl
-    dec de
-    dec de
+mk.cp.line.interrupt:
+    ld de,0
     ld (hl),e
     inc hl
-    ld (hl),d           ; ld (cp191+1),a
+    ld (hl),d                   ; ld (cp191+1),a
     inc hl
 
     ld (hl),opcode.out_n_a
@@ -356,12 +357,12 @@ endif
 mk.recjr191:
     ld hl,0
     ld (hl),e
-    pop hl             ; prepare.border.player:
+    pop hl                      ; prepare.border.player:
 
     ld (hl),opcode.ld_a_n
     inc hl
 mk.stojr188:
-    ld (hl),0           ; ld a,jr188
+    ld (hl),0                   ; ld a,jr188
     inc hl
 
     ld (hl),opcode.ld_nn_a
@@ -369,12 +370,12 @@ mk.stojr188:
     ld de,(mk.recjradd+1)
     ld (hl),e
     inc hl
-    ld (hl),d           ; ld (jradd+1),a
+    ld (hl),d                   ; ld (jradd+1),a
     inc hl
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (hl),191 - 3     ; second to last line interrupt
+    ld (hl),191 - 3             ; second to last line interrupt
     inc hl
 
     dec de
@@ -383,7 +384,7 @@ mk.stojr188:
     inc hl
     ld (hl),e
     inc hl
-    ld (hl),d           ; ld (cp188+1),a
+    ld (hl),d                   ; ld (cp188+1),a
     inc hl
 
     ld (hl),opcode.in_a_n
@@ -1128,9 +1129,9 @@ mk.paltabsel:
 
 @mk.outd:
 
-    cp 5
+    cp 6                        ; asic port -> extra contention (24 t-tstates)
     call c,insert.xout
-    sub 5
+    sub 6
     ld (hl),opcode.ed
     inc hl
     ld (hl),opcode.outd         ; outd (16*)
@@ -1701,7 +1702,7 @@ mk.rec32:
     ld de,0
     ld (hl),e
     inc hl
-    ld (hl),d          ;ld hl,borderplay1
+    ld (hl),d                   ; ld hl,borderplay1
     inc hl
 
     cp 3
@@ -1719,7 +1720,7 @@ mk.rec32:
     sub 3
     ld (hl),opcode.jp_nn
     inc hl
-    ld (mk.sto22+1),hl ;jp player.rejoin
+    ld (mk.sto22+1),hl          ; jp player.rejoin
     inc hl
     inc hl
 
@@ -1728,7 +1729,7 @@ player.rejoin:
 
     ex de,hl
 mk.sto16:
-    ld hl,0            ;player.rejoin:
+    ld hl,0                     ; player.rejoin:
     ld (hl),e
     inc hl
     ld (hl),d
@@ -1748,7 +1749,7 @@ mk.rec2:
     ld de,0
     ld (hl),e
     inc hl
-    ld (hl),d          ;ld (playerselect+1),hl
+    ld (hl),d                   ; ld (playerselect+1),hl
     inc hl
 
     cp 6
@@ -1758,7 +1759,7 @@ mk.rec2:
     inc hl
     ld (hl),opcode.ld_nn_de
     inc hl
-    ld (mk.sto23+1),hl  ; ld (bp.select.audio_buffer + 1),de
+    ld (mk.sto23+1),hl          ; ld (bp.select.audio_buffer + 1),de
     inc hl
     inc hl
 
@@ -1832,6 +1833,7 @@ mk.sto23:
     ex de,hl           ;ld hl,00000
     inc hl
     inc hl
+
     ld (hl),opcode.exx
     inc hl
 
@@ -1846,20 +1848,26 @@ mk.sto23:
 
     ld (hl),opcode.xor_a
     inc hl
+
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.clut
     inc hl
+
     ld (hl),opcode.ix
     inc hl
     ld (hl),opcode.pop_ix
     inc hl
+
     ld (hl),opcode.pop_hl
     inc hl
+
     ld (hl),opcode.pop_de
     inc hl
+
     ld (hl),opcode.pop_bc
     inc hl
+
     ld (hl),opcode.ld_a_n
     inc hl
     ex de,hl
@@ -1870,12 +1878,15 @@ mk.sto3:
     ld (hl),d
     ex de,hl           ;ld a,0
     inc hl
+
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.hmpr
     inc hl
+
     ld (hl),opcode.pop_af
     inc hl
+
     ld (hl),opcode.ret
     inc hl
 
@@ -1896,7 +1907,7 @@ enable:
 
     ld (hl),opcode.jr_nz_n
     inc hl
-    ld (hl),-6         ;jr nz,$-4
+    ld (hl),-6              ; jr nz,$-4
     inc hl
 
     ld (hl),opcode.in_a_n
@@ -1911,7 +1922,36 @@ enable:
 
     ld (hl),opcode.jr_z_n
     inc hl
-    ld (hl),-6         ;jr z,$-4
+    ld (hl),-6              ; jr z,$-4
+    inc hl
+
+    ; reset check on line interrupt line
+
+    ld (hl),opcode.ld_a_n
+    inc hl
+    ld (hl),191 - 3
+    inc hl
+
+    ld (hl),opcode.ld_nn_a
+    inc hl
+    ld de,(mk.cp.line.interrupt + 1)
+    ld (hl),e
+    inc hl
+    ld (hl),d
+    inc hl
+
+    ld (hl),opcode.ld_a_n
+    inc hl
+    ld a,(mk.stojr188 + 1)
+    ld (hl),a
+    inc hl
+
+    ld (hl),opcode.ld_nn_a
+    inc hl
+    ld de,(mk.recjradd + 1)
+    ld (hl),e
+    inc hl
+    ld (hl),d
     inc hl
 
     ld (hl),opcode.ld_hl_nn
@@ -1919,7 +1959,7 @@ enable:
     ld de,(mk.rec32+1)
     ld (hl),e
     inc hl
-    ld (hl),d          ;ld hl,borderplay1
+    ld (hl),d               ; ld hl,borderplay1
     inc hl
 
     ld (hl),opcode.ld_nn_hl
@@ -1927,7 +1967,7 @@ enable:
     ld de,(mk.rec2+1)
     ld (hl),e
     inc hl
-    ld (hl),d           ; ld (playerselect+1),hl
+    ld (hl),d               ; ld (playerselect+1),hl
     inc hl
 
     ld (hl),opcode.ex_af_af
@@ -1958,23 +1998,29 @@ sample.ctrl:
     ld de,1
     ld (hl),e
     inc hl
-    ld (hl),d           ; ld de,sample.ctrl
+    ld (hl),d                   ; ld de,sample.ctrl
     inc hl
+
     ld (hl),opcode.ld_a_n
     inc hl
 ras.start.2:
-    ld (hl),0           ; ld a,ras.start
+    ld (hl),0                   ; ld a,ras.start
     inc hl
+
     ld (hl),opcode.out_n_a
     inc hl
     ld (hl),port.line_interrupt
     inc hl
+
     ld (hl),opcode.exx
     inc hl
+
     ld (hl),opcode.ex_af_af
     inc hl
+
     ld (hl),opcode.ei
     inc hl
+
     ld (hl),opcode.ret
     inc hl
 
