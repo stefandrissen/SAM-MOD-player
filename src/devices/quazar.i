@@ -8,9 +8,8 @@ properties.quazar:
     defw @out ,@out.len
     defw 0x06d0
     defw 0x0006                 ; +1 for OUTI
-    defw @timing.contended
-    defw @timing.uncontended
-    defb 16 * 3 + 2
+    defw @timing.ram
+    defw @timing.megabyte
     defb 8                      ; bits per channel
 
 ;-------------------------------------------------------------------------------
@@ -45,7 +44,7 @@ properties.quazar:
 
 ;-------------------------------------------------------------------------------
 
-@timing.contended:
+@timing.ram:
 
     defb  32,121,121,121,121,121,121,121,121,121  ; 1
     defb 121,121,121,121,121,121,121,121,121,121  ; 2
@@ -63,7 +62,7 @@ properties.quazar:
 
 ;-------------------------------------------------------------------------------
 
-@timing.uncontended:
+@timing.megabyte:   !!! probably incorrect
 
     defb  32,121,121,121,121,121,121,121,121,121  ; 1
     defb 121,121,121,121,121,121,121,121,121,121  ; 2

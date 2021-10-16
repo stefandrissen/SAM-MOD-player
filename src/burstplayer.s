@@ -80,10 +80,10 @@ burstplayer.page:           defb page.burstplayer
     ; ei
     ret
 
-if defined (debug)
+if defined( debug )
 
     ;---------------------------------------------------------------
-    debug.assert.hl_7_bit_positive:    ; ensure jr does not overflow
+    @debug.assert.hl_7_bit_positive:    ; ensure jr does not overflow
     ;---------------------------------------------------------------
 
         push af
@@ -112,8 +112,8 @@ maker:
     xor a
     ld (@counter+1),a
 
-    ld hl,0
-    ld de,1
+    ld hl,0x0000
+    ld de,0x0001
     ld bc,0x7fff
     ld (hl),l
     ldir
@@ -198,12 +198,16 @@ not.qss.pt:
 
 @megabyte:
 
-    ld (mk.timing+2),de     ; pointing to either timing.contended or timing.uncontended
-
+    ld (mk.timing+2),de     ; pointing to either timing.internal or timing.megabyte
     ex de,hl
+
+    call @get.lines.border.player   ; in: hl, out: a
+    ld (@first.line.interrupt.1 + 1),a
+    ld (@first.line.interrupt.2 + 1),a
+
     ld bc,129
     add hl,bc
-    ld a,(hl)               ; line interrupt timing byte
+    ld a,(hl)               ; timing from line interrupt to 1.5 line later
     ld (no.func.wait+1),a
 
     sub 15  ;+1 for jr being done
@@ -214,11 +218,6 @@ not.qss.pt:
     ld (no.func.wait2+1),a
 
     ex de,hl
-
-    ld a,(hl)
-    inc hl
-    ld (ras.start.1+1),a
-    ld (ras.start.2+1),a
 
     ld a,(hl)
     ld (output.bits+1),a
@@ -278,8 +277,8 @@ mk.sto1.1:
     push hl
     scf
     sbc hl,de
-if defined (debug)
-    call debug.assert.hl_7_bit_positive
+if defined( debug )
+    call @debug.assert.hl_7_bit_positive
 endif
     ld a,l
     pop hl
@@ -349,8 +348,8 @@ mk.sto1:
     push hl
     scf
     sbc hl,de
-if defined (debug)
-    call debug.assert.hl_7_bit_positive
+if defined( debug )
+    call @debug.assert.hl_7_bit_positive
 endif
     ex de,hl
     ld (hl),e
@@ -869,8 +868,9 @@ mk.sto24:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.chan1.offs),hl  ; c1.offset:
+    ld (bp.chan1.offs),hl
     inc hl
+    ld (hl),0x80            ; read from xmem if not yet set
     inc hl
 
     call select.page
@@ -989,8 +989,9 @@ mk.sto25:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.chan4.offs),hl  ; c4.off:
+    ld (bp.chan4.offs),hl
     inc hl
+    ld (hl),0x80            ; read from xmem if not yet set
     inc hl
 
     call select.page
@@ -1254,8 +1255,9 @@ mk.sto26:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.chan2.offs),hl  ; c2.off:
+    ld (bp.chan2.offs),hl
     inc hl
+    ld (hl),0x80            ; read from xmem if not yet set
     inc hl
 
     call select.page
@@ -1374,8 +1376,9 @@ mk.sto27:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.chan3.offs),hl  ; c3.off:
+    ld (bp.chan3.offs),hl
     inc hl
+    ld (hl),0x80            ; read from xmem if not yet set
     inc hl
 
     call select.page
@@ -1800,8 +1803,8 @@ mk.sto4:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-ras.start.1:
-    ld (hl),0          ;ld a,ras.start
+@first.line.interrupt.1:
+    ld (hl),0
     inc hl
 
     cp 4
@@ -2003,8 +2006,8 @@ sample.ctrl:
 
     ld (hl),opcode.ld_a_n
     inc hl
-ras.start.2:
-    ld (hl),0                   ; ld a,ras.start
+@first.line.interrupt.2:
+    ld (hl),0
     inc hl
 
     ld (hl),opcode.out_n_a
@@ -2187,6 +2190,64 @@ select.page:
     pop af
 
     ret
+
+;-------------------------------------------------------------------------------
+@get.lines.border.player:
+;
+; input:  hl = device timing table
+; output: a  = line first interrupt
+;
+; calculate number of lines that border player needs to determine on which line
+; first line interrupt should occur:
+; = ( 191.5 + timing bytes * 1.5 ) modulo 312
+;       |                     |            |
+;       |                     |            +-- lines per frame
+;       |                     +--------------- 1.5 lines to next output
+;       +------------------------------------- 1st output based on timing
+
+
+    push hl
+    push bc
+
+    ld c,-1
+@loop:
+    inc c
+    ld a,(hl)
+    inc hl
+    or a
+    jr nz,@-loop
+
+    ld b,0
+    ld l,c              ; l = timing bytes
+    ld h,b
+    add hl,hl
+    add hl,bc           ; hl = 3 * timing bytes
+    ld bc,191.5 * 2
+    add hl,bc           ; hl = 191.5 * 2 + 3 * timing bytes
+
+    srl h
+    rr l                ; hl = 191.5 + timing bytes * 1.5
+
+    ld bc,311
+    or a
+    sbc hl,bc
+
+    if defined( debug )
+
+        ld a,h
+        or a            ; assert 8 bit result
+    @error:
+        jr nz,@error
+
+    endif
+
+    ld a,l
+
+
+    pop bc
+    pop hl
+
+    ret;
 
 ;---------------------------------------------------------------
 

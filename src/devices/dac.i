@@ -1,4 +1,6 @@
 ; dac on printer port 1 or 2
+;
+; timing also used by blue alpha
 
 ;-------------------------------------------------------------------------------
 
@@ -12,9 +14,8 @@ properties.dac.1:
     defw out.dac,out.dac.len
     defw port.printer_1.data
     defw 0
-    defw timing.dac.contended
-    defw timing.dac.uncontended
-    defb 17 * 3 + 2
+    defw timing.dac.ram
+    defw timing.dac.megabyte
     defb 6                      ; bits per channel
 
 properties.dac.2:
@@ -23,9 +24,8 @@ properties.dac.2:
     defw out.dac,out.dac.len
     defw port.printer_2.data
     defw 0
-    defw timing.dac.contended
-    defw timing.dac.uncontended
-    defb 17 * 3 + 2
+    defw timing.dac.ram
+    defw timing.dac.megabyte
     defb 6                      ; bits per channel
 
 ;-------------------------------------------------------------------------------
@@ -44,7 +44,7 @@ out.dac:
 
 ;-------------------------------------------------------------------------------
 
-timing.dac.contended:
+timing.dac.ram:
 
     defb  40,129,129,129,129,129,129,129    ;   0
     defb 129,129,129,129,129,129,129,129    ;   8
@@ -65,11 +65,11 @@ timing.dac.contended:
 
     defb 93
 
-    assert $ - timing.dac.contended == 130
+    assert $ - timing.dac.ram == 130
 
 ;-------------------------------------------------------------------------------
 
-timing.dac.uncontended:
+timing.dac.megabyte:    ; !!! incorrect
 
     defb  40,129,129,129,129,129,129,129    ;   0
     defb 129,129,129,129,129,129,129,129    ;   8
@@ -90,6 +90,6 @@ timing.dac.uncontended:
 
     defb 93
 
-    assert $ - timing.dac.uncontended == 130
+    assert $ - timing.dac.megabyte == 130
 
 ;-------------------------------------------------------------------------------

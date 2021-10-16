@@ -9,9 +9,8 @@ properties.clut:
     defw port.clut              ; bc - output port
     defb 0x34                   ; e - control
     defb 0x17                   ; d - control
-    defw @timing.contended      ; timing table internal RAM
-    defw @timing.uncontended    ; timing table external RAM (megabyte)
-    defb 22 * 3 + 2             ; raster interrupts - related to count to 0 in @timing
+    defw @timing.ram            ; timing table internal RAM
+    defw @timing.megabyte       ; timing table external RAM (megabyte)
     defb 6                      ; bits per channel
 
 ;-------------------------------------------------------------------------------
@@ -30,7 +29,7 @@ properties.clut:
 
 ;-------------------------------------------------------------------------------
 
-@timing.contended:
+@timing.ram:
 
     defb  33,121,121,121,121,121,121,121    ;   0
     defb 121,121,121,121,121,121,121,121    ;   8
@@ -52,11 +51,11 @@ properties.clut:
 
     defb 83
 
-    assert $ - @timing.contended == 130
+    assert $ - @timing.ram == 130
 
 ;-------------------------------------------------------------------------------
 
-@timing.uncontended:
+@timing.megabyte:   ; !!! incorrect
 
     defb  34,121,121,121,121,121,121,121    ;   0
     defb 121,121,121,121,121,121,121,121    ;   8
@@ -78,7 +77,7 @@ properties.clut:
 
     defb 83
 
-    assert $ - @timing.uncontended == 130
+    assert $ - @timing.megabyte == 130
 
 ;-------------------------------------------------------------------------------
 

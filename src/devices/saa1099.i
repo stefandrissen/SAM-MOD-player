@@ -1,4 +1,4 @@
-; internal philips saa1099
+; internal philips saa1099 sound chip
 
 ;-------------------------------------------------------------------------------
 
@@ -13,9 +13,8 @@ properties.saa1099:
     defw port.sound.address
     defb saa.register.amplitude_5
     defb saa.register.amplitude_2
-    defw @timing.contended
-    defw @timing.uncontended
-    defb 23 * 3 + 2
+    defw @timing.ram
+    defw @timing.megabyte
     defb 3                          ; bits per channel
 
 ;-------------------------------------------------------------------------------
@@ -96,7 +95,7 @@ endif
 
 ;-------------------------------------------------------------------------------
 
-@timing.contended:
+@timing.ram:
 
     defb  28,119,119,119,119,119,119,119    ;   0
     defb 119,119,119,119,119,119,119,119    ;   8
@@ -118,11 +117,11 @@ endif
 
     defb 78 ; delay for line interrupt
 
-    assert $ - @timing.contended == 130
+    assert $ - @timing.ram == 130
 
 ;-------------------------------------------------------------------------------
 
-@timing.uncontended:
+@timing.megabyte:   ; !!! incorrect
 
     defb  28,119,119,119,119,119,119,119    ;   0
     defb 119,119,119,119,119,119,119,119    ;   8
@@ -144,6 +143,6 @@ endif
 
     defb 78 ; delay for line interrupt
 
-    assert $ - @timing.uncontended == 130
+    assert $ - @timing.megabyte == 130
 
 ;-------------------------------------------------------------------------------

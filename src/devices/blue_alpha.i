@@ -12,9 +12,8 @@ properties.blue_alpha:
     defw out.dac,out.dac.len
     defw 124 * 256 + 127
     defw 0
-    defw timing.dac.contended
-    defw timing.dac.uncontended
-    defb 17 * 3 + 2
+    defw timing.dac.ram
+    defw timing.dac.megabyte
     defb 6                      ; bits per channel
 
 ;-------------------------------------------------------------------------------
