@@ -296,7 +296,7 @@ speed.selected:
 
 ; map new loader screen to burstplayer device numbers - fix burstplayer later on
 @device.mapping:
-    defb 1  ; soundchip
+    defb 1  ; sound chip
     defb 2  ; samdac
     defb 4  ; dac
     defb 6  ; blue alpha
@@ -2659,7 +2659,7 @@ device.screen:
 row.device: equ 5
     defm "SOUND DEVICE"
     defb 0,0
-    defm " Soundchip"
+    defm " Sound chip"
     defb 0
     defm " SAMdac"
     defb 0

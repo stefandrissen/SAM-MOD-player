@@ -1,4 +1,4 @@
-; saa1099 soundchip
+; saa1099 sound chip
 
 ; datasheets:
 ;   - 1986 November https://datasheetspdf.com/datasheet/SAA1099.html
@@ -11,7 +11,7 @@ port.sound.address:                 equ 0x01ff ; 511
 
 ;---------------------------------------------------------------
 
-; saa1099 soundchip registers
+; saa1099 sound chip registers
 
 ;---------------------------------------------------------------
 ; amplitude control - 4 bits right and 4 bits left

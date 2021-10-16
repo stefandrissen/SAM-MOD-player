@@ -18,7 +18,7 @@
 ; Since the various sound devices have different sound drivers
 ; and each sound driver has a different length in bytes and time
 ; the lengths of the BURSTPLAYER vary.  The SAMdac routine costs
-; the most memory, the Soundchip routine costs the most time.
+; the most memory, the sound chip routine costs the most time.
 ; The make burstplayer routine only needs to be called once, the
 ; routine may then be wiped from memory.
 

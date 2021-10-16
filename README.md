@@ -20,7 +20,7 @@ This autoboot file will load the loading screen, all code and then start the SAM
 This is the initial front end. It provides a screen to select the output device:
 
 - colour lookup table
-- [saa1099 soundchip](https://www.worldofsam.org/products/saa1099)
+- [saa1099 sound chip](https://www.worldofsam.org/products/saa1099)
 - [samdac](https://www.worldofsam.org/products/samdac)
 - dac
 - [blue alpha sampler](https://www.worldofsam.org/products/sound-sampler)
