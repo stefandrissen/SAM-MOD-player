@@ -62,7 +62,7 @@ properties.quazar:
 
 ;-------------------------------------------------------------------------------
 
-@timing.megabyte:   !!! probably incorrect
+@timing.megabyte:   ; !!! probably incorrect
 
     defb  32,121,121,121,121,121,121,121,121,121  ; 1
     defb 121,121,121,121,121,121,121,121,121,121  ; 2
