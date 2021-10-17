@@ -73,9 +73,12 @@ properties.samdac.2:
 
 ;-------------------------------------------------------------------------------
 
-@timing.megabyte:   ; !!! only recalibrated samples on 0, need to recalibrate 1.5
+@timing.megabyte:
+
+    ; 384 t-states per scan line, + 3 + 1.5 * 384 = 579 -> ++ 195
 
     ;      0|1.5      scan line 0 (bpio e9 w -> break after strobe out)
+    ;                              bpio e9 w if dline >= 0n69 and dline <= 0n100
     ;                     + = on next scan line
     defb      35    ; 258 first sample from line interrupt line 191
     defb 122,122    ; 261 + 3
@@ -104,8 +107,8 @@ properties.samdac.2:
     defb 122,122    ;  18 + 3
     defb 122,122    ;  21 + 3
     defb 122,122    ;  24 + 3
-    defb 122,122    ;  27 + 3
-    defb 127,122    ;  30 + 3 <-
+    defb 122,127    ;  27 + 3 <-
+    defb 122,122    ;  30 + 3
     defb 122,122    ;  33 + 3
     defb 122,122    ;  36 + 3
     defb 122,122    ;  39 + 3
@@ -117,27 +120,27 @@ properties.samdac.2:
     defb 122,122    ;  57 + 3
     defb 122,122    ;  60 + 3
     defb 122,122    ;  63 + 3
-    defb 125,109    ;  66 + 3
-    defb  86, 80    ;  69 + 3
-    defb  82, 81    ;  72 + 3
-    defb  84, 80    ;  75 + 3
-    defb  90, 78    ;  78 + 3
-    defb  87, 82    ;  81 + 3
-    defb  83, 79    ;  84 + 3
-    defb  83, 78    ;  87 + 3
-    defb  87, 80    ;  90 + 3
-    defb  88, 81    ;  93 + 3
-    defb  85, 80    ;  96 + 3
-    defb  87, 78    ;  99 + 3
-    defb  84, 82    ; 102 + 3
-    defb  82, 79    ; 105 + 3
-    defb  89, 78    ; 108 + 3
-    defb  86, 80    ; 111 + 3
-    defb  87, 81    ; 114 + 3
-    defb  80, 80    ; 117 + 3
-    defb  83, 78    ; 120 + 3
-    defb  91, 82    ; 123 + 3
-    defb  83, 81    ; 126 + 3
+    defb 125,111    ;  66 + 3
+    defb  85, 81    ;  69 + 3 <
+    defb  80, 79    ;  72 + 3
+    defb  84, 85    ;  75 + 3
+    defb  82, 80    ;  78 + 3
+    defb  85, 84    ;  81 + 3
+    defb  85, 82    ;  84 + 3
+    defb  83, 80    ;  87 + 3
+    defb  85, 83    ;  90 + 3
+    defb  80, 81    ;  93 + 3
+    defb  84, 84    ;  96 + 3
+    defb  85, 82    ;  99 + 3
+    defb  83, 80    ; 102 + 3
+    defb  85, 83    ; 105 + 3
+    defb  80, 81    ; 108 + 3
+    defb  84, 84    ; 111 + 3
+    defb  85, 82    ; 114 + 3
+    defb  83, 80    ; 117 + 3
+    defb  85, 83    ; 120 + 3
+    defb  80, 81    ; 123 + 3
+    defb  82, 83    ; 126 + 3
     defb 0
 
     defb -1,-1,-1,-1,-1,-1,-1
