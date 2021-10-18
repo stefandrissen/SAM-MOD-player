@@ -7,8 +7,9 @@ properties.clut:
     defw 0,0                    ; init routine
     defw @out,@out.len          ; sample out routine
     defw port.clut              ; bc - output port
-    defb 0x34                   ; e - control
-    defb 0x17                   ; d - control
+    ;     GRB!grb
+    defb %0110100               ; e - control
+    defb %0010111               ; d - control
     defw @timing.ram            ; timing table internal RAM
     defw @timing.megabyte       ; timing table external RAM (megabyte)
     defb 6                      ; bits per channel
@@ -57,23 +58,72 @@ properties.clut:
 
 @timing.megabyte:   ; !!! incorrect
 
-    defb  34,121,121,121,121,121,121,121    ;   0
-    defb 121,121,121,121,121,121,121,121    ;   8
-    defb 121,121,121,121,121,121,121,121    ;  16
-    defb 121,124,121,121,121,121,121,121    ;  24
-    defb 121,121,121,121,121,121,121,121    ;  32
-    defb 121,121,121,121,121,121,121,121    ;  40
-    defb 121,121,121,121,121,123,123,123    ;  48
-    defb 121,121,121,121,121,121,121,121    ;  56
-    defb 121,121,121,121,121,121,121,121    ;  64
-    defb 121,121,121,121,121,121,121,122    ;  72
-    defb 111, 80, 83, 83, 83, 78, 80, 81    ;  80
-    defb  86, 82, 84, 78, 80, 81, 86, 82    ;  88
-    defb  83, 78, 80, 81, 86, 82, 83, 78    ;  96
-    defb  80, 81, 86, 82, 83, 78, 80, 81    ; 104
-    defb  86, 82, 82, 79, 80, 81, 86, 82    ; 112
-    defb  84, 76, 89, 93, 80                ; 120
-    defb   0,  0,  0, -1                    ; I seem to have lost the last out
+    defb      34
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 124,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 123,123
+    defb 123,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 121,121
+    defb 122,111
+    defb  80, 83
+    defb  83, 83
+    defb  78, 80
+    defb  81, 86
+    defb  82, 84
+    defb  78, 80
+    defb  81, 86
+    defb  82, 83
+    defb  78, 80
+    defb  81, 86
+    defb  82, 83
+    defb  78, 80
+    defb  81, 86
+    defb  82, 83
+    defb  78, 80
+    defb  81, 86
+    defb  82, 82
+    defb  79, 80
+    defb  81, 86
+    defb  82, 84
+    defb  76, 89
+    defb  93, 80
+    defb 0
+
+    defb 0,0,-1     ; I seem to have lost the last out
 
     defb 83
 
