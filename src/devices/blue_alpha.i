@@ -10,7 +10,7 @@ properties.blue_alpha:
 
     defw @init,@init.len
     defw out.dac,out.dac.len
-    defw 124 * 256 + 127
+    defw port.blue_alpha.a
     defw 0
     defw timing.dac.ram
     defw timing.dac.megabyte
@@ -21,10 +21,10 @@ properties.blue_alpha:
 @init:
 
     ld bc,port.blue_alpha.control
-    ld a,255
+    ld a,0xff
     out (c),a
-    ld bc,125   ; port.blue_alpha.b
-    ld a,253
+    ld b,port.blue_alpha.b \ 0x100
+    ld a,%11111101  ; 'documentation' indicates that this is adc?
     out (c),a
 
     @init.len: equ $ - @init
