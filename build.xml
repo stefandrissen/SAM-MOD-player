@@ -3,7 +3,7 @@
 
 	<property name="python" location="../../AppData/Local/Programs/Python/Python38/python.exe" />
 	<property name="pyz80" value="../pyz80/pyz80.py" />
-	<property name="simcoupe" location="C:\Program Files (x86)\SimCoupe\SimCoupe.exe" />
+	<property name="simcoupe" location="C:\Program Files\SimCoupe\SimCoupe.exe" />
 	<property name="mapfile" value="true" />
 
 	<!-- assemble -->
