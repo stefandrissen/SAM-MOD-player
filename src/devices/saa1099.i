@@ -10,9 +10,9 @@ properties.saa1099:
 
     defw @init,@init.len
     defw @out, @out.len
-    defw port.sound.address
-    defb saa.register.amplitude_5
-    defb saa.register.amplitude_2
+    defw port.sound.address         ; bc
+    defb saa.register.amplitude_5   ; e
+    defb saa.register.amplitude_2   ; d
     defw @timing.ram
     defw @timing.megabyte
     defb 3                          ; bits per channel

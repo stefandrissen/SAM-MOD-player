@@ -12,8 +12,8 @@ properties.dac.1:
 
     defw 0,0                    ; init
     defw out.dac,out.dac.len
-    defw port.printer_1.data
-    defw 0
+    defw port.printer_1.data    ; bc
+    defw 0                      ; de - unused
     defw timing.dac.ram
     defw timing.dac.megabyte
     defb 6                      ; bits per channel

@@ -10,8 +10,8 @@ properties.blue_alpha:
 
     defw @init,@init.len
     defw out.dac,out.dac.len
-    defw port.blue_alpha.a
-    defw 0
+    defw port.blue_alpha.a      ; bc
+    defw 0                      ; de - unused
     defw timing.dac.ram
     defw timing.dac.megabyte
     defb 6                      ; bits per channel
