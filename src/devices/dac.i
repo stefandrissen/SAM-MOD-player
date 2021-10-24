@@ -10,27 +10,35 @@ include "../ports/printer.i"
 
 properties.dac.1:
 
-    defw 0,0                    ; init
-    defw out.dac,out.dac.len
+    defw 0                      ; init
+    defb 0
+    defw dac.out
+    defb dac.out.len
+    defw dac.buffer.init
+    defb dac.buffer.init.len
     defw port.printer_1.data    ; bc
     defw 0                      ; de - unused
-    defw timing.dac.ram
-    defw timing.dac.megabyte
+    defw dac.timing.ram
+    defw dac.timing.megabyte
     defb 6                      ; bits per channel
 
 properties.dac.2:
 
-    defw 0,0
-    defw out.dac,out.dac.len
+    defw 0
+    defb 0
+    defw dac.out
+    defb dac.out.len
+    defw dac.buffer.init
+    defb dac.buffer.init.len
     defw port.printer_2.data
     defw 0
-    defw timing.dac.ram
-    defw timing.dac.megabyte
+    defw dac.timing.ram
+    defw dac.timing.megabyte
     defb 6                      ; bits per channel
 
 ;-------------------------------------------------------------------------------
 
-out.dac:
+dac.out:
 
     ; playback is mixing channels
     ; c1 -> c4 -> buffer / c2 -> c3 -> buffer
@@ -47,11 +55,41 @@ out.dac:
     out (c),a       ; 12   2
     ld a,e          ;  4   1
 
-    out.dac.len: equ $ - out.dac
+    dac.out.len: equ $ - dac.out
 
 ;-------------------------------------------------------------------------------
 
-timing.dac.ram:
+dac.buffer.init:
+    ld c,4                      ; 2 buffers, 2 channels per buffer
+@buffers:
+    ld b,32                     ; 2^(bits-1)
+    ld hl,bp.audio_buffer.1
+    ld a,0
+@loop.2:
+    ld c,b
+    ld b,6
+@loop.1:
+    ld (hl),a
+    inc hl
+    djnz@-loop.1
+    inc a
+    ld b,c
+    djnz @-loop.2
+
+    ld b,bp.audio_buffer.bytes - ( 32 * 6 )
+@loop:
+    ld (hl),a
+    inc hl
+    djnz @-loop
+
+    dec c
+    jr nz,@-buffers
+
+dac.buffer.init.len: equ $ - dac.buffer.init
+
+;-------------------------------------------------------------------------------
+
+dac.timing.ram:
 
     defb      40
     defb 129,129
@@ -116,11 +154,11 @@ timing.dac.ram:
 
     defb 93
 
-    assert $ - timing.dac.ram == 130
+    assert $ - dac.timing.ram == 130
 
 ;-------------------------------------------------------------------------------
 
-timing.dac.megabyte:
+dac.timing.megabyte:
 
     ; bpio 7f if dline >= 0n258
 
@@ -186,6 +224,6 @@ timing.dac.megabyte:
 
     defb 90         ; t-states to 1.5 from line interrupt
 
-    assert $ - timing.dac.megabyte == 130
+    assert $ - dac.timing.megabyte == 130
 
 ;-------------------------------------------------------------------------------

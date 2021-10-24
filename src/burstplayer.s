@@ -147,23 +147,28 @@ not.qss.pt:
     inc hl
     ld d,(hl)
     inc hl
-    ld c,(hl)
+    ld (@sound.driver.reset     + 1),de
+    ld a,(hl)
     inc hl
-    ld b,(hl)
-    inc hl
-    ld (sound.driver.reset.address+1),de
-    ld (sound.driver.reset.length+1),bc
+    ld (@sound.driver.reset.len + 1),a
 
     ld e,(hl)
     inc hl
     ld d,(hl)
     inc hl
-    ld c,(hl)
+    ld (@sound.driver     + 1),de
+    ld a,(hl)
     inc hl
-    ld b,(hl)
+    ld (@sound.driver.len + 1),a
+
+    ld e,(hl)
     inc hl
-    ld (sound.driver.address+1),de
-    ld (sound.driver.length+1),bc
+    ld d,(hl)
+    inc hl
+    ld (@buffer.init     + 1),de
+    ld a,(hl)
+    inc hl
+    ld (@buffer.init.len + 1),a
 
     ld c,(hl)
     inc hl
@@ -327,13 +332,14 @@ mk.cp.line.interrupt:
 ; reset output device
 
     ld de,sound.driver.reset
-sound.driver.reset.address:
+@sound.driver.reset:
     ld hl,0
-sound.driver.reset.length:
-    ld bc,0
-    ld a,b
-    or c
+@sound.driver.reset.len:
+    ld a,0
+    or a
     jr z,@no.silence
+    ld c,a
+    ld b,0
     ldir
 @no.silence:
     ex de,hl
@@ -2030,50 +2036,23 @@ sample.ctrl:
 ;---------------------------------------------------------------
 set.silence:
 
-    ld (mk.rec37+1),hl
-    ld (hl),opcode.ld_hl_nn
-    inc hl
-    ld (hl),bp.audio_buffer.1 \ 0x100
-    inc hl
-    ld (hl),bp.audio_buffer.1 / 0x100
-    inc hl
+    ld (@call.set.silence + 1),hl
 
-    ld (hl),opcode.ld_d_h
-    inc hl
-
-    ld (hl),opcode.ld_e_l
-    inc hl
-
-    ld (hl),opcode.inc_de
-    inc hl
-
-    ld (hl),opcode.ld_hl_n
-    inc hl
-    ld a,(burstplayer.device)
-    cp device.saa
-    ld a,%10001000      ; saa
-    jr z,@is.saa
-    ld a,%10000000      ; others - click due to rest 0x00 being raised to sample rest 0x80
-@is.saa:
+@buffer.init.len:
+    ld a,0
+    or a
+    jr z,@no.buffer.init
+    ld b,a
+@buffer.init:
+    ld de,0
+@loop:
+    ld a,(de)
+    inc de
     ld (hl),a
     inc hl
+    djnz @-loop
 
-    ld (hl),opcode.ld_bc_nn
-    inc hl
-    ld de,8 * bp.audio_buffer.bytes - 1
-    ld a,(burstplayer.device)
-    cp device.quazar
-    jr z,$+5
-    ld de,4 * bp.audio_buffer.bytes - 1
-    ld (hl),e
-    inc hl
-    ld (hl),d         ;ld bc,4*208-1 (8* = QSS)
-    inc hl
-
-    ld (hl),opcode.ed
-    inc hl
-    ld (hl),opcode.ldir
-    inc hl
+@no.buffer.init:
 
     ld (hl),opcode.ret
     inc hl
@@ -2097,7 +2076,7 @@ set.silence:
 
     ld (hl),opcode.call_nn
     inc hl
-mk.rec37:
+@call.set.silence:
     ld de,0
     ld (hl),e
     inc hl
@@ -2338,9 +2317,9 @@ insert.outs:
 
     ex de,hl
     push bc
-sound.driver.address:
+@sound.driver:
     ld hl,0
-sound.driver.length:
+@sound.driver.len:
     ld bc,0
     ldir
     pop bc
@@ -3467,14 +3446,14 @@ mk.movecode:
     in a,(port.vmpr)
 ;   and %00111111
     push af
-    ld (bp.stsp + 1 + 0x8000),sp
+    ld (@bp.stsp + 1 + 0x8000),sp
 
     in a,(port.lmpr)
-    ld (bp.stlmpr + 1 + 0x8000),a
+    ld (@bp.stlmpr + 1 + 0x8000),a
 
     in a,(port.hmpr)
     and high.memory.page.mask
-    ld (bp.exitpage + 1 + 0x8000),a
+    ld (@bp.exitpage + 1 + 0x8000),a
 
     or low.memory.ram.0
     out (port.lmpr),a
@@ -3488,15 +3467,15 @@ bp.exit:
     di
     ld a,0xff
     out (port.line_interrupt),a
-bp.exitpage:
+@bp.exitpage:
     ld a,0
     out (port.hmpr),a
-    jp bp.stlmpr + 0x8000
+    jp @bp.stlmpr + 0x8000
 
-bp.stlmpr:
+@bp.stlmpr:
     ld a,0
     out (port.lmpr),a
-bp.stsp:
+@bp.stsp:
     ld sp,0
     pop af
     out (port.vmpr),a

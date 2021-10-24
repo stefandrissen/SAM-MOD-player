@@ -4,8 +4,12 @@
 
 properties.clut:
 
-    defw 0,0                    ; init routine
-    defw @out,@out.len          ; sample out routine
+    defw 0                      ; init routine
+    defb 0
+    defw @out                   ; sample out routine
+    defb @out.len
+    defw 0                      ; buffer init routine
+    defb 0
     defw port.clut              ; bc - output port
     ;     GRB!grb
     defb %0110100               ; e - control

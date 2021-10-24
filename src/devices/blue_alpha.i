@@ -8,12 +8,19 @@ include "../ports/blue_alpha.i"
 
 properties.blue_alpha:
 
-    defw @init,@init.len
-    defw out.dac,out.dac.len
+    defw @init
+    defb @init.len
+
+    defw dac.out
+    defb dac.out.len
+
+    defw dac.buffer.init
+    defb dac.buffer.init.len
+
     defw port.blue_alpha.a      ; bc
     defw 0                      ; de - unused
-    defw timing.dac.ram
-    defw timing.dac.megabyte
+    defw dac.timing.ram
+    defw dac.timing.megabyte
     defb 6                      ; bits per channel
 
 ;-------------------------------------------------------------------------------

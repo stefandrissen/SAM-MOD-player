@@ -4,8 +4,12 @@
 
 properties.quazar:
 
-    defw @init,@init.len
-    defw @out ,@out.len
+    defw @init
+    defb @init.len
+    defw @out
+    defb @out.len
+    defw @buffer.init
+    defb @buffer.init.len
     defw 0x06d0                 ; bc
     defb 0x06                   ; e - +1 for OUTI
     defb 0                      ; d - unused
@@ -43,6 +47,31 @@ properties.quazar:
     outi            ; 20   2  = 21
 
     @out.len: equ $ - @out
+
+;-------------------------------------------------------------------------------
+
+@buffer.init:
+    ld c,8                      ; 2 buffers, 4 channels per buffer
+    ld hl,bp.audio_buffer.1
+@buffers:
+    ld b,128                    ; 2^(bits-1)
+    ld a,0
+@loop:
+    ld (hl),a
+    inc hl
+    inc a
+    djnz @-loop
+
+    ld b,bp.audio_buffer.bytes - 128
+@loop:
+    ld (hl),a
+    inc hl
+    djnz @-loop
+
+    dec c
+    jr nz,@-buffers
+
+@buffer.init.len: equ $ - @buffer.init
 
 ;-------------------------------------------------------------------------------
 

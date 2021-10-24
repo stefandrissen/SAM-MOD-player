@@ -8,8 +8,12 @@ include "../ports/printer.i"
 
 properties.samdac.1:
 
-    defw 0,0                    ; init
-    defw @out,@out.len
+    defw 0                      ; init
+    defb 0
+    defw @out
+    defb @out.len
+    defw @buffer.init
+    defb @buffer.init.len
     defw port.printer_1.data    ; bc
     defb 1                      ; e - strobe
     defb 0                      ; d - strobe
@@ -19,8 +23,12 @@ properties.samdac.1:
 
 properties.samdac.2:
 
-    defw 0,0
-    defw @out,@out.len
+    defw 0
+    defb 0
+    defw @out
+    defb @out.len
+    defw @buffer.init
+    defb @buffer.init.len
     defw port.printer_2.data
     defb 1
     defb 0
@@ -44,6 +52,35 @@ properties.samdac.2:
     dec c       ;  4 |  8
 
     @out.len: equ $ - @out
+
+;-------------------------------------------------------------------------------
+
+@buffer.init:
+    ld c,4                      ; 2 buffers, 2 channels per buffer
+    ld hl,bp.audio_buffer.1
+@buffers:
+    ld b,64                     ; 2^(bits-1)
+    ld a,0
+@loop:
+    ld (hl),a
+    inc hl
+    ld (hl),a
+    inc hl
+    ld (hl),a
+    inc hl
+    inc a
+    djnz @-loop
+
+    ld b,bp.audio_buffer.bytes - ( 64 * 3 )
+@loop:
+    ld (hl),a
+    inc hl
+    djnz @-loop
+
+    dec c
+    jr nz,@-buffers
+
+@buffer.init.len: equ $ - @buffer.init
 
 ;-------------------------------------------------------------------------------
 

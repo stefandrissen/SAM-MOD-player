@@ -8,8 +8,12 @@ include "../ports/saa1099.i"
 
 properties.saa1099:
 
-    defw @init,@init.len
-    defw @out, @out.len
+    defw @init
+    defb @init.len
+    defw @out
+    defb @out.len
+    defw @buffer.init
+    defb @buffer.init.len
     defw port.sound.address         ; bc
     defb saa.register.amplitude_5   ; e
     defb saa.register.amplitude_2   ; d
@@ -76,6 +80,30 @@ endif
     inc b           ;  4   1  = 26
 
     @out.len: equ $ - @out
+
+;-------------------------------------------------------------------------------
+
+@buffer.init:
+    ld e,4                      ; 2 buffers, 2 channels per buffer
+    ld hl,bp.audio_buffer.1
+@buffers:
+    ld b,8                      ; 2^(bits-1)
+    ld a,0
+@loop.2:
+    ld c,b
+    ld b,26
+@loop.1:
+    ld (hl),a
+    inc hl
+    djnz @-loop.1
+    add %00010001
+    ld b,c
+    djnz @-loop.2
+
+    dec e
+    jr nz,@-buffers
+
+@buffer.init.len: equ $ - @buffer.init
 
 ;-------------------------------------------------------------------------------
 
