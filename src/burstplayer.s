@@ -44,14 +44,14 @@ burstplayer.device: defb 0  ; [0-7]
 
     defb 0 ; burstplayer.port
 
-burstplayer.amiga:      defb 0  ; [0-1]
+burstplayer.amiga:  defb 0  ; [0-1]
 
-    pal:        equ 0       ; use which Amiga to calculate sample
-    ntsc:       equ 1       ; speeds
+    pal:                equ 0       ; use which Amiga to calculate sample
+    ntsc:               equ 1       ; speeds
 
-burstplayer.external.ram:   defb 0  ; [0-4]
+burstplayer.ram:    defb 0  ; %XXXRR (RAM / 256K)
 
-burstplayer.page:           defb page.burstplayer
+burstplayer.page:   defb page.burstplayer
 
     defm "                         "
     defm "MAKEBURST "
@@ -182,8 +182,8 @@ not.qss.pt:
     inc hl
     ld (sample.ctrl+1),de
 
-    ld a,(burstplayer.external.ram)
-    or a
+    ld a,(burstplayer.ram)
+    and %11100
     jr z,@no.megabyte
 
     inc hl
@@ -457,9 +457,8 @@ output.bits:
 
     ld hl,get.pattern
 
-
-    ld a,(burstplayer.external.ram)
-    or a
+    ld a,(burstplayer.ram)
+    and %11100
     jr z,@no.megabyte.1
 
     ld (hl),opcode.out_n_a
@@ -518,7 +517,14 @@ output.bits:
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (hl),page.sequencer
+
+    ld a,(burstplayer.ram)
+    bit 1,a
+    ld a,page.sequencer
+    jr nz,@is.512K
+    and high.memory.page.mask.256k
+@is.512K:
+    ld (hl),a
     inc hl
 
     ld (hl),opcode.out_n_a
@@ -2126,8 +2132,8 @@ mk.swap.lp:
 select.page:
 
     push af
-    ld a,(burstplayer.external.ram)
-    or a
+    ld a,(burstplayer.ram)
+    and %11100
     jr z,@no.megabyte.4
 
     pop af
@@ -2846,8 +2852,8 @@ mk.bp.get1st:
 @update.page.sample:
 
     push af
-    ld a,(burstplayer.external.ram)
-    or a
+    ld a,(burstplayer.ram)
+    and %11100
     jr z,@no.megabyte.5
 
     pop af
@@ -3559,8 +3565,8 @@ if defined( testing )
 
     ;-------------------------------------------------------------------------------
 
-    @test.device:       equ device.samdac.1
-    @test.external.ram: equ 0
+    @test.device:       equ device.saa
+    @test.ram:          equ %10010      ; XXXRR
 
         include "ports/keyboard.i"
 
@@ -3584,8 +3590,8 @@ if defined( testing )
         ld a,@test.device
         ld (burstplayer.device),a
 
-        ld a,@test.external.ram
-        ld (burstplayer.external.ram),a
+        ld a,@test.ram
+        ld (burstplayer.ram),a
 
         call burstplayer.create
 
@@ -3698,8 +3704,8 @@ if defined( testing )
         in a,(port.hmpr)
         push af
 
-        ld a,@test.external.ram
-        or a
+        ld a,@test.ram
+        and %11100
         ld a,0
         jr z,@no.external.ram
 

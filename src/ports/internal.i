@@ -33,6 +33,7 @@ port.high_memory_page_register:     equ 0xfb ; in/out 251
 port.hmpr:                          equ port.high_memory_page_register
 
     high.memory.page.mask:              equ %00011111
+    high.memory.page.mask.256k:         equ %00001111
     high.memory.external:               equ %10000000
 
 ;---------------------------------------------------------------

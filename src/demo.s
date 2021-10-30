@@ -25,7 +25,12 @@ demo.setup: jp @setupmod
 
 ;---------------------------------------------------------------
 
-demo.external.ram:  defb 0  ; [0-4]
+demo.ram:           defb 0  ; %XXXRR (RAM / 256K)
+
+@fix.page:
+    and high.memory.page.mask.512K
+
+    ret
 
 @setupmod:
     ex af,af'
@@ -33,18 +38,24 @@ demo.external.ram:  defb 0  ; [0-4]
     in a,(port.hmpr)
     ld (@store.hmpr+1),a
 
+    bit 1,c
+    jr nz,@is.512K
+    ld a,high.memory.page.mask.256k
+    ld (@fix.page+1),a
+@is.512K:
     ld a,c
-    ld (demo.external.ram),a
+    ld (demo.ram),a
 
-    or a
+    and %11100
     ld a,page.mod
-    jr z,@no.megabyte.1
+    jr z,@no.megabyte
+
     ld a,page.mod.megabyte
     out (port.xmpr.c),a
     inc a
     out (port.xmpr.d),a
     ld a,high.memory.external
-@no.megabyte.1:
+@no.megabyte:
     out (port.hmpr),a
 
     ld hl,0x8000
@@ -53,10 +64,12 @@ demo.external.ram:  defb 0  ; [0-4]
     ldir
 
     ld a,page.sequencer
+    call @fix.page
     out (port.hmpr),a
     ld hl,demo
     ld (sq.pointer.addr.demo),hl
     ld a,page.demo - 1  ; - 1 since demo is in D
+    call @fix.page
     ld (sq.pointer.page.demo),a
     ex af,af'
     ld (sq.octaves),a
@@ -73,9 +86,9 @@ demo.external.ram:  defb 0  ; [0-4]
     inc hl
     ld (hl),a
 
-    ld a,(demo.external.ram)
-    ld (sq.external.ram),a
-    or a
+    ld a,(demo.ram)
+    ld (sq.ram),a
+    and %11100
     ld a,page.mod
     jr z,@no.megabyte
     ld a,page.mod.megabyte
@@ -93,6 +106,7 @@ seq.setup:
     call sequencer.install.mod
 
     ld a,page.burstplayer
+    call @fix.page
     out (port.hmpr),a
 
     call burstplayer.start
@@ -157,7 +171,9 @@ black:
     djnz black
     out (c),a
 
-    ld a,video.mode.2 + page.screen
+    ld a,page.screen
+    call @fix.page + 0x8000
+    or video.mode.2
     out (port.vmpr),a
 
     call cls

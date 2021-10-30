@@ -23,59 +23,52 @@
 
 ;---------------------------------------------------------------
 
-file.loading.scr:   defm "loading.$    "
-file.sequencer:     defm "sequencer    "
-file.burstplayer:   defm "burstplayer  "
-file.loader:        defm "loader       "
-file.demo:          defm "demo         "
+@file.loading.scr:  defm "loading.$    "
+@file.sequencer:    defm "sequencer    "
+@file.burstplayer:  defm "burstplayer  "
+@file.loader:       defm "loader       "
+@file.demo:         defm "demo         "
 
 @palette:   defb 0x7f,0x00,0x6b,0x63,0x2c,0x24,0x77,0x78,0x70,0x2a,0x22,0x28,0x20,0x7d,0x5f,0x6a
 
 @boot:
 
-; first set palette (hard coded from loading.$)
+    di
 
-    ld hl,@palette + 0x0f
-    ld c,port.color_look_up_table
-    ld b,0x10
-    otdr
+    call @set.palette
+    call @detect.memory
 
-    ld hl,@palette
-    ld de,palette.table
-    ld bc,0x10
-    ldir
-
-    ld hl,@palette
-    ld de,palette.table + 0x14
-    ld bc,0x10
-    ldir
-
-    ld a,page.burstplayer + video.mode.4
+    ld a,page.burstplayer
+    call @fix.page
+    or video.mode.4
     out (port.vmpr),a
     ld (svar.cuscrnp),a
     and video.memory.page.mask
 
-    ld hl,file.loading.scr
-    call load.file
+    ld hl,@file.loading.scr
+    call @load.file
 
     ld a,page.sequencer
-    ld hl,file.sequencer
-    call load.file
+    ld hl,@file.sequencer
+    call @load.file
 
     ld a,page.create.burstplayer
-    ld hl,file.burstplayer
-    call load.file
+    ld hl,@file.burstplayer
+    call @load.file
+
+    call @set.burstplayer.page
 
     ld a,page.loader
-    ld hl,file.loader
-    call load.file
+    ld hl,@file.loader
+    call @load.file
 
     ld a,page.loader
     ld de,0x8000 + 0x2000
-    ld hl,file.demo
-    call load.file.address
+    ld hl,@file.demo
+    call @load.file.address
 
     ld a,page.loader - 1
+    call @fix.page
     ld hl,0xc000
     jp inst.buffer.jump_ahl
 
@@ -94,7 +87,90 @@ file.demo:          defm "demo         "
     ret
 
 ;------------------------------------------------------------------------------
-load.file:
+@set.burstplayer.page:
+
+    in a,(port.lmpr)
+    ld c,a
+
+    ld a,page.burstplayer
+    call @fix.page
+    ld b,a
+
+    ld a,page.create.burstplayer
+    call @fix.page
+    or low.memory.ram.0
+    out (port.lmpr),a
+
+    ld a,b
+    ld (burstplayer.page-0x8000),a
+
+    ld a,c
+    out (port.lmpr),a
+    ret
+
+;------------------------------------------------------------------------------
+@set.palette:
+
+; set palette (hard coded from loading.$)
+
+    ld hl,@palette + 0x0f
+    ld c,port.color_look_up_table
+    ld b,0x10
+    otdr
+
+    ld hl,@palette
+    ld de,palette.table
+    ld bc,0x10
+    ldir
+
+    ld hl,@palette
+    ld de,palette.table + 0x14
+    ld bc,0x10
+    ldir
+
+    ret
+
+;------------------------------------------------------------------------------
+@detect.memory:
+
+    in a,(port.lmpr)
+    ld c,a
+
+    ld b,high.memory.page.mask.256k
+
+    ld a,low.memory.ram.0 + 0x10
+    out (port.lmpr),a
+
+    ld hl,0x0000
+    xor a
+    ld (hl),a
+    cp (hl)
+    jr nz,@not.512k
+    dec a
+    ld (hl),a
+    cp (hl)
+    jr nz,@not.512k
+
+    ld b,high.memory.page.mask
+
+@not.512k:
+
+    ld a,c
+    out (port.lmpr),a
+
+    ld a,b
+    ld (@fix.page+1),a
+
+    ret
+
+;------------------------------------------------------------------------------
+@fix.page:
+
+    and 0
+    ret
+
+;------------------------------------------------------------------------------
+@load.file:
 
 ;   hl -> file name
 ;   a  =  page
@@ -104,7 +180,7 @@ load.file:
 
     ld de,0x8000
 
-load.file.address:
+@load.file.address:
 
     push af
     push de
@@ -147,6 +223,7 @@ load.file.address:
     ex de,hl
 
     pop af
+    call @fix.page
 
     jp inst.buffer.load
 

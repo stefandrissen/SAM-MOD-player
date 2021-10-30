@@ -42,7 +42,7 @@ loader.speed:           defb 0 ; [0-1]
     speed.pal:              equ 0
     speed.ntsc:             equ 1
 
-loader.external.ram:    defb 0 ; [0-4]
+loader.ram:             defb 0 ; %XXXRR (RAM / 256K)
 
 loader.drive:           defb 1 ; [1-2]
 loader.record:          defw 0
@@ -58,7 +58,7 @@ relocate.scan:
 
     org inst.buffer
 
-scan.external.memory:
+scan.memory:
 
     in a,(port.hmpr)
     ld c,a
@@ -92,18 +92,74 @@ scan.external.memory:
 
 @not.ram:
 
+    ld a,b
+    rlca
+    rlca    ; [0-4]
+    rlca
+    rlca
+    ld b,a  ; %XXX00
+
+    inc b   ; 256K
+
+    ld a,0x10
+    out (port.hmpr),a
+    xor a
+    ld (hl),a
+    cp (hl)
+    jr nz,@not.512k
+    dec a
+    ld (hl),a
+    cp (hl)
+    jr nz,@not.512k
+
+    inc b   ; 512K
+
+@not.512k
+
     ld a,c
     out (port.hmpr),a
 
     ld a,b
-    rlca
-    rlca
 
     ret
 
-scan.external.memory.len: equ $ - scan.external.memory
+scan.memory.len: equ $ - scan.memory
 
-    org relocate.scan + scan.external.memory.len
+    org relocate.scan + scan.memory.len
+
+@set.memory.512k
+
+    ld hl,device.screen.memory
+    ld (hl),"5"
+    inc hl
+    ld (hl),"1"
+    inc hl
+    ld (hl),"2"
+
+    ld hl,@fix.page+1
+    ld (hl),high.memory.page.mask
+
+    ret
+
+@set.memory.mb:
+
+    ld hl,device.screen.memory.mb
+    ld de,device.screen.memory
+    rrca
+    rrca
+    add a,"0"
+    ld (de),a
+    inc de
+    ld bc,device.screen.memory.mb.len
+    ldir
+
+    ret
+
+;---------------------------------------------------------------
+@fix.page:
+
+    and high.memory.page.mask.256k
+    ret
 
 ;---------------------------------------------------------------
 loader.start:
@@ -113,7 +169,9 @@ loader.start:
 
     call cls
 
-    ld a,page.loader - 1 + video.mode.2
+    in a,(port.hmpr)
+    and high.memory.page.mask & %11111110
+    or video.mode.2
     out (port.vmpr),a
 
     ld (svar.cuscrnp),a
@@ -122,32 +180,16 @@ loader.start:
 
     ld hl,relocate.scan
     ld de,inst.buffer
-    ld bc,scan.external.memory.len
+    ld bc,scan.memory.len
     ldir
 
-    call scan.external.memory
+    call scan.memory
+    ld (loader.ram),a
 
-    or a
-    jr z,@no.megabyte.1
-
-    ld (loader.external.ram),a
-
-    ld hl,device.screen.memory
-    add a,"0"
-    ld (hl),a
-    inc hl
-    ld (hl)," "
-    inc hl
-    ld (hl),"M"
-    inc hl
-    ld (hl),"B"
-    inc hl
-    ld (hl)," "
-    inc hl
-    ld (hl)," "
-    inc hl
-
-@no.megabyte.1:
+    bit 1,a
+    call nz,@set.memory.512k
+    and %11100
+    call nz,@set.memory.mb
 
     ld de,device.screen
     ld ix,device.attributes
@@ -287,8 +329,8 @@ speed.selected:
     ld (@loader.device+1),a
     ld a,(loader.speed)
     ld (@loader.speed+1),a
-    ld a,(loader.external.ram)
-    ld (@loader.external.ram+1),a
+    ld a,(loader.ram)
+    ld (@loader.ram+1),a
 
     call call.burstplayer.create
 
@@ -314,6 +356,7 @@ call.burstplayer.create:
     ld (@store.hmpr+1),a
 
     ld a,page.create.burstplayer
+    call @fix.page
     out (port.hmpr),a
 
 @loader.device:
@@ -322,9 +365,9 @@ call.burstplayer.create:
 @loader.speed:
     ld a,0
     ld (burstplayer.amiga),a
-@loader.external.ram:
+@loader.ram:
     ld a,0
-    ld (burstplayer.external.ram),a
+    ld (burstplayer.ram),a
 
     call burstplayer.create
 
@@ -625,6 +668,7 @@ scan.keyboard.left.right:
 ;loader
 
 loader.palette:
+    ;     GRB!grb
     defb %0000000 ;    0
 
     defb %0011101 ;3 1 1;BLUE+green
@@ -1587,9 +1631,9 @@ msdos.load: ; !!! does not work yet, needs to be moved to inst.buffer
     ld e,(ix+26)
     ld d,(ix+27)
 
-    ld a,(loader.external.ram)
-    or a
-    jr z,@no.megabyte.2
+    ld a,(loader.ram)
+    and %11100
+    jr z,@+no.megabyte
 
     ld a,high.memory.external
     out (port.hmpr),a
@@ -1599,14 +1643,14 @@ msdos.load: ; !!! does not work yet, needs to be moved to inst.buffer
     out (port.xmpr.d),a
     ld (@external+1),a
 
-    jr @continue.2
+    jr @+continue
 
-@no.megabyte.2:
+@no.megabyte:
 
     ld a,page.mod
     out (port.hmpr),a
 
-@continue.2:
+@continue:
 
     ld hl,load.offs
 pc.load.all:
@@ -1615,9 +1659,9 @@ pc.load.all:
     res 6,h
     jr z,@page.ok
 
-    ld a,(loader.external.ram)
-    or a
-    jr z,@no.megabyte.3
+    ld a,(loader.ram)
+    and %11100
+    jr z,@+no.megabyte
 
 @external:
     ld a,0
@@ -1628,7 +1672,7 @@ pc.load.all:
 
     jr @page.ok
 
-@no.megabyte.3:
+@no.megabyte:
 
     in a,(port.hmpr)
     inc a
@@ -1714,8 +1758,8 @@ sam.match.blp:
 
     ld hl,relocate.load.mod
     ld bc,load.mod.len
-    ld a,(loader.external.ram)
-    or a
+    ld a,(loader.ram)
+    and %11100
     jr z,@no.meg
     ld hl,relocate.meg.load.mod
     ld bc,meg.load.mod.len
@@ -1913,9 +1957,9 @@ decompress:         ; !!! does not work yet
 
     ld c,a
 
-    ld a,(loader.external.ram)
-    or a
-    jr z,@no.megabyte.6
+    ld a,(loader.ram)
+    and %11100
+    jr z,@+no.megabyte
 
     ld a,high.memory.external
     out (port.hmpr),a
@@ -1925,14 +1969,14 @@ decompress:         ; !!! does not work yet
     out (port.xmpr.d),a
     dec a
 
-    jr @continue.6
+    jr @+continue
 
-@no.megabyte.6:
+@no.megabyte:
 
     ld a,page.mod
     out (port.hmpr),a
 
-@continue.6:
+@continue:
     ld (@page.mod+1),a
 
     ld a,c
@@ -2041,25 +2085,25 @@ loop2:
     or c
     jr z,end2
 
-    ld a,(loader.external.ram)
-    or a
+    ld a,(loader.ram)
+    and %11100
 
     ld a,d
 
-    jr z,@no.megabyte.7
+    jr z,@+no.megabyte
 
     out (port.xmpr.c),a
     inc a
     out (port.xmpr.d),a
     dec a
 
-    jr @continue.7
+    jr @+continue
 
-@no.megabyte.7:
+@no.megabyte:
 
     out (port.hmpr),a
 
-@continue.7:
+@continue:
 
     ld a,(hl)
     rlca
@@ -2070,25 +2114,25 @@ loop2:
 
     ex af,af'
 
-    ld a,(loader.external.ram)
-    or a
+    ld a,(loader.ram)
+    and %11100
 
     ld a,d
 
-    jr z,@no.megabyte.8
+    jr z,@+no.megabyte
 
     out (port.xmpr.c),a
     inc a
     out (port.xmpr.d),a
     dec a
 
-    jr @continue.8
+    jr @+continue
 
-@no.megabyte.8:
+@no.megabyte:
 
     out (port.hmpr),a
 
-@continue.8:
+@continue:
 
     ex af,af'
     and %11110000
@@ -2096,25 +2140,25 @@ loop2:
     inc hl
     exx
 
-    ld a,(loader.external.ram)
-    or a
+    ld a,(loader.ram)
+    and %11100
 
     ld a,d
 
-    jr z,@no.megabyte.9
+    jr z,@+no.megabyte
 
     out (port.xmpr.c),a
     inc a
     out (port.xmpr.d),a
     dec a
 
-    jr @continue.9
+    jr @+continue
 
-@no.megabyte.9:
+@no.megabyte:
 
     out (port.hmpr),a
 
-@continue.9:
+@continue:
 
     ld a,(hl)
     and %11110000
@@ -2156,7 +2200,7 @@ no.decompress:
     or low.memory.ram.0
     out (port.lmpr),a
 
-    ld a,(loader.external.ram)
+    ld a,(loader.ram)
     ld c,a
 
 loader.octaves:
@@ -2680,11 +2724,14 @@ row.speed:  equ 14
     defb 0,0
     defm "Memory: "
 device.screen.memory:
-    defm "512 KB"
+    defm "256 KB"
     defb 0,0
     defb 0,0,0,0,0,0,0,0,0,0,0,0
     defm "Use CURSORS + RETURN or JOYSTICK"
     defb 0
+device.screen.memory.mb:
+    defm " MB  "
+    device.screen.memory.mb.len: equ $ - device.screen.memory.mb
 
 device.attributes:
     defb 3,colour.orange

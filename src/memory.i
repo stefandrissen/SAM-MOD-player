@@ -22,10 +22,14 @@ inst.buffer:    equ 0x4f00
 
 ; todo: make pages dynamic based on available?
 
-page.burstplayer:           equ 0x1a
-page.screen:                equ 0x1e
-page.loader:                equ 0x1f
-page.demo:                  equ 0x1f
+                                        ; 256K
+page.create.burstplayer:    equ 0x19    ; 0x09
+page.burstplayer:           equ 0x1a    ; 0x0a
+page.sequencer:             equ 0x1c    ; 0x0c
+page.dos:                   equ 0x1d    ; 0x0d
+page.screen:                equ 0x1e    ; 0x0e
+page.loader:                equ 0x1f    ; 0x0f
+page.demo:                  equ 0x1f    ; 0x0f
     demo.setup:                 equ 0x6000
 
 page.sequencer:             equ 0x1c
@@ -36,7 +40,7 @@ page.sequencer:             equ 0x1c
     sq.pointer.page.demo:       equ 0x8008  ; page of foreground program
     sq.pointer.page.mod:        equ 0x8009  ; page mod loaded in at (at 32k)
     sq.octaves:                 equ 0x800a  ; 3 or 5 octave mode
-    sq.external.ram:            equ 0x800b
+    sq.ram:                     equ 0x800b
 
 page.create.burstplayer:    equ 0x19    ; once created -> mode 2 screen
 
@@ -50,7 +54,7 @@ burstplayer.create:         equ 0x8000
 burstplayer.device:         equ 0x8003
 burstplayer.port:           equ 0x8004
 burstplayer.amiga:          equ 0x8005
-burstplayer.external.ram:   equ 0x8006
+burstplayer.ram:            equ 0x8006
 burstplayer.page:           equ 0x8007
 
 bp.id:                      equ 53      ; "BUR"

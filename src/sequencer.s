@@ -24,7 +24,7 @@ sq.pointer.page.demo:   defb 0              ; & page of demo (foreground)
 
 sq.pointer.page.mod:    defb page.mod       ; page mod loaded in at
 sq.octaves:             defb 3              ; number of octaves (3 or 5)
-sq.external.ram:        defb 0              ; [0-4]
+sq.ram:                 defb 0              ; %XXXRR (RAM / 256K)
 sq.gap:                 defb 0
 sq.instruments:         defb 0
 
@@ -57,7 +57,7 @@ sq.instruments:         defb 0
 @not.found:
 
     inc c
-    bit 5,c ;   256k: bit 4
+    bit 5,c ;   256K: bit 4
     jr z,@find.burst
 
     xor a
@@ -197,7 +197,7 @@ mk.c.on.lp:
     inc hl
     ld (hl),sequencer / 256
 
-    ld a,page.sequencer
+    in a,(port.hmpr)
     ld l,(iy + bp.pointer.page.sequencer - bp.pointers)
     ld h,(iy + bp.pointer.page.sequencer - bp.pointers + 1)
     ld (hl),a
@@ -439,7 +439,7 @@ build.list:
 
 sq.pointer.page.mod.low:    equ sq.pointer.page.mod - 0x8000
 sq.octaves.low:             equ sq.octaves          - 0x8000
-sq.external.ram.low:        equ sq.external.ram     - 0x8000
+sq.ram.low:                 equ sq.ram              - 0x8000
 sq.gap.low:                 equ sq.gap              - 0x8000
 sq.instruments.low:         equ sq.instruments      - 0x8000
 
@@ -470,8 +470,8 @@ mod.signature:              equ mod.song_positions + 128
 
     ld sp,0x4000
 
-    ld a,(sq.external.ram.low)
-    or a
+    ld a,(sq.ram.low)
+    and %11100
     jr z,@no.megabyte
 
     ld a,high.memory.external
@@ -1426,8 +1426,8 @@ set.high.memory.a:
 
     push af
 
-    ld a,(sq.external.ram.low)
-    or a
+    ld a,(sq.ram.low)
+    and %11100
 
     jr z, @no.megabyte
 
