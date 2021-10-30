@@ -114,7 +114,7 @@ scan.memory:
 
     inc b   ; 512K
 
-@not.512k
+@not.512k:
 
     ld a,c
     out (port.hmpr),a
@@ -127,7 +127,7 @@ scan.memory.len: equ $ - scan.memory
 
     org relocate.scan + scan.memory.len
 
-@set.memory.512k
+@set.memory.512k:
 
     ld hl,device.screen.memory
     ld (hl),"5"

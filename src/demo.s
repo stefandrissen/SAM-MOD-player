@@ -28,7 +28,7 @@ demo.setup: jp @setupmod
 demo.ram:           defb 0  ; %XXXRR (RAM / 256K)
 
 @fix.page:
-    and high.memory.page.mask.512K
+    and high.memory.page.mask
 
     ret
 
