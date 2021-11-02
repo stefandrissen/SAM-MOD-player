@@ -97,7 +97,7 @@
 		<sequential>
 
 			<exec executable="${simcoupe}" spawn="true">
-				<arg value="obj/@{disk}.dsk" />
+				<arg file="obj/@{disk}.dsk" />
 			</exec>
 
 		</sequential>
