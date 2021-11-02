@@ -68,9 +68,11 @@
 
 		<exec executable="${python}" failonerror="true">
 			<arg file="${pyz80}" />
-			<arg line="-I res/B-DOS15a" />
-			<!-- <arg line="-I res/AL-BDOS15a" /> -->
-			<!-- <arg line="-I res/bdos15t-6" /> -->
+			<arg line="-I res/dos/B-DOS15a" /> 
+			<!-- <arg line="-I res/dos/AL-BDOS15a" /> -->  
+			<!-- <arg line="-I res/dos/bdos15t-6" /> -->
+			<!-- <arg line="-I res/dos/MDOS23" /> -->
+			<!-- <arg line="-I res/dos/samdos" /> -->
 			<arg line="-I res/loading.$" />
 			<arg line="-I obj/sequencer" />
 			<arg line="-I obj/burstplayer" />

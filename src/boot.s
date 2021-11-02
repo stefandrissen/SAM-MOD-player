@@ -10,6 +10,7 @@
     include "opcodes.i"
     include "ports/internal.i"
     include "dos.i"
+    include "rom.i"
 
 ;---------------------------------------------------------------
 
@@ -22,6 +23,7 @@
     jp @boot
 
 ;---------------------------------------------------------------
+@var.dos.version:   defb 0
 
 @file.loading.scr:  defm "loading.$    "
 @file.sequencer:    defm "sequencer    "
@@ -34,6 +36,8 @@
 @boot:
 
     di
+
+    call @get.dos.version
 
     call @set.palette
     call @detect.memory
@@ -67,6 +71,8 @@
     ld hl,@file.demo
     call @load.file.address
 
+    ld a,(@var.dos.version)
+    ld c,a
     ld a,page.loader - 1
     call @fix.page
     ld hl,0xc000
@@ -282,3 +288,38 @@ inst.buffer.jump_ahl:
 
     org @load.relocate + @load.len
 
+;------------------------------------------------------------------------------
+@get.dos.version:
+
+; use floating point calculator to get the address of dvar.version
+;
+; sets @var.dos.version
+
+    rst fpc
+        defb fpc.onelit
+        defb dvar.version
+        defb fpc.dvar
+        defb fpc.fivelit
+            defb 0          ; special form
+            defb 0          ; positive
+            defw 0x4000
+            defb 0
+        defb fpc.mod        ; dvar mod 16384 (to allow simple jgetint)
+        defb fpc.exit
+
+    call rom.jgetint        ; dvar -> hl
+
+    in a,(port.lmpr)
+    ld b,a
+    ld a,(svar.dosflg)
+    or low.memory.ram.0
+    out (port.lmpr),a
+    ld a,(hl)
+    ld (@var.dos.version),a
+
+    ld a,b
+    out (port.lmpr),a
+
+    ret
+
+;------------------------------------------------------------------------------

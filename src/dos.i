@@ -42,6 +42,18 @@ bdos.dvars:     equ 0x8000
 
 dvar.border.mask:       equ 0   ; Border mask 0=no border change,1-7 border changed
 dvar.version:           equ 7   ; Version number divided by 10 minus 10 (version 1.1 = 1)
+
+                                ;  4 B-DOS 1.4
+                                ;  5 B-DOS 1.5
+                                ;  6 B-DOS 1.6
+                                ;  7 B-DOS 1.7
+
+                                ; 13 samdos 1.3
+                                ; 20 samdos 2.0
+
+                                ; 33 masterdos 1.3
+                                ; 43 masterdos 2.3
+
 dvar.reserved:          equ 21  ; Number of reserved sectors on hard disk for BOOT sector
                                   ; and RECORD list. Equal to INT ((records+63)/32))
                                   ; May be altered to access the Record names list. This DVAR

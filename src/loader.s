@@ -27,7 +27,7 @@ load.offs:  equ 0x8000
 ;---------------------------------------------------------------
 
 
-loader.device:          defb device.clut ; [0-5]
+loader.device:          defb device.samdac  ; [0-5]
 
     device.saa:             equ 0
     device.samdac:          equ 1
@@ -44,6 +44,7 @@ loader.speed:           defb 0 ; [0-1]
 
 loader.ram:             defb 0 ; %XXXRR (RAM / 256K)
 
+loader.dos.version:     defb 0 ; (dvar 7)
 loader.drive:           defb 1 ; [1-2]
 loader.record:          defw 0
 
@@ -167,6 +168,9 @@ loader.start:
 
     di
 
+    ld a,c
+    ld (loader.dos.version),a
+
     call cls
 
     in a,(port.hmpr)
@@ -194,6 +198,9 @@ loader.start:
     ld de,device.screen
     ld ix,device.attributes
     call print.screen
+
+    ld de,load.screen
+    call print.screen.no.attr
 
     ld hl,video.memory.32.rows * row.device + video.memory.high
     ld (curs.offs+1),hl
@@ -739,12 +746,19 @@ loader:
 
     ld de,loader.dir + load.len
 
+    ld a,(loader.dos.version)
+    cp 10
+    jr nc,@not.bdos
+
     ld a,dvar.records
     call bdos.get.dvar.word
     ld a,h
     or l
     jr nz,@has.record.device
 
+    jr @no.drive2
+
+@not.bdos:
     ld c,port.disk.2.track
     ld b,0
 is.2.pres:
@@ -2540,22 +2554,24 @@ print.screen:
     push de
     ld a,6
     call set.attributes
+    pop de
+
+print.screen.no.attr:
 
     ld hl,video.memory.high
-    pop de
     ld c,32
-@wel.all:
+@rows:
     ld b,32
     push hl
 
-@pr.scr.blp:
+@columns:
     ld a,(de)
     inc de
     or a
     jr z,@end.of.line
     call print.chr
-    djnz @pr.scr.blp
-@end.of.line:
+    djnz @-columns
+@normal.line:
     pop hl
     ld a,l
     add video.memory.32.rows
@@ -2563,9 +2579,31 @@ print.screen:
     jr nc,$+3
     inc h
     dec c
-    jr nz,@wel.all
+    jr nz,@-rows
+@exit:
     ld a,255
     ret
+
+@end.of.line:
+    ld a,(de)
+    cp " "
+    jr nc,@-normal.line
+    pop hl
+    or a
+    jr z,@exit
+    inc de
+    ld b,a
+    ld a,l
+@empty.lines:
+    add video.memory.32.rows
+    ld l,a
+    jr nc,$+3
+    inc h
+    dec c
+    jr z,@exit
+    djnz @-empty.lines
+
+    jr @-rows
 
 ;---------------------------------------------------------------
 cls:
@@ -2696,13 +2734,10 @@ colour.yellow:  equ 5
 
 
 device.screen:
-    defm "SAM MOD player             "
-    include "txt.version.i"
-    include "txt.copyright.i"
-    defb 0,0
+    defb 0,3
 row.device: equ 5
     defm "SOUND DEVICE"
-    defb 0,0
+    defb 0,2
     defm " Sound chip"
     defb 0
     defm " SAMdac"
@@ -2714,21 +2749,19 @@ row.device: equ 5
     defm " Quazar Soundcard"
     defb 0
     defm " Screen"
-    defb 0,0
+    defb 0,2
 row.speed:  equ 14
     defm "AMIGA SPEED"
-    defb 0,0
+    defb 0,2
     defm " PAL"
     defb 0
     defm " NTSC"
-    defb 0,0
+    defb 0,2
     defm "Memory: "
 device.screen.memory:
     defm "256 KB"
     defb 0,0
-    defb 0,0,0,0,0,0,0,0,0,0,0,0
-    defm "Use CURSORS + RETURN or JOYSTICK"
-    defb 0
+
 device.screen.memory.mb:
     defm " MB  "
     device.screen.memory.mb.len: equ $ - device.screen.memory.mb
@@ -2776,10 +2809,7 @@ load.screen:
     defm "SAM MOD player             "
     include "txt.version.i"
     include "txt.copyright.i"
-    defb 0,0,0,0,0,0,0
-    defb 0,0,0,0,0,0,0,0
-    defb 0,0,0,0,0,0,0,0
-    defb 0,0,0,0,0,0,0
+    defb 0,30
     defm "Use CURSORS + RETURN or JOYSTICK"
 
 
@@ -2905,5 +2935,6 @@ temp.spc:       equ video.memory.high + video.memory.32.rows * 32
 
 ;===============================================================
 
-length:         equ $-16384
+assert $ + 0x0200 < 0xe000
+
 
