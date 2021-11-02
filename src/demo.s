@@ -806,9 +806,9 @@ print.channel:
     ld a,(ix+0)             ; instrument hi
     ld d,a
     and 0xf0
-    jr nz,@not.blank
     ld a,(ix+2)
     ld e,a
+    jr nz,@not.blank
     and 0xf0
     jr z,@blank
 
