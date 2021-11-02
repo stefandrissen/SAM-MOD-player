@@ -875,10 +875,10 @@ display.period_values:
 
     ld a,d                  ; period value
     and 0x0f
+    ld e,(ix+1)
     jr nz,@not.blank
-    ld a,(ix+1)
+    ld a,e
     or a
-    ld e,a
     jr z,@blank.2
 
 @not.blank:
