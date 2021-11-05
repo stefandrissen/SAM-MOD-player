@@ -764,27 +764,23 @@ fat.path_temp:
 
 ;---------------------------------------------------------------
 
-fat.boot_sector:    defs 3
-    bssysid:        defm "01234567"
-    bssecsize:      defw 0
-    bsclusize:      defb 0
-    bsressec:       defw 0
-    bsnumfats:      defb 0
-    bsrootentries:  defw 0
-    bstotsecs:      defw 0
-    bsformatid:     defb 0
-    bssecsfat:      defw 0
-    bssecstrack:    defw 0
-    bssides:        defw 0
-    bshiddensecs:   defw 0,0
-    bsbigtot:       defw 0,0
-    bsphysdrv:      defb 0
-                    defw 0
-    bsvolserial:    defb 0,0,0,0
-    bsvolname:      defm "01234567890"
-
-fat.bytes_cluster:  defw 0
-
-fat.dir_entries:    defw 0
-
-fat.data:           defw 0      ;points to first address after FAT
+fat.boot_sector:    equ dos.sector
+    bssysid:            equ fat.boot_sector +  3
+    bssecsize:          equ fat.boot_sector + 11
+    bsclusize:          equ fat.boot_sector + 13
+    bsressec:           equ fat.boot_sector + 14
+    bsnumfats:          equ fat.boot_sector + 16
+    bsrootentries:      equ fat.boot_sector + 17
+    bstotsecs:          equ fat.boot_sector + 19
+    bsformatid:         equ fat.boot_sector + 21
+    bssecsfat:          equ fat.boot_sector + 22
+    bssecstrack:        equ fat.boot_sector + 24
+    bssides:            equ fat.boot_sector + 26
+    bshiddensecs:       equ fat.boot_sector + 28
+    bsbigtot:           equ fat.boot_sector + 32
+    bsphysdrv:          equ fat.boot_sector + 36
+    bsvolserial:        equ fat.boot_sector + 39
+    bsvolname:          equ fat.boot_sector + 43
+fat.bytes_cluster:  equ fat.boot_sector + 54
+fat.dir_entries:    equ fat.boot_sector + 56
+fat.data:           equ fat.boot_sector + 58    ; points to first address after FAT

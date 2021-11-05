@@ -142,5 +142,5 @@ video.memory.high.attributes:   equ video.memory.high + 0x2000
 video.memory.24.rows:   equ ( 8 * 0x20 )
 video.memory.32.rows:   equ ( 6 * 0x20 )
 
-loader.font_high:   equ 0xc00b
+loader.font_high:   equ 0xc00c
 

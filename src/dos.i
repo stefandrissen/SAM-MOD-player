@@ -10,13 +10,26 @@ dos.sector:     equ 0x4900  ; 512 bytes for sector
 
 uifa:           equ 0x4b00  ; user information file area
 
-    uifa.filetype:  equ uifa + 0x00
+    uifa.filetype:          equ 0x00
         uifa.filetype.basic:    equ 0x10
         uifa.filetype.code:     equ 0x13
         uifa.filetype.screen:   equ 0x14
 
-    uifa.filename:  equ uifa + 0x01
-    uifa.flags:     equ uifa + 0x0e
+    uifa.filename:          equ 0x01 ; 10 characters
+    uifa.sectors:           equ 0x0b ; msb,lsb number of sectors used
+
+    uifa.track:             equ 0x0d ; track number of start of file
+    uifa.sector:            equ 0x0e ; sector number of start of file
+
+    uifa.diskname:          equ 0xd2 ; 10 characters (first entry only)
+
+    uifa.timestamp:         equ 0xf5
+    uifa.timestamp.day:     equ 0xf5
+    uifa.timestamp.month:   equ 0xf6
+    uifa.timestamp.year:    equ 0xf7
+    uifa.timestamp.hour:    equ 0xf8
+    uifa.timestamp.minute:  equ 0xf9
+
 
 ;---------------------------------------------------------------
 
@@ -41,6 +54,13 @@ svar.cuscrnp:   equ 0x5a78  ; Current screen page. Bit 7=0, bits 6 and 5=MODE (0
 bdos.dvars:     equ 0x8000
 
 dvar.border.mask:       equ 0   ; Border mask 0=no border change,1-7 border changed
+
+dvar.drive_1.tracks:    equ 1   ; tracks + 0x80 if double sided
+dvar.drive_2.tracks:    equ 2   ;
+
+dvar.drive_1.step_rate: equ 3   ; 0 = 3ms, 3 = 6ms
+dvar.drive_2.step_rate: equ 4   ;
+
 dvar.version:           equ 7   ; Version number divided by 10 minus 10 (version 1.1 = 1)
 
                                 ;  4 B-DOS 1.4
@@ -55,16 +75,16 @@ dvar.version:           equ 7   ; Version number divided by 10 minus 10 (version
                                 ; 43 masterdos 2.3
 
 dvar.reserved:          equ 21  ; Number of reserved sectors on hard disk for BOOT sector
-                                  ; and RECORD list. Equal to INT ((records+63)/32))
-                                  ; May be altered to access the Record names list. This DVAR
-                                  ; must be restored to its old value before the hard disk is
-                                  ; used again.
+                                ; and RECORD list. Equal to INT ((records+63)/32))
+                                ; May be altered to access the Record names list. This DVAR
+                                ; must be restored to its old value before the hard disk is
+                                ; used again.
 dvar.records:           equ 23  ; Total number of records available
 dvar.record:            equ 25  ; current record selected. May be DPOKEd manually to select
-                                  ; a record. The write protect status of a record is not
-                                  ; updated if this DVAR is DPOKEd.
+                                ; a record. The write protect status of a record is not
+                                ; updated if this DVAR is DPOKEd.
 dvar.record.protected:  equ 27  ; Write protect status of current record. Note only updated
-                                  ; If a record is selected using the RECORD command.
+                                ; If a record is selected using the RECORD command.
 
 ;---------------------------------------------------------------
 
@@ -88,7 +108,7 @@ dos.hload:  equ 0x82    ; load file
 ; Load file in UIFA pointed to by IX register. The C register
 ; contains the number of 16K pages used by the file, while DE
 ; must contain the length modulo 16K. The HL register pair must
-; point to a destination between 8OOOH to BFFFH, while the
+; point to a destination between 0x8000 to 0xbfff, while the
 ; destination page must be paged in using the HMPR register.
 ; These values can be obtained from the header loaded by HGTHD.
 
@@ -112,7 +132,7 @@ dos.hrsad:  equ 0xa0    ; read a sector from disk
 ;   A = drive
 ;   D = track
 ;   E = sector
-;   HL = memory address (16384 to 65024)
+;   HL = memory address (0x4000 to 0xfe00)
 
 ;---------------------------------------------------------------
 
@@ -121,7 +141,7 @@ dos.hmrsad: equ 0xa2    ; read multiple sectors
 ;   A = drive number
 ;   D = track, E = sector
 ;   C = memory page
-;   HL = memory offset (32768 to 49151)
+;   HL = memory offset (0x8000 to 0xbfff)
 ;   IX = number of sectors
 
 ;---------------------------------------------------------------

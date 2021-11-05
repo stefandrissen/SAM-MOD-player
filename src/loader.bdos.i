@@ -5,106 +5,125 @@
 ; - Record list size (in sectors) = (all sectors / 1600 + 32) / 32
 ; - Selected record (disk drive = 0) = (PEEK DVAR 7 = 2) * DPEEK DVAR 25
 
-;---------------------------------------------------------------
+;@sector: equ fat
+@sector: equ dos.sector
+
+;-------------------------------------------------------------------------------
 bdos.read.dir:
 
 ; first read in SAM directory
-;---------------------------------------------------------------
+
+; read directory sectors and copy relevant 16 bytes per entry to screen memory
+; for processing
+;-------------------------------------------------------------------------------
 
     in a,(port.hmpr)
     and high.memory.page.mask
     ld c,a
 
-    ld de,0x0001
     ld hl,fat
+    ld d,0      ; track
 
-cs.rd.lp:
-    push bc
-    push de
+@loop.tracks:
+    ld e,1      ; sector
+
+@loop.sectors:
+
     push hl
-
+    ld hl,@sector
     call bdos.read.sector
     pop hl
 
     ld a,d
-    or a
-    jr nz,cs.notfirst
     dec e
-    jr nz,cs.notfirst
+    or e
+    call z,@get.volume.label
+    inc e
+
+    push de
+
+    ld de,@sector
+    call @get.entry
+
+    ld de,@sector + 0x100
+    call @get.entry
+
+    pop de
+
+    inc e
+    ld a,e
+    cp 11
+    jr nz,@-loop.sectors
+
+    inc d
+    ld a,d
+    cp 4
+    jr nz,@-loop.tracks
+
+    ret
+
+;-------------------------------------------------------------------------------
+@get.entry:
+; move 16 bytes into directory structure
+;
+; 0x00  filetype
+; 0x01  filename
+; 0x0b  day      <-
+; 0x0c  month    <-
+; 0x0d  track
+; 0x0e  sector
+; 0x0f  year     <-
+;
+; input:
+;   de = @sector
+;   hl = directory store
+
+    ex de,hl
+
+    ld bc,0x0b
+    ldir        ; filetype + filename
+    ld c,uifa.timestamp.day - 0x0b
+    add hl,bc
+    ldi         ; day
+    inc c
+    ldi         ; month
+    inc c
+    or a
+    sbc hl,bc
+    ldi         ; track
+    ldi         ; sector
+    add hl,bc
+    ldi         ; year
+
+    ex de,hl
+
+    ret
+
+;-------------------------------------------------------------------------------
+@get.volume.label:
 
     push hl
+    push de
+
     ld de,m.vollabel
-    ld hl,fat+210
+    ld hl,@sector+uifa.diskname
     ld a,(hl)
     cp "*"
-    jr nz,$+4
+    jr nz,@has.label
     ld (hl),0
+@has.label:
     ld bc,10
     ldir
     ld a," "
     ld (de),a
-    pop hl
-cs.notfirst:
-    push hl
-    push hl
-    pop de
-    ld bc,245
-    add hl,bc
-    ld a,e
-    add 11
-    ld e,a
-    jr nc,$+3
-    inc d
-    ldi
-    ldi
-    inc de
-    inc de
-    ldi
-    pop hl
 
-    ld bc,16
-    ld e,l
-    ld d,h
-    ex de,hl
-    add hl,bc
-    ex de,hl
-    inc h
-
-    push de
-    push hl
-    push hl
     pop de
-    ld bc,245
-    add hl,bc
-    ld a,e
-    add 11
-    ld e,a
-    jr nc,$+3
-    inc d
-    ldi
-    ldi
-    inc de
-    inc de
-    ldi
     pop hl
-    pop de
-
-    ld bc,16
-    ldir
-    ex de,hl
-    pop de
-    pop bc
-    inc e
-    ld a,e
-    cp 11
-    jr nz,cs.rd.lp
-    ld e,1
-    inc d
-    ld a,d
-    cp 4
-    jr nz,cs.rd.lp
 
     ret
+
+;-------------------------------------------------------------------------------
+
 
 if defined (debug)
 
@@ -118,14 +137,14 @@ if defined (debug)
 endif
 
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 bdos.read.sector:
 
 ; read physical sector from disc
 ;   d = track (+128 for side 2)
 ;   e = sector
 ;   hl= address
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 
     di
 
@@ -174,10 +193,9 @@ endif
     push hl
 
     ld a,(loader.drive)
-    ld ix,1
 
     rst 8
-    defb dos.hmrsad
+    defb dos.hrsad
 
     di
 
@@ -232,12 +250,12 @@ endif
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 bdos.get.dvar:
 
 ; get dvar value and return it in a
 ;   a = dvar to get
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 
     call relocate.low
 
@@ -281,12 +299,12 @@ bdos.get.dvar:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 bdos.get.dvar.word:
 
 ; get dvar word value and return it in hl
 ;   a = dvar to get
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
     push af
     call bdos.get.dvar
     ld l,a
@@ -297,11 +315,11 @@ bdos.get.dvar.word:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 bdos.select.record.hl:
 
 ; select record hl
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 
     push bc
 

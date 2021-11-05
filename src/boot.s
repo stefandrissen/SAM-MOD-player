@@ -23,8 +23,6 @@
     jp @boot
 
 ;---------------------------------------------------------------
-@var.dos.version:   defb 0
-
 @file.loading.scr:  defm "loading.$    "
 @file.sequencer:    defm "sequencer    "
 @file.burstplayer:  defm "burstplayer  "
@@ -36,8 +34,6 @@
 @boot:
 
     di
-
-    call @get.dos.version
 
     call @set.palette
     call @detect.memory
@@ -71,8 +67,15 @@
     ld hl,@file.demo
     call @load.file.address
 
-    ld a,(@var.dos.version)
-    ld c,a
+    ld a,dvar.version
+    call @get.dvar
+    ld e,a
+    push de
+    ld a,dvar.drive_2.tracks
+    call @get.dvar
+    pop de
+    ld d,a
+
     ld a,page.loader - 1
     call @fix.page
     ld hl,0xc000
@@ -289,15 +292,21 @@ inst.buffer.jump_ahl:
     org @load.relocate + @load.len
 
 ;------------------------------------------------------------------------------
-@get.dos.version:
+@get.dvar:
 
-; use floating point calculator to get the address of dvar.version
+; use floating point calculator to get address of dvar and then get value
 ;
-; sets @var.dos.version
+; input
+; - a = dvar
+; output
+; - a = dvar value
+
+    ld (@smc.dvar),a
 
     rst fpc
         defb fpc.onelit
-        defb dvar.version
+@smc.dvar:
+        defb 0
         defb fpc.dvar
         defb fpc.fivelit
             defb 0          ; special form
@@ -314,11 +323,13 @@ inst.buffer.jump_ahl:
     ld a,(svar.dosflg)
     or low.memory.ram.0
     out (port.lmpr),a
-    ld a,(hl)
-    ld (@var.dos.version),a
+
+    ld c,(hl)
 
     ld a,b
     out (port.lmpr),a
+
+    ld a,c
 
     ret
 

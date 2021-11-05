@@ -45,6 +45,7 @@ loader.speed:           defb 0 ; [0-1]
 loader.ram:             defb 0 ; %XXXRR (RAM / 256K)
 
 loader.dos.version:     defb 0 ; (dvar 7)
+loader.drive_2.tracks:  defb 0 ; (dvar 2)
 loader.drive:           defb 1 ; [1-2]
 loader.record:          defw 0
 
@@ -168,8 +169,10 @@ loader.start:
 
     di
 
-    ld a,c
+    ld a,e
     ld (loader.dos.version),a
+    ld a,d
+    ld (loader.drive_2.tracks),a
 
     call cls
 
@@ -759,20 +762,9 @@ loader:
     jr @no.drive2
 
 @not.bdos:
-    ld c,port.disk.2.track
-    ld b,0
-is.2.pres:
-    out (c),b
-
-    ld a,12             ; approx 32 micro second delay
-@loop:
-    dec a
-    jr nz,@loop
-
-    in a,(c)
-    cp b
-    jr nz,@no.drive2
-    djnz is.2.pres
+    ld a,(loader.drive_2.tracks)
+    or a
+    jr z,@no.drive2
 
     jr @has.second.device
 
@@ -847,7 +839,7 @@ pl.copy.name:
     ld e,(ix+26)
     ld d,(ix+27)        ; first cluster
 
-    ld hl,temp.spc      ; space between scrn & attrib
+    ld hl,dos.sector
 pc.rd.more:
     call fat.read_cluster
     call fat.get_entry
@@ -997,25 +989,47 @@ sl.copy.name:
 
     push de
 
-    ld e,(ix+14)
-    ld d,(ix+13)    ; first sector
+    ld e,(ix+uifa.sector)
+    ld d,(ix+uifa.track)    ; first sector
 
     in a,(port.hmpr)
     and high.memory.page.mask
     ld c,a
 
-    ld hl,temp.spc
+    ; read first 3 sectors of file to check if it is a mod
+
+    ld hl,dos.sector
     call bdos.read.sector
-    dec hl
-    ld e,(hl)
-    dec hl
+    ld hl,dos.sector
+    ld de,temp.spc
+    ld bc,510
+    ldir
     ld d,(hl)
-    call bdos.read.sector
-    dec hl
+    inc hl
     ld e,(hl)
-    dec hl
-    ld d,(hl)
+    ld a,d
+    or e
+    jp z,sl.skip
+
+    ld hl,dos.sector
     call bdos.read.sector
+    ld hl,dos.sector
+    ld de,temp.spc + 510
+    ld bc,510
+    ldir
+    ld d,(hl)
+    inc hl
+    ld e,(hl)
+    ld a,d
+    or e
+    jr z,sl.skip
+
+    ld hl,dos.sector
+    call bdos.read.sector
+    ld hl,dos.sector
+    ld de,temp.spc + 2 * 510
+    ld bc,510
+    ldir
 
     pop de
 
@@ -1709,27 +1723,29 @@ pc.load.all:
 
 sam.load:
 
-    ld de,0x0001
-
-sam.load.dir:
-    in a,(port.hmpr)
-    and high.memory.page.mask
-    ld c,a
-    ld hl,temp.spc
+    ld d,0
+@loop.tracks:
+    ld e,1
+@loop.sectors:
+    ld hl,dos.sector
     call bdos.read.sector
-    ld hl,temp.spc
+
+    ld hl,dos.sector
     call sam.match
-    ld hl,temp.spc+256
+
+    ld hl,dos.sector + 0x100
     call sam.match
+
     inc e
     ld a,e
     cp 11
-    jr nz,sam.load.dir
-    ld e,1
+    jr nz,@-loop.sectors
+
     inc d
     ld a,d
     cp 4
-    jr nz,sam.load.dir
+    jr nz,@-loop.tracks
+
 file.notfound:
     jp loader
 
@@ -1740,13 +1756,14 @@ sam.match:
     jr nz,sam.no.match
 
     ld b,8
-sam.match.blp:
+@compare.filename:
     ld a,(ix)
     inc ix
     inc l
     cp (hl)
     jr nz,sam.no.match
-    djnz sam.match.blp
+    djnz @-compare.filename
+
     ; inc l
     ; ld a,(hl)
     ; cp "."
@@ -1755,6 +1772,7 @@ sam.match.blp:
     ; ld a,(hl)
     ; cp "m"
     ; jr nz,sam.no.match
+
     pop ix
 
     pop af          ; chuck return address
@@ -1799,19 +1817,21 @@ relocate.load.mod:
 
 load.mod:
 
-    ld (@disk+1),a
-    ld hl,uifa  ; tape headers + farldir buffer = 512 bytes
+    ld (@+drive+1),a
+    ld hl,dos.sector
 
     rst 8
     defb dos.hrsad
     di
 
     in a,(port.hmpr)
-    ld (@file.loaded+1),a
+    ld (@+store.hmpr+1),a
 
     ld a,page.mod
     out (port.hmpr),a
-    ld hl,uifa + 9
+    ld (@page+1),a
+
+    ld hl,dos.sector + 9
     ld de,load.offs
     ld bc,510-9
     ldir
@@ -1820,45 +1840,51 @@ load.mod:
     ld e,(hl)
 
     ld hl,load.offs+510-9
-    ld c,a
 
 @loop:
 
-@disk:
-    ld a,0
-    ld ix,1
-
     push hl
-    push bc
+
+    ld hl,dos.sector
+
+@drive:
+    ld a,0
 
     rst 8
-    defb dos.hmrsad
+    defb dos.hrsad
     di
 
-    pop bc
-
-    ld a,c
+@page:
+    ld a,0
     out (port.hmpr),a
 
-    pop hl
-    inc h
-    inc h
+    pop de
 
-    dec hl
-    ld e,(hl)
-    dec hl
+    ld hl,dos.sector
+    ld bc,510
+    ldir
+
+    push de
     ld d,(hl)
+    inc hl
+    ld e,(hl)
+    pop hl
+
     ld a,e
     or d
-    jr z,@file.loaded
+    jr z,@+file.loaded
     bit 6,h
-    jr z,@loop
+    jr z,@-loop
 
     res 6,h
-    inc c
-    jr @loop
+    ld a,(@-page+1)
+    inc a
+    ld (@-page+1),a
+
+    jr @-loop
 
 @file.loaded:
+@store.hmpr:
     ld a,0
     out (port.hmpr),a
     ret
@@ -1873,7 +1899,7 @@ relocate.meg.load.mod:
 
 meg.load.mod:
 
-    ld (@meg.disk+1),a
+    ld (@+drive+1),a
     ld hl,dos.sector
 
     rst 8
@@ -1881,7 +1907,7 @@ meg.load.mod:
     di
 
     in a,(port.hmpr)
-    ld (@meg.file.loaded+1),a
+    ld (@+store.hmpr+1),a
 
     ld a,page.mod.megabyte
     ld (@external+1),a
@@ -1901,17 +1927,17 @@ meg.load.mod:
 
     ld hl,load.offs+510-9
 
-@meg.loop:
+@loop:
 
-    ld a,(@meg.file.loaded+1)
+    ld a,(@+store.hmpr+1)
     out (port.hmpr),a
-
-@meg.disk:
-    ld a,0
 
     push hl
 
     ld hl,dos.sector
+
+@drive:
+    ld a,0
 
     rst 8
     defb dos.hrsad
@@ -1939,18 +1965,19 @@ meg.load.mod:
 
     ld a,e
     or d
-    jr z,@meg.file.loaded
+    jr z,@+file.loaded
     bit 6,h
-    jr z,@meg.loop
+    jr z,@-loop
 
     res 6,h
     ld a,(@external+1)
     inc a
     ld (@external+1),a
 
-    jr @meg.loop
+    jr @-loop
 
-@meg.file.loaded:
+@file.loaded:
+@store.hmpr:
     ld a,0
     out (port.hmpr),a
     ret
