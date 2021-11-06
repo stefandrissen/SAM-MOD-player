@@ -266,7 +266,17 @@ loader.font_high:
     cp device.dac + 1
     jr nc,@no.port
 
-    call scan.keyboard.left.right
+    push bc
+    call @scan.keyboard.left.right
+    pop bc
+    jr z,@not.pressed
+
+    ld a,(loader.device.port)
+    xor 1
+    ld (loader.device.port),a
+
+@not.pressed:
+
     ld a,c
 
 @no.port:
@@ -662,7 +672,26 @@ scan.keyboard.return:
     ret
 
 ;---------------------------------------------------------------
-scan.keyboard.left.right:
+@scan.keyboard.left.right.shifted:
+
+    ld c,1
+
+    ld a,keyboard.vcxz_shift
+    in a,(port.keyboard)
+    bit 0,a
+    jr nz,@not.shift
+    ld c,10
+    jr @scan.keyboard.left.right
+
+@not.shift:
+    ld a,keyboard.bnm_symbol_space
+    in a,(port.keyboard)
+    bit 1,a
+    jr nz,@scan.keyboard.left.right
+
+    ld c,50
+
+@scan.keyboard.left.right:
 
     ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
@@ -682,25 +711,30 @@ scan.keyboard.left.right:
     ret
 
 @still.cursor.left:
+    set 7,c
     ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
     bit 3,a
     jr z,@still.cursor.left
-    jr @change.port
+
+    ret
 
 @still.cursor.right:
     ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
     bit 4,a
     jr z,@still.cursor.right
-    jr @change.port
+
+    ret
 
 @still.6:
+    set 7,c
     ld a,keyboard.67890
     in a,(port.keyboard)
     bit 4,a
     jr z,@still.6
-    jr @change.port
+
+    ret
 
 @still.7:
     ld a,keyboard.67890
@@ -708,13 +742,7 @@ scan.keyboard.left.right:
     bit 3,a
     jr z,@still.7
 
-@change.port:
-    ld a,(loader.device.port)
-    xor 1
-    ld (loader.device.port),a
-
     ret
-
 
 ;===============================================================
 
@@ -750,7 +778,7 @@ loader.palette:
     defb %1110111 ;    F
 
 ;---------------------------------------------------------------
-show.screen:
+@show.screen:
 ;---------------------------------------------------------------
 
     call cls
@@ -761,13 +789,7 @@ show.screen:
 
     ret
 
-;---------------------------------------------------------------
-loader:
-;---------------------------------------------------------------
-
-;   ld sp,0x8000
-
-    call show.screen
+@loader.init:
 
     ld hl,mes.nodisc
     ld de,m.vollabel
@@ -780,8 +802,6 @@ loader:
     xor a
     ld (nodisc+1),a
 
-    call fat.read.dir
-
     ld a,1
     ld (loader.entries),a
 
@@ -790,7 +810,20 @@ loader:
     ld bc,load.len * 2
     ldir
 
-    ld de,loader.dir + load.len
+    ret
+
+;---------------------------------------------------------------
+loader:
+;---------------------------------------------------------------
+
+;   ld sp,0x8000
+
+    call @loader.init
+    call @show.screen
+
+    call fat.read.dir
+
+;    ld de,loader.dir + load.len
 
     ld a,(loader.dos.version)
     cp dvar.version.b_dos.max + 1
@@ -1162,7 +1195,7 @@ sl.skip:
     jp nz,sam.to.loader
 
 converted:
-    call show.screen
+    call @show.screen
 
     call print.oct
 
@@ -1362,102 +1395,74 @@ normal.mess:
     in a,(port.keyboard)
     and %00010
     ld a,opcode.nop
-    jr nz,not.o
-still.o:
+    jr nz,@not.o
+@still.o:
     scf
-    jr c,not.o.nc
+    jr c,@not.o.nc
     ld a,(loader.octaves+1)
     xor %110
     ld (loader.octaves+1),a
     call print.oct
     ld a,opcode.scf
-not.o:
-    ld (still.o),a
-not.o.nc:
+@not.o:
+    ld (@still.o),a
+@not.o.nc:
 
     ld a,(ix+28)
     cp 0x81     ; drive 2
-    call z,@scan.keyboard.left.right
+    jr nz,@not.drive_2
 
+    push bc
+    call @scan.keyboard.left.right.shifted
+    call nz,@record.up.down
+    pop bc
+
+@not.drive_2:
     jp cursor.lp
 
-; !!! copy / paste
-
-@scan.keyboard.left.right:
-
-    ld a,keyboard.cursors_cntrl
-    in a,(port.keyboard)
-    bit 3,a
-    jr z,@still.cursor.left
-    bit 4,a
-    jr z,@still.cursor.right
-
-    ld a,keyboard.67890
-    in a,(port.keyboard)
-    bit 4,a
-    jr z,@still.6
-    bit 3,a
-    jr z,@still.7
-
-    ret
-
-@still.cursor.left:
-    ld a,keyboard.cursors_cntrl
-    in a,(port.keyboard)
-    bit 3,a
-    jr z,@still.cursor.left
-    jr @record.down
-
-@still.cursor.right:
-    ld a,keyboard.cursors_cntrl
-    in a,(port.keyboard)
-    bit 4,a
-    jr z,@still.cursor.right
-    jr @record.up
-
-@still.6:
-    ld a,keyboard.67890
-    in a,(port.keyboard)
-    bit 4,a
-    jr z,@still.6
-    jr @record.down
-
-@still.7:
-    ld a,keyboard.67890
-    in a,(port.keyboard)
-    bit 3,a
-    jr z,@still.7
-    jr @record.up
+@record.up.down:
+    ld b,0
+    bit 7,c
+    jr z,@record.up
 
 @record.down:
 
     ld a,dvar.record
     call bdos.get.dvar.word
-    dec hl
-    ld a,h
-    or l
-    ret z
+
+    res 7,c
+    or a
+    sbc hl,bc
+    jr nc,@change.record
+    ld hl,1
     jr @change.record
 
 @record.up:
 
-    ld a,dvar.records
+    ld a,dvar.record
     call bdos.get.dvar.word
+
+    add hl,bc
     ex de,hl
 
-    ld a,dvar.record
+    ld a,dvar.records
     call bdos.get.dvar.word
 
     or a
     sbc hl,de
-    ret nc
+    jr nc,@not.last.record
+
     add hl,de
-    inc hl
+    ex de,hl
+
+@not.last.record:
+    ex de,hl
 
 @change.record:
 
     call bdos.select.record.hl
-    pop af
+    pop af                      ; toss return address
+    ld c,1
     jp select.key
 
 
