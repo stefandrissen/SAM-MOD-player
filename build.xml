@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="sam-mod-player" default="all" xmlns:if="ant:if">
+<project name="sam-mod-player" default="all (b-dos)" xmlns:if="ant:if">
 
 	<property name="python" location="../../AppData/Local/Programs/Python/Python38/python.exe" />
 	<property name="pyz80" value="../pyz80/pyz80.py" />
@@ -32,30 +32,6 @@
 
 	</macrodef>
 
-	<target name="assemble-loader">
-
-		<assemble source="loader" mapfile="${mapfile}" />
-
-	</target>
-
-	<target name="assemble-demo">
-
-		<assemble source="demo" mapfile="${mapfile}" />
-
-	</target>
-
-	<target name="assemble-burstplayer">
-
-		<assemble source="burstplayer" mapfile="${mapfile}" debug="true" />
-
-	</target>
-
-	<target name="assemble-sequencer">
-
-		<assemble source="sequencer" mapfile="${mapfile}" />
-
-	</target>
-
 	<target name="assemble-example">
 
 		<assemble source="example" />
@@ -64,30 +40,55 @@
 
 	<!-- create-disk -->
 
-	<target name="create-disk" depends="assemble-loader,assemble-demo,assemble-burstplayer,assemble-sequencer,assemble-test-mod">
+	<target name="create-disk">
 
-		<exec executable="${python}" failonerror="true">
-			<arg file="${pyz80}" />
-			<arg line="-I res/dos/B-DOS15a" />
-			<!-- <arg line="-I res/dos/AL-BDOS15a" /> -->
-			<!-- <arg line="-I res/dos/bdos15t-6" /> -->
-			<!-- <arg line="-I res/dos/MDOS23" /> -->
-			<!-- <arg line="-I res/dos/samdos2" /> -->
-			<arg line="-I res/loading.$" />
-			<arg line="-I obj/sequencer" />
-			<arg line="-I obj/burstplayer" />
-			<arg line="-I obj/loader" />
-			<arg line="-I obj/demo" />
-			<arg line="-I res/test.m" />
-			<arg line="-o obj/modplayer.dsk" />
-			<arg value="--mapfile=obj/boot.map" if:true="${mapfile}" />
-			<arg value="src/boot.s" />
-		</exec>
-
-		<!-- adjust to what needs debugging -->
-		<copy file="obj/loader.map" tofile="obj/modplayer.map" if:true="${mapfile}" />
+		<create-disk b-dos="true" />
 
 	</target>
+
+	<macrodef name="create-disk">
+		<attribute name="samdos" default="false" />
+		<attribute name="masterdos" default="false" />
+		<attribute name="b-dos" default="false" />
+		<attribute name="b-dos-atom-lite" default="false" />
+		<attribute name="b-dos-trinity" default="false" />
+
+		<sequential>
+
+			<assemble source="loader" mapfile="${mapfile}" />
+			<assemble source="demo" mapfile="${mapfile}" />
+			<assemble source="burstplayer" mapfile="${mapfile}" debug="true" />
+			<assemble source="sequencer" mapfile="${mapfile}" />
+
+			<antcall target="assemble-test-mod" />
+
+			<exec executable="${python}" failonerror="true">
+				<arg file="${pyz80}" />
+
+				<arg line="-I res/dos/samdos2" if:true="samdos" />
+				<arg line="-I res/dos/MDOS23" if:true="masterdos" />
+				<arg line="-I res/dos/B-DOS15a" if:true="b-bdos" />
+				<arg line="-I res/dos/AL-BDOS15a" if:true="b-dos-atom-lite" />
+				<arg line="-I res/dos/bdos15t-6" if:true="b-dos-trinity" />
+
+				<arg line="-I res/loading.$" />
+				<arg line="-I obj/sequencer" />
+				<arg line="-I obj/burstplayer" />
+				<arg line="-I obj/loader" />
+				<arg line="-I obj/demo" />
+				<arg line="-I res/test.m" />
+
+				<arg line="-o obj/modplayer.dsk" />
+				<arg value="--mapfile=obj/boot.map" if:true="${mapfile}" />
+				<arg value="src/boot.s" />
+			</exec>
+
+			<!-- adjust to what needs debugging -->
+			<copy file="obj/loader.map" tofile="obj/modplayer.map" if:true="${mapfile}" />
+
+		</sequential>
+
+	</macrodef>
 
 	<!-- simcoupe -->
 
@@ -106,7 +107,17 @@
 
 	<!-- all -->
 
-	<target name="all" description="compile all, create disk and launch" depends="create-disk">
+	<target name="all (samdos)" description="compile all, create disk and launch">
+
+		<create-disk samdos="true" />
+
+		<simcoupe disk="modplayer" />
+
+	</target>
+
+	<target name="all (b-dos)" description="compile all, create disk and launch">
+
+		<create-disk samdos="true" />
 
 		<simcoupe disk="modplayer" />
 
@@ -126,7 +137,10 @@
 
 	<!-- create-example -->
 
-	<target name="create-example" depends="assemble-burstplayer,assemble-sequencer">
+	<target name="create-example">
+
+		<assemble source="burstplayer" mapfile="${mapfile}" />
+		<assemble source="sequencer" mapfile="${mapfile}" />
 
 		<exec executable="${python}" failonerror="true">
 			<arg file="${pyz80}" />
