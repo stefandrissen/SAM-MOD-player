@@ -1,6 +1,6 @@
 # SAM MOD player
 
-[![Build Status](https://travis-ci.com/stefandrissen/SAM-MOD-player.svg?branch=master)](https://travis-ci.com/stefandrissen/SAM-MOD-player)
+[![Build Status](https://travis-ci.com/stefandrissen/SAM-MOD-player.svg?branch=master)](https://app.travis-ci.com/github/stefandrissen/SAM-MOD-player)
 [![Build SAM MOD Player with Ant / pyz80](https://github.com/stefandrissen/SAM-MOD-player/actions/workflows/ant.yml/badge.svg)](https://github.com/stefandrissen/SAM-MOD-player/actions/workflows/ant.yml)
 ## Structure
 
