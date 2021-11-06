@@ -112,10 +112,20 @@ bdos.read.dir:
     jr nz,@has.label
     ld (hl),0
 @has.label:
+    res 7,(hl)
     ld bc,10
     ldir
-    ld a," "
-    ld (de),a
+
+    ld hl,mes.nolabel + 10      ; 6 spaces
+    ld a,(loader.dos.version)
+    cp dvar.version.b_dos.max + 1
+    jr nc,@not.bdos
+
+    ld hl,@sector+uifa.diskname.b_dos
+
+@not.bdos:
+    ld bc,6
+    ldir
 
     pop de
     pop hl

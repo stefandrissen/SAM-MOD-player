@@ -728,7 +728,7 @@ loader:
 
     ld hl,mes.nodisc
     ld de,m.vollabel
-    ld bc,11
+    ld bc,label.len
     ldir
 
     ld a,1
@@ -750,7 +750,7 @@ loader:
     ld de,loader.dir + load.len
 
     ld a,(loader.dos.version)
-    cp 10
+    cp dvar.version.b_dos.max + 1
     jr nc,@not.bdos
 
     ld a,dvar.records
@@ -1133,12 +1133,12 @@ converted:
     or a
     jr nz,$+5
     ld hl,mes.nolabel
-    ld bc,11
+    ld bc,label.len
     ldir
 
     ld hl,video.memory.32.rows * 3 + video.memory.high
     ld de,mes.drive
-    ld b,9+11
+    ld b,9 + label.len
     call print.de.b
 
     ld a,(loader.entries)
@@ -2371,9 +2371,12 @@ get.pos.lp:
 
 mes.oct:        defm "Oct: "
 mes.drive:      defm "Drive 1: "
-mes.label:      defm "Solar Flare"
-mes.nolabel:    defm "No label   "
-mes.nodisc:     defm "No disc    "
+
+label.len:      equ 0x10
+mes.label:      defm "Solar Flare     "
+mes.nolabel:    defm "No label        "
+mes.nodisc:     defm "No disc         "
+
 mes.noi:        defm "Noisetracker, 15 samples, 8 bits"
 mes.pro:        defm "Protracker,   31 samples, 8 bits"
 mes.sta:        defm "Startrekker,  31 samples, 8 bits"
@@ -2855,7 +2858,7 @@ black.attributes:
 
 ;---------------------------------------------------------------
 
-m.vollabel: defm "01234567890"
+m.vollabel: defm "0123456789abcdef"
 
 ;---------------------------------------------------------------
 

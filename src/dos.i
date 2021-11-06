@@ -30,6 +30,7 @@ uifa:           equ 0x4b00  ; user information file area
     uifa.timestamp.hour:    equ 0xf8
     uifa.timestamp.minute:  equ 0xf9
 
+    uifa.diskname.b_dos:    equ 0xfa ; 6 extra characters (first entry only)
 
 ;---------------------------------------------------------------
 
@@ -62,17 +63,16 @@ dvar.drive_1.step_rate: equ 3   ; 0 = 3ms, 3 = 6ms
 dvar.drive_2.step_rate: equ 4   ;
 
 dvar.version:           equ 7   ; Version number divided by 10 minus 10 (version 1.1 = 1)
+    dvar.version.b_dos.min:     equ  1  ;  4 B-DOS 1.4
+                                        ;  5 B-DOS 1.5
+                                        ;  6 B-DOS 1.6
+    dvar.version.b_dos.max:     equ  9  ;  7 B-DOS 1.7
 
-                                ;  4 B-DOS 1.4
-                                ;  5 B-DOS 1.5
-                                ;  6 B-DOS 1.6
-                                ;  7 B-DOS 1.7
+    dvar.version.samdos.min:    equ 10  ; 13 samdos 1.3
+    dvar.version.samdos.max:    equ 29  ; 20 samdos 2.0
 
-                                ; 13 samdos 1.3
-                                ; 20 samdos 2.0
-
-                                ; 33 masterdos 1.3
-                                ; 43 masterdos 2.3
+    dvar.version.masterdos.min: equ 30  ; 33 masterdos 1.3
+                                        ; 43 masterdos 2.3
 
 dvar.reserved:          equ 21  ; Number of reserved sectors on hard disk for BOOT sector
                                 ; and RECORD list. Equal to INT ((records+63)/32))
