@@ -56,11 +56,30 @@ loader.font_high:
 
 
 ;---------------------------------------------------------------
-relocate.scan:
+@check.memory:
+
+    ld hl,@relocate.scan
+    ld de,inst.buffer
+    ld bc,@scan.memory.len
+    ldir
+
+    call @scan.memory
+    ld (loader.ram),a
+
+    bit 1,a
+    call nz,@set.memory.512k
+    and %11100
+    call nz,@set.memory.mb
+
+    ret
+
+;---------------------------------------------------------------
+
+@relocate.scan:
 
     org inst.buffer
 
-scan.memory:
+@scan.memory:
 
     in a,(port.hmpr)
     ld c,a
@@ -125,10 +144,11 @@ scan.memory:
 
     ret
 
-scan.memory.len: equ $ - scan.memory
+@scan.memory.len: equ $ - @scan.memory
 
-    org relocate.scan + scan.memory.len
+    org @relocate.scan + @scan.memory.len
 
+;---------------------------------------------------------------
 @set.memory.512k:
 
     ld hl,device.screen.memory
@@ -143,6 +163,7 @@ scan.memory.len: equ $ - scan.memory
 
     ret
 
+;---------------------------------------------------------------
 @set.memory.mb:
 
     ld hl,device.screen.memory.mb
@@ -164,17 +185,7 @@ scan.memory.len: equ $ - scan.memory
     ret
 
 ;---------------------------------------------------------------
-loader.start:
-;---------------------------------------------------------------
-
-    di
-
-    ld a,e
-    ld (loader.dos.version),a
-    ld a,d
-    ld (loader.drive_2.tracks),a
-
-    call cls
+@init.screen:
 
     in a,(port.hmpr)
     and high.memory.page.mask & %11111110
@@ -185,19 +196,6 @@ loader.start:
     ld a,1
     ld (svar.mode),a
 
-    ld hl,relocate.scan
-    ld de,inst.buffer
-    ld bc,scan.memory.len
-    ldir
-
-    call scan.memory
-    ld (loader.ram),a
-
-    bit 1,a
-    call nz,@set.memory.512k
-    and %11100
-    call nz,@set.memory.mb
-
     ld de,device.screen
     ld ix,device.attributes
     call print.screen
@@ -205,22 +203,14 @@ loader.start:
     ld de,load.screen
     call print.screen.no.attr
 
-    ld hl,video.memory.32.rows * row.device + video.memory.high
-    ld (curs.offs+1),hl
+    ld b,row.device
+    call @cursor.init
 
     ld a,(loader.device)
-    ld c,a
-    add a,a
-    add a,c
-    add a,a
-    ld c,a                  ; c = loader.device * 6
-    ld (old.cursor+1),a
-    xor a
-    ld (curs.blink+1),a
-    call print.cursor
+    call @cursor.print.first
 
-    ld hl,video.memory.32.rows * row.speed + video.memory.high
-    ld (curs.offs+1),hl
+    ld b,row.speed
+    call @cursor.init
 
     ld a,(loader.speed)
     ld c,a
@@ -228,26 +218,43 @@ loader.start:
     add a,c
     add a,a
     ld c,a
-    ld (old.cursor+1),a
+    ld (@var.cursor.previous.row),a
     xor a
-    ld (curs.blink+1),a
-    call print.cursor
+    ld (@var.cursor.blink.timer),a
+    call @cursor.print
+
+    ret
 
 ;---------------------------------------------------------------
-select.device:
+@cursor.init:
 
-    ld hl,video.memory.32.rows * row.device + video.memory.high
-    ld (curs.offs+1),hl
-    ld a,5
+; input
+; - a = max value
+; - b = row
+
     ld (max.select+1),a
 
-    ld a,(loader.device)
+    ld hl,video.memory.high - video.memory.32.rows - video.memory.bytes.per.row
+    ld de,video.memory.32.rows
+    inc b
+@loop:
+    add hl,de
+    djnz @-loop
 
-    ld c,a
-    add a,a
-    add a,c
-    add a,a
-    ld (old.cursor+1),a
+    ld (@cursor.offset+1),hl
+
+    ret
+
+;---------------------------------------------------------------
+@select.device:
+
+    ld b,row.device
+    ld a,5                  ; max device
+    call @cursor.init
+
+    ld a,(loader.device)
+    call @cursor.print.first
+
 @loop:
 
     call cursor.select
@@ -267,32 +274,24 @@ select.device:
     call print.device.details
 
     call scan.keyboard.return
-    jr z,@loop
+    jr z,@-loop
 
-    xor a
-    ld (curs.blink+1),a
-    ld a,c
-    add a,a
-    add a,c
-    add a,a
-    ld c,a
-    call print.cursor
+    ld a,(loader.device)
+    jp @cursor.print.first
 
 ;---------------------------------------------------------------
-select.speed:
+@select.speed:
 
-    ld hl,video.memory.32.rows * row.speed + video.memory.high
-    ld (curs.offs+1),hl
-    ld a,1
-    ld (max.select+1),a
+    ld b,row.speed
+    ld a,1              ; max
+    call @cursor.init
 
     ld a,(loader.speed)
-    call print.speed.details
-    ld c,a
-    add a,a
-    add a,c
-    add a,a
-    ld (old.cursor+1),a
+    call @cursor.print.first
+
+    ld a,-1
+    ld (loader.speed),a
+
 @loop:
     call cursor.select
 
@@ -300,29 +299,66 @@ select.speed:
     call speed.details
 
     call scan.keyboard.return
-    jr nz,speed.selected
+    jr nz,@leave
 
     call scan.escape
-    jr z,@loop
+    jr z,@-loop
 
     xor a
-    ld (curs.blink+1),a
-    ld a,c
-    add a,a
-    add a,c
-    add a,a
-    ld c,a
-    call print.cursor
+@leave:
+    push af
+    ld a,(loader.speed)
+    call @cursor.print.first
+    pop af
 
-    jr select.device
+    ret
 
-speed.selected:
+;---------------------------------------------------------------
+loader.start:
+;---------------------------------------------------------------
+
+    di
+
+    ld a,e
+    ld (loader.dos.version),a
+    ld a,d
+    ld (loader.drive_2.tracks),a
 
     call cls
 
-    ld hl,relocate.call.burstplayer.create
+    call @check.memory
+    call @init.screen
+
+@loop:
+
+    call @select.device
+    call @select.speed
+
+    jr z,@-loop
+
+    call cls
+
+    call @create.burstplayer
+
+    jp loader
+
+;---------------------------------------------------------------
+; map new loader screen to burstplayer device numbers - fix burstplayer later on
+
+@device.mapping:
+    defb 1  ; sound chip
+    defb 2  ; samdac
+    defb 4  ; dac
+    defb 6  ; blue alpha
+    defb 7  ; quazar
+    defb 0  ; screen
+
+;---------------------------------------------------------------
+@create.burstplayer:
+
+    ld hl,@relocate.call.burstplayer.create
     ld de,inst.buffer
-    ld bc,call.burstplayer.create.len
+    ld bc,@call.burstplayer.create.len
     ldir
 
     ld a,(loader.device)
@@ -342,25 +378,15 @@ speed.selected:
     ld a,(loader.ram)
     ld (@loader.ram+1),a
 
-    call call.burstplayer.create
+    call @call.burstplayer.create
 
-    jp loader
+    ret
 
-; map new loader screen to burstplayer device numbers - fix burstplayer later on
-@device.mapping:
-    defb 1  ; sound chip
-    defb 2  ; samdac
-    defb 4  ; dac
-    defb 6  ; blue alpha
-    defb 7  ; quazar
-    defb 0  ; screen
-
-;---------------------------------------------------------------
-relocate.call.burstplayer.create:
+@relocate.call.burstplayer.create:
 
     org inst.buffer
 
-call.burstplayer.create:
+@call.burstplayer.create:
 
     in a,(port.hmpr)
     ld (@store.hmpr+1),a
@@ -387,9 +413,9 @@ call.burstplayer.create:
 
     ret
 
-call.burstplayer.create.len: equ $ - call.burstplayer.create
+@call.burstplayer.create.len: equ $ - @call.burstplayer.create
 
-    org relocate.call.burstplayer.create + call.burstplayer.create.len
+    org @relocate.call.burstplayer.create + @call.burstplayer.create.len
 
 ;---------------------------------------------------------------
 
@@ -505,9 +531,11 @@ text.speed.ntsc:    defm "7.1590905 MHz"
 cursor.select:
 
 ; selection routine
-; C = current position
-; min selection = 0
-; max selection = (max.selec+1)
+
+; input:
+; - c = current row
+; - min selection = 0
+; - max selection = (max.selec+1)
 
     push bc
     ld a,c
@@ -515,25 +543,28 @@ cursor.select:
     add a,c
     add a,a
     ld c,a
-    call print.cursor
+    call @cursor.print
     pop bc
 
     ld a,keyboard.cursors_cntrl
     in a,(port.keyboard)
     bit 1,a
-    jr z,curs.up
+    jr z,@cursor.move.up
     bit 2,a
-    jr z,curs.dn
+    jr z,@cursor.move.down
 
     ld a,keyboard.67890
     in a,(port.keyboard)
     bit 1,a
-    jr z,curs.up
+    jr z,@cursor.move.up
     bit 2,a
-    jr z,curs.dn
+    jr z,@cursor.move.down
+
     ret
 
-curs.up:
+;---------------------------------------------------------------
+@cursor.move.up:
+
     ld a,c
     or a
     ret z
@@ -546,13 +577,16 @@ curs.up:
     ld b,6
 sd.curs.up:
     dec c
-    call print.cursor
+    call @cursor.print
     djnz sd.curs.up
     pop bc
     dec c
+
     ret
 
-curs.dn:
+;---------------------------------------------------------------
+@cursor.move.down:
+
 max.select:
     ld a,6
     or a
@@ -569,12 +603,14 @@ max.select:
     ld b,6
 sd.curs.dn:
     inc c
-    call print.cursor
+    call @cursor.print
     djnz sd.curs.dn
     pop bc
     inc c
+
     ret
 
+;---------------------------------------------------------------
 scan.escape:
     ld a,keyboard.caps_tab_esc
     in a,(port.status)
@@ -589,9 +625,12 @@ scan.escape:
     in a,(port.status)
     and %00100000
     jr z,@still.esc
+
     ret
 
+;---------------------------------------------------------------
 scan.keyboard.return:
+
     ld a,keyboard.hjkl_return
     in a,(port.keyboard)
     and %00001
@@ -602,6 +641,7 @@ scan.keyboard.return:
     and %00001
     jr z,@still.0
 
+@leave:
     xor a
     ret
 
@@ -610,6 +650,7 @@ scan.keyboard.return:
     in a,(port.keyboard)
     and %00001
     jr z,@still.return
+
     ret
 
 @still.0:
@@ -617,8 +658,10 @@ scan.keyboard.return:
     in a,(port.keyboard)
     and %00001
     jr z,@still.0
+
     ret
 
+;---------------------------------------------------------------
 scan.keyboard.left.right:
 
     ld a,keyboard.cursors_cntrl
@@ -1171,16 +1214,15 @@ le.loop:
 
     call @still.esc ; to prevent immediate exit when escape used to exit "DEMO"
 
-    ld hl,video.memory.32.rows * 4 + video.memory.high
-    ld (curs.offs+1),hl
+    ld b,4                  ; row
     ld a,(loader.entries)
-    dec a
-    ld (max.select+1),a
+    dec a                   ; max
+    call @cursor.init
 
     ld a,(loader.drive)
     dec a
     ld c,a
-    call print.cursor
+    call @cursor.print
 
 cursor.lp:
 
@@ -2287,17 +2329,54 @@ new.read:
     call nz,select.drive.2
     jp loader
 
-print.cursor:
-wait4int:
-    in a,(port.status)
-    and 8
-    jr nz,wait4int
+;---------------------------------------------------------------
+@var.cursor.blink.timer:    defb 0
+@var.cursor.previous.row:   defb 0  ; relative to offset
 
-old.cursor:
-    ld a,0
-    call get.pos
+;---------------------------------------------------------------
+@cursor.print.first:
+
+; input
+; - a = position
+
+    push af
+
+    ld c,a
+    add a,a
+    add a,c
+    add a,a
+    ld c,a                  ; c = loader.device * 6
+    ld (@var.cursor.previous.row),a
+
     xor a
-    ld de,32
+    ld (@var.cursor.blink.timer),a
+
+    call @cursor.print
+
+    pop af
+
+    ld c,a
+
+    ret
+
+;---------------------------------------------------------------
+@cursor.print:
+
+; input
+; - c = line
+
+@delay:
+    in a,(port.status)
+    and frame.interrupt
+    jr nz,@delay
+
+    ; clear cursor at previous position
+
+    ld a,(@var.cursor.previous.row)
+    call @cursor.get.address
+
+    xor a
+    ld de,video.memory.bytes.per.row
     ld (hl),a
     add hl,de
     ld (hl),a
@@ -2308,24 +2387,25 @@ old.cursor:
     add hl,de
     ld (hl),a
 
-curs.blink:
-    ld a,0
-    inc a
-    bit 3,a
-    ld (curs.blink+1),a
+    ld hl,@var.cursor.blink.timer
+    inc (hl)
+    bit 3,(hl)
     ret nz
 
     ld a,c
-    ld (old.cursor+1),a
+    ld (@var.cursor.previous.row),a
 
-    call get.pos
+    call @cursor.get.address
+
     ld ix, colours + ( colour.purple * 8 )
-    ld de,32
+    ld de,video.memory.bytes.per.row
+
     ld (hl),%10000000
     ld a,(ix)
     inc ix
     set 5,h
     ld (hl),a
+
     res 5,h
     add hl,de
     ld (hl),%11000000
@@ -2333,6 +2413,7 @@ curs.blink:
     inc ix
     set 5,h
     ld (hl),a
+
     res 5,h
     add hl,de
     ld (hl),%11100000
@@ -2340,6 +2421,7 @@ curs.blink:
     inc ix
     set 5,h
     ld (hl),a
+
     res 5,h
     add hl,de
     ld (hl),%11000000
@@ -2347,6 +2429,7 @@ curs.blink:
     inc ix
     set 5,h
     ld (hl),a
+
     res 5,h
     add hl,de
     ld (hl),%10000000
@@ -2354,18 +2437,25 @@ curs.blink:
     inc ix
     set 5,h
     ld (hl),a
+
     ret
 
-get.pos:
-curs.offs:
-    ld hl,video.memory.32.rows * 3 + video.memory.high
-    ld de,32
-    or a
-get.pos.lp:
-    ret z
+;---------------------------------------------------------------
+@cursor.get.address:
+
+; input
+; - a = line
+
+    ld de,video.memory.bytes.per.row
+@cursor.offset:
+    ld hl,0                     ; -0x0020
+    inc a
+@loop:
     add hl,de
     dec a
-    jr get.pos.lp
+    jr nz,@-loop
+
+    ret
 
 ;---------------------------------------------------------------
 
@@ -2567,7 +2657,7 @@ pr.chr.blp:
     ld (de),a
     inc hl
     ld a,e
-    add 32
+    add video.memory.bytes.per.row
     ld e,a
     jr nc,$+3
     inc d
