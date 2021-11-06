@@ -1,3 +1,3 @@
 ; SAM MOD player version
 
-defm "v2.30"
+defm "v2.31"
