@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="sam-mod-player" xmlns:if="ant:if">
+<project name="sam-mod-player" default="all" xmlns:if="ant:if">
 
 	<property name="python" location="../../AppData/Local/Programs/Python/Python38/python.exe" />
 	<property name="pyz80" value="../pyz80/pyz80.py" />
@@ -68,11 +68,11 @@
 
 		<exec executable="${python}" failonerror="true">
 			<arg file="${pyz80}" />
-			<arg line="-I res/dos/B-DOS15a" /> 
-			<!-- <arg line="-I res/dos/AL-BDOS15a" /> -->  
+			<arg line="-I res/dos/B-DOS15a" />
+			<!-- <arg line="-I res/dos/AL-BDOS15a" /> -->
 			<!-- <arg line="-I res/dos/bdos15t-6" /> -->
 			<!-- <arg line="-I res/dos/MDOS23" /> -->
-			<!-- <arg line="-I res/dos/samdos" /> -->
+			<!-- <arg line="-I res/dos/samdos2" /> -->
 			<arg line="-I res/loading.$" />
 			<arg line="-I obj/sequencer" />
 			<arg line="-I obj/burstplayer" />
@@ -85,7 +85,7 @@
 		</exec>
 
 		<!-- adjust to what needs debugging -->
-		<copy file="obj/burstplayer.map" tofile="obj/modplayer.map" if:true="${mapfile}" />
+		<copy file="obj/loader.map" tofile="obj/modplayer.map" if:true="${mapfile}" />
 
 	</target>
 
