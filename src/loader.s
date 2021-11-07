@@ -838,10 +838,6 @@ loader:
     call @loader.init
     call @show.screen
 
-    call fat.read.dir
-
-;    ld de,loader.dir + load.len
-
     ld a,(loader.dos.version)
     cp dvar.version.b_dos.max + 1
     jr nc,@not.bdos
@@ -852,9 +848,14 @@ loader:
     or l
     jr nz,@has.record.device
 
+    call fat.read.dir
+
     jr @no.drive2
 
 @not.bdos:
+
+    call fat.read.dir
+
     ld a,(loader.drive_2.tracks)
     or a
     jr z,@no.drive2
@@ -873,6 +874,12 @@ loader:
 
     ld de,loader.dir + load.len + 15
     call text.hl.decimal
+
+    xor a
+    ld (msdos+1),a
+
+    ld a,2
+    ld (loader.drive),a
 
 @has.second.device:
 
