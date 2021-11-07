@@ -1,7 +1,7 @@
 # SAM MOD player
 
-[![Build Status](https://travis-ci.com/stefandrissen/SAM-MOD-player.svg?branch=master)](https://app.travis-ci.com/github/stefandrissen/SAM-MOD-player)
-[![Build SAM MOD Player with Ant / pyz80](https://github.com/stefandrissen/SAM-MOD-player/actions/workflows/ant.yml/badge.svg)](https://github.com/stefandrissen/SAM-MOD-player/actions/workflows/ant.yml)
+[![build](https://github.com/stefandrissen/SAM-MOD-player/actions/workflows/ant.yml/badge.svg)](https://github.com/stefandrissen/SAM-MOD-player/actions/workflows/ant.yml)
+
 ## Structure
 
 - boot
@@ -33,7 +33,8 @@ And the type of Amiga the mod was intended for:
 
 Once these have been selected, the burst player code is generated.
 
-The disk (sam or dos format) is then scanned for possible mod files, the drive can be changed or rescanned.
+The disk (or mass storage device) is then scanned for mod files, the drive can be changed or rescanned. Mass storage device records can be selected with cursor left or right, when holding shift the selection jumps 10 records, when holding symbol the selecting jumps 50 records.
+
 When a file is selected, it is loaded and the "demo" starts.
 
 ### burstplayer
@@ -65,7 +66,7 @@ This shows information on the module being played via various screens:
 ### sequencer
 
 This is the sequencer. It is called every frame.
-It reads the pattern and sample information and fills the sample playback buffers.
+It reads the pattern and sample information and fills the pointers for the sample playback buffers.
 
 ### example
 
