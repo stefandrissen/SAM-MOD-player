@@ -1442,7 +1442,7 @@ normal.mess:
 
     push bc
     call @scan.keyboard.left.right.shifted
-    call nz,@record.up.down
+    jr nz,@record.up.down
     pop bc
 
 @not.drive_2:
@@ -1489,7 +1489,7 @@ normal.mess:
 @change.record:
 
     call bdos.select.record.hl
-    pop af                      ; toss return address
+    pop bc                      ; toss bc
     ld c,1
     jp select.key
 
