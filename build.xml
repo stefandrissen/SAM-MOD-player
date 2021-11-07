@@ -65,11 +65,11 @@
 			<exec executable="${python}" failonerror="true">
 				<arg file="${pyz80}" />
 
-				<arg line="-I res/dos/samdos2" if:true="samdos" />
-				<arg line="-I res/dos/MDOS23" if:true="masterdos" />
-				<arg line="-I res/dos/B-DOS15a" if:true="b-bdos" />
-				<arg line="-I res/dos/AL-BDOS15a" if:true="b-dos-atom-lite" />
-				<arg line="-I res/dos/bdos15t-6" if:true="b-dos-trinity" />
+				<arg line="-I res/dos/samdos2" if:true="@{samdos}" />
+				<arg line="-I res/dos/MDOS23" if:true="@{masterdos}" />
+				<arg line="-I res/dos/B-DOS15a" if:true="@{b-dos}" />
+				<arg line="-I res/dos/AL-BDOS15a" if:true="@{b-dos-atom-lite}" />
+				<arg line="-I res/dos/bdos15t-6" if:true="@{b-dos-trinity}" />
 
 				<arg line="-I res/loading.$" />
 				<arg line="-I obj/sequencer" />
@@ -117,7 +117,7 @@
 
 	<target name="all (b-dos)" description="compile all, create disk and launch">
 
-		<create-disk samdos="true" />
+		<create-disk b-dos="true" />
 
 		<simcoupe disk="modplayer" />
 
