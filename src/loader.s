@@ -213,11 +213,7 @@ loader.font_high:
     call @cursor.init
 
     ld a,(loader.speed)
-    ld c,a
-    add a,a
-    add a,c
-    add a,a
-    ld c,a
+    call @row.a.to.line
     ld (@var.cursor.previous.row),a
     xor a
     ld (@var.cursor.blink.timer),a
@@ -538,6 +534,30 @@ text.speed.ntsc:    defm "7.1590905 MHz"
                     defb 0
 
 ;---------------------------------------------------------------
+@row.a.to.line:
+
+; input:
+; - a = row [0x00-0x1f]
+
+    ld c,a
+
+@row.to.line:
+
+; input:
+; - c = row [0x00-0x1f]
+;
+; output
+; - c = line [0-x00-0xbf]
+
+    ld a,c
+    add a,a
+    add a,c
+    add a,a
+    ld c,a
+
+    ret
+
+;---------------------------------------------------------------
 cursor.select:
 
 ; selection routine
@@ -548,11 +568,8 @@ cursor.select:
 ; - max selection = (max.selec+1)
 
     push bc
-    ld a,c
-    add a,a
-    add a,c
-    add a,a
-    ld c,a
+
+    call @row.to.line
     call @cursor.print
     pop bc
 
@@ -579,16 +596,16 @@ cursor.select:
     or a
     ret z
     push bc
-    ld a,c
-    add a,a
-    add a,c
-    add a,a
-    ld c,a
+
+    call @row.to.line
+
     ld b,6
-sd.curs.up:
+@loop:
     dec c
     call @cursor.print
-    djnz sd.curs.up
+
+    djnz @-loop
+
     pop bc
     dec c
 
@@ -601,20 +618,20 @@ max.select:
     ld a,6
     or a
     ret z
+
     dec a
     cp c
     ret c
+
     push bc
-    ld a,c
-    add a,a
-    add a,c
-    add a,a
-    ld c,a
+
+    call @row.to.line
+
     ld b,6
-sd.curs.dn:
+@loop:
     inc c
     call @cursor.print
-    djnz sd.curs.dn
+    djnz @-loop
     pop bc
     inc c
 
@@ -903,12 +920,13 @@ pc.to.loader:
     push hl
     push de
     ld b,8
-pl.copy.name:
+@loop:
     ld a,(hl)
     ld (de),a
     inc hl
     inc de
-    djnz pl.copy.name
+
+    djnz @-loop
 
     push de
 
@@ -1032,18 +1050,20 @@ sam.to.loader:
     inc hl
     inc hl
     ld b,8
-ext.find.m:
+@loop.find_extension_m:
     ld a,(hl)
     inc hl
     cp "."
-    jr nz,ext.not.fnd
+    jr nz,@no.match
     ld a,(hl)
     res 5,a             ; ->uppercase
     cp "M"
-    jr nz,ext.not.fnd
+    jr nz,@no.match
     jr sam.found.m
-ext.not.fnd:
-    djnz ext.find.m
+
+@no.match:
+    djnz @-loop.find_extension_m
+
     pop hl
     jp sl.skip
 
@@ -1056,12 +1076,13 @@ sam.found.m:
     push de
     inc hl
     ld b,8
-sl.copy.name:
+@loop:
     ld a,(hl)
     ld (de),a
     inc hl
     inc de
-    djnz sl.copy.name
+
+    djnz @-loop
 
     push de
 
@@ -1371,10 +1392,10 @@ gm.got.date:
 disc.mess:
     ld hl,video.memory.32.rows * 29 + video.memory.high
     ld b,32
-blnk.line:
+@loop:
     ld a," "
     call print.chr
-    djnz blnk.line
+    djnz @-loop
 
 normal.mess:
     ld b,32
@@ -1536,7 +1557,8 @@ fc.is.nst:
     xor a
     ld (sample.count+1),a
     ld ix,temp.spc + 9 + 20
-add.all.smp:
+
+@loop.add_all_samples:
     ld d,(ix+22)
     ld e,(ix+23)
 bytes.per:
@@ -1560,26 +1582,30 @@ fc.is.samp:
 fc.not.samp:
     ld de,30
     add ix,de
-    djnz add.all.smp
+
+    djnz @-loop.add_all_samples
+
     inc ix
     inc ix
     ld b,128
     ld e,0
-get.hi.patt:
+
+@loop.get_highest_pattern:
     ld a,(ix)
     inc ix
     cp e
     jr c,$+3
     ld e,a
-    djnz get.hi.patt
+    djnz @-loop.get_highest_pattern
+
     inc e
     ld b,e
     ld de,1024
-add.all.pat:
+@loop.add_all_patterns:
     add hl,de
     jr nc,$+3
     inc c
-    djnz add.all.pat
+    djnz @-loop.add_all_patterns
                         ;so now chl = calc. size
     ld a,(bytes.per+1)
     dec a
@@ -2346,11 +2372,7 @@ new.read:
 
     push af
 
-    ld c,a
-    add a,a
-    add a,c
-    add a,a
-    ld c,a                  ; c = loader.device * 6
+    call @row.a.to.line
     ld (@var.cursor.previous.row),a
 
     xor a
@@ -2657,7 +2679,7 @@ unprintable:
     ld bc,loader.font_high - 160    ; -" "*5
     add hl,bc
     ld b,5
-pr.chr.blp:
+@loop:
     ld a,(hl)
     ld (de),a
     inc hl
@@ -2666,7 +2688,9 @@ pr.chr.blp:
     ld e,a
     jr nc,$+3
     inc d
-    djnz pr.chr.blp
+
+    djnz @-loop
+
     pop hl
     pop de
     pop bc
@@ -2771,15 +2795,16 @@ print.de.b:
     ld a,(de)
     inc de
     or a
-    jr z,eop
+    jr z,@loop.padding
+
     call print.chr
     djnz print.de.b
     ret
 
-eop:
+@loop.padding:
     ld a," "
     call print.chr
-    djnz eop
+    djnz @-loop.padding
     ret
 
 
