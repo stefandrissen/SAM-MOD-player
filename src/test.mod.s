@@ -1,7 +1,7 @@
 
-; 1         Volume of sample. Legal values are 0..64. Volume is the linear
-;           difference between sound intensities. 64 is full volume, and
-;           the change in decibels can be calculated with 20*log10(Vol/64)
+; Volume of sample. Legal values are 0..64. Volume is the linear
+; difference between sound intensities. 64 is full volume, and
+; the change in decibels can be calculated with 20*log10(Vol/64)
 
 ; unrolled (incorrect) sample at 883c: 01 02 81 80 01 02 81 80 01 02 81 80
 

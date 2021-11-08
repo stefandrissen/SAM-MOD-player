@@ -3,7 +3,8 @@
 ; (C) 1996-2021 Stefan Drissen
 
     include "memory.i"
-    include "ports.i"
+    include "ports/internal.i"
+    include "ports/keyboard.i"
 
 ; Contents:
 ;   "BURST" routine (make burstplayer)
@@ -44,7 +45,7 @@ burstplayer.speed:      equ 0x8004
 
 ;set the following address with the page at which to build
 
-burstplayer.page:       equ 32774
+burstplayer.page:       equ 0x8007
 
 page.example:           equ 1
 

@@ -11,7 +11,7 @@
 include "memory.i"
 include "ports/internal.i"
 include "ports/megabyte.i"
-include "opcodes.i"
+include "constants/opcodes.i"
 
 ;---------------------------------------------------------------
 
@@ -55,7 +55,7 @@ burstplayer.page:   defb page.burstplayer
 
     defm "                         "
     defm "MAKEBURST "
-    include "txt.copyright.i"
+    include "constants/txt.copyright.i"
     defm "Thanks to Edwin Blink for the   "
     defm "original burst idea and code...."
 

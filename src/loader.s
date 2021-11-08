@@ -13,8 +13,8 @@ include "ports/internal.i"
 include "ports/megabyte.i"
 include "ports/keyboard.i"
 include "ports/fdc.i"
-include "dos.i"
-include "opcodes.i"
+include "constants/dos.i"
+include "constants/opcodes.i"
 
 load.offs:  equ 0x8000
 
@@ -2964,8 +2964,8 @@ text.surround:
 
 load.screen:
     defm "SAM MOD player             "
-    include "txt.version.i"
-    include "txt.copyright.i"
+    include "constants/txt.version.i"
+    include "constants/txt.copyright.i"
     defb 0,30
     defm "Use CURSORS + RETURN or JOYSTICK"
 

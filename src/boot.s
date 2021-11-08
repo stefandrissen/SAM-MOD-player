@@ -7,10 +7,10 @@
 ;---------------------------------------------------------------
 
     include "memory.i"
-    include "opcodes.i"
+    include "constants/opcodes.i"
     include "ports/internal.i"
-    include "dos.i"
-    include "rom.i"
+    include "constants/dos.i"
+    include "constants/rom.i"
 
 ;---------------------------------------------------------------
 

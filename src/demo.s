@@ -6,7 +6,7 @@ include "memory.i"
 include "ports/internal.i"
 include "ports/megabyte.i"
 include "ports/keyboard.i"
-include "opcodes.i"
+include "constants/opcodes.i"
 
 ;---------------------------------------------------------------
 
@@ -2059,8 +2059,8 @@ col.point2:
 
 txt.help:
     defm "SAM MOD player             "
-    include "txt.version.i"
-    include "txt.copyright.i"
+    include "constants/txt.version.i"
+    include "constants/txt.copyright.i"
     defb 0,0
     defm "           HELP PAGE"
     defb 0,0
@@ -2097,8 +2097,8 @@ col.help:
 
 txt.prosummary:
     defm "SAM MOD player             "
-    include "txt.version.i"
-    include "txt.copyright.i"
+    include "constants/txt.version.i"
+    include "constants/txt.copyright.i"
     defb 0,0
     defm " SUMMARY OF PROTRACKER EFFECTS"
     defb 0,0
@@ -2141,8 +2141,8 @@ col.pro:
 
 txt.burst:
     defm "SAM MOD player             "
-    include "txt.version.i"
-    include "txt.copyright.i"
+    include "constants/txt.version.i"
+    include "constants/txt.copyright.i"
     defm "CHANNEL "
     defm "Page Offs Vol SLo SHi"
 
@@ -2161,9 +2161,9 @@ txt.channel:    defm "Channel "
 
 txt.volume:     defm "Vol: 000%  Speed: 00  Tempo: 000"
 txt.keys:       defm "F1-F6 1234 C <> P ESC -+ Loop:  "
-txt.author:     include "txt.copyright.i"
+txt.author:     include "constants/txt.copyright.i"
                 defm "    "
-                include "txt.version.i"
+                include "constants/txt.version.i"
 
 
 pr.amp.fac:

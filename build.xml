@@ -144,7 +144,7 @@
 
 		<exec executable="${python}" failonerror="true">
 			<arg file="${pyz80}" />
-			<arg line="-I res/buena vi.m" />
+			<arg line="-I res/mods/think_tw.m" />
 			<arg line="-I obj/burstplayer" />
 			<arg line="-I obj/sequencer" />
 			<arg line="-o obj/example.dsk" />
