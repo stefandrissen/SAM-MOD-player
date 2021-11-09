@@ -1,6 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="sam-mod-player" default="all (b-dos)" xmlns:if="ant:if">
 
+	<property name="version" value="v2.33" />
 	<property name="python" location="../../AppData/Local/Programs/Python/Python38/python.exe" />
 	<property name="pyz80" value="../pyz80/pyz80.py" />
 	<property name="simcoupe" location="C:\Program Files\SimCoupe\SimCoupe.exe" />
@@ -55,6 +56,11 @@
 
 		<sequential>
 
+			<echo file="src/constants/txt.version.i">; SAM MOD player version
+
+defm "${version}"
+</echo>
+
 			<assemble source="loader" mapfile="${mapfile}" />
 			<assemble source="demo" mapfile="${mapfile}" />
 			<assemble source="burstplayer" mapfile="${mapfile}" debug="true" />
@@ -78,7 +84,8 @@
 				<arg line="-I obj/demo" />
 				<arg line="-I res/test.m" />
 
-				<arg line="-o obj/modplayer.dsk" />
+				<arg line="-o obj/SAM.MOD.player.${version}.mgt" />
+				<arg value="--nozip" />
 				<arg value="--mapfile=obj/boot.map" if:true="${mapfile}" />
 				<arg value="src/boot.s" />
 			</exec>
@@ -98,7 +105,7 @@
 		<sequential>
 
 			<exec executable="${simcoupe}" spawn="true">
-				<arg file="obj/@{disk}.dsk" />
+				<arg file="obj/@{disk}" />
 			</exec>
 
 		</sequential>
@@ -111,7 +118,7 @@
 
 		<create-disk samdos="true" />
 
-		<simcoupe disk="modplayer" />
+		<simcoupe disk="SAM.MOD.player.${version}.mgt" />
 
 	</target>
 
@@ -119,7 +126,7 @@
 
 		<create-disk b-dos="true" />
 
-		<simcoupe disk="modplayer" />
+		<simcoupe disk="SAM.MOD.player.${version}.mgt" />
 
 	</target>
 
@@ -147,7 +154,7 @@
 			<arg line="-I res/mods/think_tw.m" />
 			<arg line="-I obj/burstplayer" />
 			<arg line="-I obj/sequencer" />
-			<arg line="-o obj/example.dsk" />
+			<arg line="-o obj/example.mgt" />
 			<arg value="src/example.s" />
 		</exec>
 
@@ -161,11 +168,11 @@
 			<arg file="${pyz80}" />
 			<arg line="-D testing" />
 			<arg value="--mapfile=obj/burstplayer.map" />
-			<arg line="-o obj/burstplayer.dsk" />
+			<arg line="-o obj/burstplayer.mgt" />
 			<arg value="src/burstplayer.s" />
 		</exec>
 
-		<simcoupe disk="burstplayer" />
+		<simcoupe disk="burstplayer.dsk" />
 
 	</target>
 
