@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project name="sam-mod-player" default="all (b-dos)" xmlns:if="ant:if">
+<project name="sam-mod-player" default="all-b-dos" xmlns:if="ant:if">
 
 	<property name="version" value="v2.33" />
-	<property name="python" location="../../AppData/Local/Programs/Python/Python38/python.exe" />
+	<property name="python" value="python" />
 	<property name="pyz80" value="../pyz80/pyz80.py" />
 	<property name="simcoupe" location="C:\Program Files\SimCoupe\SimCoupe.exe" />
 	<property name="mapfile" value="true" />
@@ -83,6 +83,11 @@ defm "${version}"
 				<arg line="-I obj/loader" />
 				<arg line="-I obj/demo" />
 				<arg line="-I res/test.m" />
+				<!-- <arg line="-I res/mods/think_tw.m" /> -->
+				<!-- <arg line="-I res/mods/keysimag.m" /> -->
+				<!-- <arg line="-I res/mods/mixified.m" /> -->
+				<!-- <arg line="-I res/mods/oroincen.m" /> -->
+				<!-- <arg line="-I res/mods/wander_2.m" /> -->
 
 				<arg line="-o obj/SAM.MOD.player.${version}.mgt" />
 				<arg value="--nozip" />
@@ -91,7 +96,7 @@ defm "${version}"
 			</exec>
 
 			<!-- adjust to what needs debugging -->
-			<copy file="obj/loader.map" tofile="obj/modplayer.map" if:true="${mapfile}" />
+			<copy file="obj/loader.map" tofile="obj/SAM.MOD.player.${version}.map" if:true="${mapfile}" />
 
 		</sequential>
 
@@ -114,7 +119,7 @@ defm "${version}"
 
 	<!-- all -->
 
-	<target name="all (samdos)" description="compile all, create disk and launch">
+	<target name="all-samdos" description="compile all, create disk and launch">
 
 		<create-disk samdos="true" />
 
@@ -122,7 +127,7 @@ defm "${version}"
 
 	</target>
 
-	<target name="all (b-dos)" description="compile all, create disk and launch">
+	<target name="all-b-dos" description="compile all, create disk and launch">
 
 		<create-disk b-dos="true" />
 
