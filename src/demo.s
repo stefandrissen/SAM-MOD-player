@@ -2116,7 +2116,6 @@ txt.prosummary:
     defm "8 Undefined"
     defb 0
     defm "9 Sample Offset (512 bytes * xy)"
-    defb 0
     defm "A Volume Slide    (up x, down y)"
     defm "B Position Jump          (to xy)"
     defm "C Volume Change          (to xy)"
