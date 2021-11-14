@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project name="sam-mod-player" default="all-b-dos" xmlns:if="ant:if">
 
-	<property name="version" value="v2.33" />
+	<property name="version" value="v2.34" />
 	<property name="python" value="python" />
 	<property name="pyz80" value="../pyz80/pyz80.py" />
 	<property name="simcoupe" location="C:\Program Files\SimCoupe\SimCoupe.exe" />
