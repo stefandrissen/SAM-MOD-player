@@ -9,9 +9,147 @@
 ;(C) 2019-2021 Stefan Drissen
 
 ;---------------------------------------------------------------
-fat.read.dir:
+read.directory.fat:
+
+    ld hl,(fat.data)
+
+@loop.directory.entries:
+
+    ld a,(hl)
+    or a
+    ret z
+
+    cp 229
+    jp z,@next.file    ; deleted file
+
+    push hl
+    pop ix
+    ld a,(ix+11)
+    and 8
+    jp nz,@next.file   ; volume label
+
+    ld a,(ix+8)
+    cp "M"
+    jp nz,@next.file
+    ld a,(ix+9)
+    cp "O"
+    jp nz,@next.file
+    ld a,(ix+10)
+    cp "D"
+    jp nz,@next.file    ; not MOD extension
+
+    push hl
+    push de
+    ld b,8
+@loop:
+    ld a,(hl)
+    ld (de),a
+    inc hl
+    inc de
+
+    djnz @-loop
+
+    push de
+
+    ld e,(ix+26)
+    ld d,(ix+27)        ; first cluster
+
+    ld hl,dos.sector
+pc.rd.more:
+    call fat.read_cluster
+    call fat.get_entry
+    ld a,h
+    cp ( temp.spc + 1084 ) / 256 + 1
+    jr c,pc.rd.more
+
+    ld hl,temp.spc+1083
+    ld de,temp.spc+1083
+    ld bc,1084
+    lddr
+
+    pop de
+
+    ld a,2
+    call file.check
+
+    push de
+
+    ld e,(ix+28)
+    ld d,(ix+29)
+    ld a,(ix+30)
+    ex de,hl
+pc.resub:
+    or a
+    sbc hl,de
+    sbc c
+    jr nc,pc.got.maxmin
+    adc c
+    add hl,de
+    ex de,hl
+    ld b,a
+    ld a,c
+    ld c,b
+    jr pc.resub
+pc.got.maxmin:          ; ahl = difference calc len & file len
+    pop de
+    or h
+    jr z,pc.file.ok
+
+    pop de
+    pop hl
+    jr @next.file
+
+pc.file.ok:
+
+;get date
+    ld a,(ix+24)
+    ld b,a
+    and %00011111       ; day
+    call cnv.a.to.de
+    ld a,b
+    and %11100000
+    rlca
+    rlca
+    rlca
+    ld c,a
+    ld a,(ix+25)
+    ld b,a
+    and %00000001
+    rlca
+    rlca
+    rlca
+    or c                ; month
+    call cnv.a.to.de
+    ld a,b
+    and %11111110
+    rrca
+    add 80
+    sub 100
+    jr nc,$-2
+    add 100             ; year
+    call cnv.a.to.de
+
+    call insert.file.size
+    ld hl,loader.entries
+    inc (hl)
+    pop hl
+    ld bc,load.len
+    add hl,bc
+    ex de,hl
+    pop hl
+
+@next.file:
+
+    ld bc,32
+    add hl,bc
+    ld a,(loader.entries)
+    cp 27
+    ret z
+
+    jp @-loop.directory.entries
 
 ;---------------------------------------------------------------
+fat.read.dir:
 
     ld (save.sam.sp+1),sp   ; for quick exits
 

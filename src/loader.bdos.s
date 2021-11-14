@@ -8,6 +8,235 @@
 ;@sector: equ fat
 @sector: equ dos.sector
 
+
+;-------------------------------------------------------------------------------
+read.directory.bdos:
+
+    push de
+    call bdos.read.dir
+
+    ; now convert the SAM stuff to loader format
+
+    pop de
+    ld hl,fat
+
+    ld a,80             ; 80 directory entries
+@loop.directory.entries:
+
+    push af
+
+    ld a,(hl)
+    and %00111111
+    cp uifa.filetype.code
+    jr nz,@next.file
+
+    push hl
+    call @check.file.extension
+    pop hl
+    jr nz,@next.file
+
+    push hl
+    pop ix
+
+    push hl
+    push de
+
+    inc hl
+    ld b,8
+@loop:
+    ld a,(hl)
+    ld (de),a
+    inc hl
+    inc de
+
+    djnz @-loop
+
+    push de
+
+    ld e,(ix+uifa.sector)
+    ld d,(ix+uifa.track)    ; first sector
+
+    in a,(port.hmpr)
+    and high.memory.page.mask
+    ld c,a
+
+    call @read.first.sectors
+    jr z,@next.file
+
+    pop de
+
+    ld a,2
+    call file.check
+
+    call fc.sam
+    jr z,sm.file.ok
+
+;not MOD, maybe compressed mod (4 bit)
+
+    pop de
+    push de
+
+    ld hl,8
+    add hl,de
+    ex de,hl
+
+    ld a,1              ; only add sample length once
+    call file.check
+
+    call fc.sam
+    jr z,sm.file.ok
+
+    pop de
+    pop hl
+    jr @next.file
+
+sm.file.ok:
+
+    call @insert.file.date
+
+    for 6, inc de
+
+    call insert.file.size
+
+    ld hl,loader.entries
+    inc (hl)
+    pop hl
+    ld bc,load.len
+    add hl,bc
+    ex de,hl
+    pop hl
+
+@next.file:
+
+    ld bc,16
+    add hl,bc
+
+    pop af
+    ld b,a
+    ld a,(loader.entries)
+    cp 27
+    ret z
+
+    ld a,b
+    dec a
+    jr nz,@-loop.directory.entries
+
+    ret
+
+;-------------------------------------------------------------------------------
+@check.file.extension:
+
+    inc hl
+    inc hl
+
+    ld b,8
+
+@loop:
+
+    ld a,(hl)
+    inc hl
+    cp "."
+    jr nz,@next.chr
+
+    ld a,(hl)
+    set 5,a             ; -> lowercase
+    cp "m"
+    jr nz,@next.chr
+
+    ret
+
+@next.chr:
+    djnz @-loop
+
+    ld a,1
+    or a                ; nz
+
+    ret
+
+;-------------------------------------------------------------------------------
+@read.first.sectors:
+
+; read first 3 sectors of file to check if it is a mod
+
+    ld hl,temp.spc
+    call @read.sector
+    ret z
+
+    ld hl,temp.spc + 510
+    call @read.sector
+    ret z
+
+    ld hl,temp.spc + 2 * 510
+    call @read.sector
+
+    ld a,1
+    or  a   ; -> NZ
+
+    ret
+
+;-------------------------------------------------------------------------------
+@read.sector:
+; input:
+; - hl = destination
+; - d  = track
+; - e  = sector
+;
+; output:
+; - z = no next sector
+
+    push hl
+
+    ld hl,dos.sector
+    call bdos.read.sector
+
+    pop de
+
+    ld hl,dos.sector
+    ld bc,510
+    ldir
+    ld d,(hl)
+    inc hl
+    ld e,(hl)
+    ld a,d
+    or e
+
+    ret
+
+;-------------------------------------------------------------------------------
+@insert.file.date:
+
+    push de
+    ld a,"*"
+    ld (de),a
+
+sm.check.date:
+    ld a,(ix+11)
+    or a
+    jr z,sm.done.date       ; 0 -> invalid date
+    cp 32
+    jr nc,sm.done.date      ; day > 31 = invalid date
+    ld a,(ix+12)
+    or a
+    jr z,sm.done.date       ; 0 -> invalid date
+    cp 13
+    jr nc,sm.done.date      ; month > 12 = invalid date
+    ld a,(ix+15)
+    or a
+    jr z,sm.done.date       ; 0 -> invalid date
+    inc a
+    jr z,sm.done.date       ; 255 -> invalid date
+
+    ld a,(ix+11)
+    call cnv.a.to.de
+    ld a,(ix+12)
+    call cnv.a.to.de
+    ld a,(ix+15)
+    call cnv.a.to.de
+sm.done.date:
+    pop de
+
+    ret
+
 ;-------------------------------------------------------------------------------
 bdos.read.dir:
 
@@ -116,7 +345,7 @@ bdos.read.dir:
     ld bc,10
     ldir
 
-    ld hl,mes.nolabel + 10      ; 6 spaces
+    ld hl,mes.no_label + 10      ; 6 spaces
     ld a,(loader.dos.version)
     cp dvar.version.b_dos.max + 1
     jr nc,@not.bdos
