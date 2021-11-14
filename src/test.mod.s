@@ -141,20 +141,20 @@ row.1:
         defb 0x10               ; H  = lower sample, L = effect
         defb 0x00               ; HL = command
     @channel.2:
-        defb 0
-        defb 0
-        defb 0
-        defb 0
+        defb note.test.h
+        defb note.test.l
+        defb 0x10
+        defb 0x00
     @channel.3:
-        defb 0
-        defb 0
-        defb 0
-        defb 0
+        defb note.test.h
+        defb note.test.l
+        defb 0x10
+        defb 0x00
     @channel.4:
-        defb 0
-        defb 0
-        defb 0
-        defb 0
+        defb note.test.h
+        defb note.test.l
+        defb 0x10
+        defb 0x00
 
 row.2:
 
