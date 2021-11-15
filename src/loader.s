@@ -1858,46 +1858,47 @@ text.hl.decimal:
 
     ld bc,10000
     call divide.hl.bc
-    jr z,@text.hl.decimal.1000
-    add a,"0"
-    ld (de),a
-    inc de
-
- @text.hl.decimal.1000:
+    ld (@var.buffer+0),a
 
     ld bc,1000
     call divide.hl.bc
-    jr z,@text.hl.decimal.100
-    add a,"0"
-    ld (de),a
-    inc de
-
- @text.hl.decimal.100:
+    ld (@var.buffer+1),a
 
     ld bc,100
     call divide.hl.bc
-    jr z,@text.hl.decimal.10
-    add a,"0"
-    ld (de),a
-    inc de
-
- @text.hl.decimal.10:
+    ld (@var.buffer+2),a
 
     ld bc,10
     call divide.hl.bc
-    jr z,@text.hl.decimal.1
-    add a,"0"
-    ld (de),a
-    inc de
-
- @text.hl.decimal.1:
+    ld (@var.buffer+3),a
 
     ld a,l
-    add a,"0"
-    ld (de),a
-    inc de
+    ld (@var.buffer+4),a
+
+    ld hl,@var.buffer
+    ld b,5
+    @loop:
+        ld a,(hl)
+        or a
+        jr nz,@digit
+
+        inc hl
+
+        djnz @-loop
+
+        inc b
+    @digit:
+        add "0"
+        ld (de),a
+        inc de
+        inc hl
+        ld a,(hl)
+
+        djnz @-digit
 
     ret
+
+    @var.buffer: defs 5
 
 ;---------------------------------------------------------------
 divide.hl.bc:
