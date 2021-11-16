@@ -2325,8 +2325,8 @@ relocate.low:
 
 ;---------------------------------------------------------------
 
-include "loader.bdos.s"
-include "loader.fat.s"
+include "loader/bdos.s"
+include "loader/fat.s"
 
 ;---------------------------------------------------------------
 
