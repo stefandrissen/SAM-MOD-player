@@ -3,7 +3,6 @@
  ;(C) 1996-2021 Stefan Drissen
 
  ; to do:
- ; - fix 4-bit "compressed" mods
  ; - handle dos errors better (doser)
  ; + add sample runways while loading
 
@@ -1389,7 +1388,7 @@ file.loaded:
 
     pop af
     bit 6,a
-    call nz,decompress
+    call nz,loader.unpack
 
     call cls
 
@@ -1421,240 +1420,6 @@ file.loaded:
     jp nz,@select.file
 
     jp loader.quit
-
-;---------------------------------------------------------------
-decompress:         ; !!! does not work yet
-
-    ld c,a
-
-    ld a,(loader.ram)
-    and %11100
-    jr z,@+no.megabyte
-
-    ld a,high.memory.external
-    out (port.hmpr),a
-    ld a,page.mod.megabyte
-    out (port.xmpr.c),a
-    inc a
-    out (port.xmpr.d),a
-    dec a
-
-    jr @+continue
-
- @no.megabyte:
-
-    ld a,page.mod
-    out (port.hmpr),a
-
- @continue:
-    ld (@page.mod+1),a
-
-    ld a,c
-    res 6,a
-
-    ld hl, 31 * 30 + 20 + 2 + 32768
-    ld de,4
-    or a
-    ld a,31
-    jr nz,dc.not.noise
-    ld hl, 15 * 30 + 20 + 2 + 32768
-    ld e,d
-    ld a,15
- dc.not.noise:
-    ld (loader.instruments+1),a
-    ld b,128
-    ld a,(hl)
- @searchtable:
-    cp (hl)
-    jr nc,@alreadyhi
-    ld a,(hl)
- @alreadyhi:
-    inc hl
-    djnz @searchtable
-    inc a
-
-    add hl,de
-
-    ld b,a
- @page.mod:
-    ld e,page.mod
-
- convallppats:
-    ld a,h
-    add 4
-    ld h,a
-    bit 6,h
-    res 6,h
-    jr z,$+3
-    inc e
-    djnz convallppats
-
-    ;sample starts directly after last pattern
-
-    ld (smp1.offs+1),hl
-    ld a,e
-    ld (smp1.page+1),a
-
-    ld ix,32768+20
-
-    ;put starting addresses of samples in sample table
-
- loader.instruments:
-    ld b,0
-
-    ld hl,0
-    xor a
- @loop:
-    ld d,(ix+22)
-    ld e,(ix+23)
-    add hl,de
-    jr nc,$+4
-    add 4
-    ld de,30
-    add ix,de
-    djnz @loop
-
-    bit 7,h
-    res 7,h
-    jr z,$+4
-    add 2
-    bit 6,h
-    res 6,h
-    jr z,$+3
-    inc a
-
-    ld (samplen+1),hl
-    ld (samppag+1),a
-
- smp1.page:
-    add 0
- smp1.offs:
-    ld de,0
-    add hl,de
-    jr nc,$+4
-    add 2
-    set 7,h
-    bit 6,h
-    res 6,h
-    jr z,$+3
-    inc a
-    ld d,a
-
-    exx
-    ld hl,(smp1.offs+1)
-    ld a,(smp1.page+1)
-    ld d,a
-
- samplen:
-    ld bc,0
- samppag:
-    ld e,0
-
- loop2:
-    ld a,b
-    or c
-    jr z,end2
-
-    ld a,(loader.ram)
-    and %11100
-
-    ld a,d
-
-    jr z,@+no.megabyte
-
-    out (port.xmpr.c),a
-    inc a
-    out (port.xmpr.d),a
-    dec a
-
-    jr @+continue
-
- @no.megabyte:
-
-    out (port.hmpr),a
-
- @continue:
-
-    ld a,(hl)
-    rlca
-    rlca
-    rlca
-    rlca
-    exx
-
-    ex af,af'
-
-    ld a,(loader.ram)
-    and %11100
-
-    ld a,d
-
-    jr z,@+no.megabyte
-
-    out (port.xmpr.c),a
-    inc a
-    out (port.xmpr.d),a
-    dec a
-
-    jr @+continue
-
- @no.megabyte:
-
-    out (port.hmpr),a
-
- @continue:
-
-    ex af,af'
-    and %11110000
-    ld (hl),a
-    inc hl
-    exx
-
-    ld a,(loader.ram)
-    and %11100
-
-    ld a,d
-
-    jr z,@+no.megabyte
-
-    out (port.xmpr.c),a
-    inc a
-    out (port.xmpr.d),a
-    dec a
-
-    jr @+continue
-
- @no.megabyte:
-
-    out (port.hmpr),a
-
- @continue:
-
-    ld a,(hl)
-    and %11110000
-    ld (hl),a
-    inc hl
-
-    dec bc
-    jr loop2
- end2:
-    bit 6,h
-    res 6,h
-    jr z,$+3
-    inc d
-    exx
-    bit 6,h
-    res 6,h
-    jr z,$+3
-    inc d
-    exx
-    ld bc,16384
-    ld a,e
-    dec e
-    or a
-    jr nz,loop2
-
-    ret
 
 ;---------------------------------------------------------------
 get.entry.ix.from.c:
@@ -2326,6 +2091,7 @@ relocate.low:
 ;---------------------------------------------------------------
 
 include "loader/bdos.s"
+include "loader/unpack.s"
 include "loader/fat.s"
 
 ;---------------------------------------------------------------
