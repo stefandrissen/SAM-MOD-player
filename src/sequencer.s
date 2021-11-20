@@ -618,8 +618,12 @@ getpat:
 
 @loop.c.convall:
 
+    inc hl                  ; skip first sample word
+    inc hl
     ld (iy+st.start+0),l
     ld (iy+st.start+1),h
+    dec hl
+    dec hl
     ld (iy+st.start+2),b
 
     ld a,(ix+mod.sample.finetune)
@@ -1817,7 +1821,7 @@ vibrato.table:
     defb   0, 24, 49, 74, 97,120,141,161
     defb 180,197,212,224,235,244,250,253
     defb 255,253,250,244,235,224,212,197
-    defb 180,161,141,120,097,074,049,024
+    defb 180,161,141,120, 97, 74, 49, 24
 
     ; defw 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ;  0
     ; defw 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0 ; 16
@@ -2286,9 +2290,6 @@ r1.004:
     inc l
     ld a,(hl)
     inc a
-
-    inc bc              ; skip first sample word
-    inc bc
 
 r1.005:
     jp z,set.regs       ; page -1 -> no instrument
@@ -3249,7 +3250,7 @@ r1.115:
     ld a,e
     and 0x0f
     add c
-    cp 63
+    cp 64
     jr nc,pj2
     ld (pbreak.pos+1),a
     ld a,1
