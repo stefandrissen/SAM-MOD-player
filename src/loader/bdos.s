@@ -251,6 +251,13 @@ bdos.read.dir:
     ld c,a
 
     ld hl,fat
+    ld de,fat+1
+    ld bc,16 * 80 - 1
+    ld (hl),0
+    ldir
+
+    ld hl,fat
+
     ld d,0      ; track
 
 @loop.tracks:
@@ -307,10 +314,27 @@ bdos.read.dir:
 ;   de = @sector
 ;   hl = directory store
 
+    ld a,(de)   ; filetype
+    cp uifa.filetype.code
+    ret nz
+
     ex de,hl
 
     ld bc,0x0b
     ldir        ; filetype + filename
+
+    ld a,(hl)   ; msb sectors
+    or a
+    jr nz,@ok
+
+    inc l
+    ld a,(hl)   ; lsb sectors
+    dec l
+    cp 5        ; smallest mod is 2108 bytes (https://sitomani.github.io/4champ/2020ds/ds_06.html)
+    jr c,@file.too.small
+
+ @ok:
+
     ld c,uifa.timestamp.day - 0x0b
     add hl,bc
     ldi         ; day
@@ -325,6 +349,17 @@ bdos.read.dir:
     ldi         ; year
 
     ex de,hl
+
+    ret
+
+ @file.too.small:
+
+    ex de,hl
+
+    ld c,0x0b
+    or a
+    sbc hl,bc
+    ld (hl),0
 
     ret
 
