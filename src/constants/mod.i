@@ -51,5 +51,4 @@ mod.samples:    equ mod.title + mod.title.len
 
     mod.nt.pattern:             equ mod.nt.pattern.table + mod.pattern.table.len    ; 1024 bytes (64 * 4 * 4)
 
-
-    ; mod.pt.sample.data:        equ mod.ntpattern + patterns * mod.pattern.len
+    ; mod.nt.sample.data:       equ mod.nt.pattern + patterns * mod.pattern.len
