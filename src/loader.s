@@ -13,6 +13,7 @@
     include "ports/keyboard.i"
     include "ports/fdc.i"
     include "constants/dos.i"
+    include "constants/mod.i"
     include "constants/opcodes.i"
 
 load.offs:  equ 0x8000
@@ -797,13 +798,13 @@ file.check:
     ; a = 1 (compressed) or 2 (normal)
 
     ld hl,temp.spc + 9
-    ld bc,20
+    ld bc,mod.title.len
     ldir
 
     ld (bytes.per+1),a
 
     push ix
-    ld bc,(temp.spc + 9 + 1080)
+    ld bc,(temp.spc + 9 + mod.pt.id)
 
     ld a,1      ; 1 = protracker
     or a
@@ -842,11 +843,11 @@ file.check:
   @not.compressed:
 
     inc de
-    ld hl, temp.spc + 9 + ( 30 * 31 ) + 20
+    ld hl, temp.spc + 9 + mod.pt.song.positions
     and 63
     jr nz,@not.noisetracker
 
-    ld hl, temp.spc + 9 + ( 30 * 15 ) + 20
+    ld hl, temp.spc + 9 + mod.nt.song.positions
 
  @not.noisetracker:
 
@@ -854,23 +855,23 @@ file.check:
     push de
 
     ld bc,0x1f00                    ; b = 31 samples
-    ld hl,20 + 30 * 31 + 130 + 4    ; title + sample table + pattern table + id
+    ld hl,mod.pt.pattern
     and 63
     jr nz,@not.noisetracker
 
     ld b,0x0f                       ; b = 15 samples
-    ld hl,20 + 30 * 15 + 130        ; title + sample table + pattern table
+    ld hl,mod.nt.pattern
 
  @not.noisetracker:
 
     xor a
     ld (sample.count+1),a
-    ld ix,temp.spc + 9 + 20
+    ld ix,temp.spc + 9 + mod.samples
 
  @loop.add_all_samples:
 
-    ld d,(ix+22)
-    ld e,(ix+23)
+    ld d,(ix+mod.sample.len.words+0)
+    ld e,(ix+mod.sample.len.words+1)
   bytes.per:
     ld a,2
     @times.sample:
@@ -894,7 +895,7 @@ file.check:
     ld (sample.count+1),a
 
   @next.sample:
-    ld de,30            ; length sample table entry
+    ld de,mod.sample.len
     add ix,de
 
     djnz @-loop.add_all_samples
@@ -915,7 +916,7 @@ file.check:
 
     inc e
     ld b,e
-    ld de,1024          ; length pattern
+    ld de,mod.pattern.len
 
     @loop.add_all_patterns:
         add hl,de

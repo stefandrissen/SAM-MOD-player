@@ -61,9 +61,8 @@ read.directory.bdos:
     ld c,a
 
     call @read.first.sectors
-    jr z,@next.file
-
     pop de
+    jr z,@next.file.pop
 
     ld a,2
     call file.check
@@ -85,6 +84,8 @@ read.directory.bdos:
 
     call fc.sam
     jr z,sm.file.ok
+
+ @next.file.pop:
 
     pop de
     pop hl
@@ -156,7 +157,7 @@ sm.file.ok:
 ;-------------------------------------------------------------------------------
 @read.first.sectors:
 
-; read first 3 sectors of file to check if it is a mod
+    ; read first 3 sectors of file to check if it is a mod
 
     ld hl,temp.spc
     call @read.sector
@@ -170,7 +171,7 @@ sm.file.ok:
     call @read.sector
 
     ld a,1
-    or  a   ; -> NZ
+    or a    ; -> NZ
 
     ret
 
