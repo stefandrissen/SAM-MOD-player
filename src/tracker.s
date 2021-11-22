@@ -1,4 +1,4 @@
-;SAM MOD player - SEQUENCER (tracker)
+;SAM MOD player - tracker
 
 ;(C) 1995-2021 Stefan Drissen
 
@@ -9,26 +9,27 @@
 include "memory.i"
 include "ports/internal.i"
 include "ports/megabyte.i"
+include "constants/mod.i"
 
     org 0x8000
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 
-sequencer.init:         jp @init.seq
-sequencer.install.mod:  jp @install.mod
+tracker.init:           jp @init.tracker
+tracker.install.mod:    jp @install.mod
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 
-sq.pointer.addr.demo:   defw 0              ; offset
-sq.pointer.page.demo:   defb 0              ; & page of demo (foreground)
+tracker.ptr.addr.demo:  defw 0              ; offset
+tracker.ptr.page.demo:  defb 0              ; & page of demo (foreground)
 
-sq.pointer.page.mod:    defb page.mod       ; page mod loaded in at
-sq.octaves:             defb 3              ; number of octaves (3 or 5)
-sq.ram:                 defb 0              ; %XXXRR (RAM / 256K)
-sq.gap:                 defb 0
-sq.instruments:         defb 0
+tracker.ptr.page.mod:   defb page.mod       ; page mod loaded in at
+tracker.octaves:        defb 3              ; number of octaves (3 or 5)
+tracker.ram:            defb 0              ; %XXXRR (RAM / 256K)
+tracker.gap:            defb 0
+tracker.instruments:    defb 0
 
-@init.seq:
+@init.tracker:
     di
     in a,(port.lmpr)
     ld (is.lmpr + 1),a
@@ -68,7 +69,7 @@ sq.instruments:         defb 0
     ld a,c
     ld (rs.bp.page+1),a
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 ;set up the finetune tables
 
     ld hl,finet.tab
@@ -94,7 +95,7 @@ set.finetune:
     inc c
     djnz set.finetune
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 
     ld hl,c1
     ld de,c2
@@ -191,38 +192,38 @@ mk.c.on.lp:
 
     ld iy,bp.pointers
 
-    ld l,(iy + bp.pointer.addr.sequencer - bp.pointers)
-    ld h,(iy + bp.pointer.addr.sequencer - bp.pointers + 1)
-    ld (hl),sequencer \ 256
+    ld l,(iy + bp.ptr.addr.tracker - bp.pointers)
+    ld h,(iy + bp.ptr.addr.tracker - bp.pointers + 1)
+    ld (hl),tracker \ 256
     inc hl
-    ld (hl),sequencer / 256
+    ld (hl),tracker / 256
 
     in a,(port.hmpr)
-    ld l,(iy + bp.pointer.page.sequencer - bp.pointers)
-    ld h,(iy + bp.pointer.page.sequencer - bp.pointers + 1)
+    ld l,(iy + bp.ptr.page.tracker - bp.pointers)
+    ld h,(iy + bp.ptr.page.tracker - bp.pointers + 1)
     ld (hl),a
 
-    ld de,(sq.pointer.addr.demo)
-    ld l,(iy + bp.pointer.addr.demo - bp.pointers)
-    ld h,(iy + bp.pointer.addr.demo - bp.pointers + 1)
+    ld de,(tracker.ptr.addr.demo)
+    ld l,(iy + bp.ptr.addr.demo - bp.pointers)
+    ld h,(iy + bp.ptr.addr.demo - bp.pointers + 1)
     ld (hl),e
     inc hl
     ld (hl),d
 
-    ld a,(sq.pointer.page.demo)
-    ld l,(iy + bp.pointer.page.demo - bp.pointers)
-    ld h,(iy + bp.pointer.page.demo - bp.pointers + 1)
+    ld a,(tracker.ptr.page.demo)
+    ld l,(iy + bp.ptr.page.demo - bp.pointers)
+    ld h,(iy + bp.ptr.page.demo - bp.pointers + 1)
     ld (hl),a
 
-    ld l,(iy + bp.pointer.addr.enable - bp.pointers)
-    ld h,(iy + bp.pointer.addr.enable - bp.pointers + 1)
+    ld l,(iy + bp.ptr.addr.enable - bp.pointers)
+    ld h,(iy + bp.ptr.addr.enable - bp.pointers + 1)
     ld (enable.burst),hl
 
-    ld l,(iy + bp.pointer.addr.exit - bp.pointers)
-    ld h,(iy + bp.pointer.addr.exit - bp.pointers + 1)
+    ld l,(iy + bp.ptr.addr.exit - bp.pointers)
+    ld h,(iy + bp.ptr.addr.exit - bp.pointers + 1)
     ld (exit.burst),hl
 
-    ; copy pointers (6) to sequencer code for 4 channels
+    ; copy pointers (6) to tracker code for 4 channels
 
     ld iy,bp.pointers.sample
 
@@ -417,13 +418,13 @@ build.list:
     defw r2.001+2,r2.002+2,r2.003+2,r2.004+2,r2.005+2
     defw r2.006+2,r2.007+2,r2.008+2,r2.009+2,r2.010+2
 
-    defw 65535
+    defw -1
 
-;------------- install mod -------------------------------------
-
-; put code in section AB to manipulate data in section CD
-
+;-------------------------------------------------------------------------------
 @install.mod:
+
+    ; put code in section AB to manipulate data in section CD
+
     di
     in a,(port.lmpr)
     ld (im.lmpr+1),a
@@ -434,52 +435,32 @@ build.list:
     out (port.lmpr),a
     jp @install.mod.low
 
-;===============================================================
+;===============================================================================
     org $ - 0x8000
 
-sq.pointer.page.mod.low:    equ sq.pointer.page.mod - 0x8000
-sq.octaves.low:             equ sq.octaves          - 0x8000
-sq.ram.low:                 equ sq.ram              - 0x8000
-sq.gap.low:                 equ sq.gap              - 0x8000
-sq.instruments.low:         equ sq.instruments      - 0x8000
+tracker.ptr.page.mod.low:   equ tracker.ptr.page.mod    - 0x8000
+tracker.octaves.low:        equ tracker.octaves         - 0x8000
+tracker.ram.low:            equ tracker.ram             - 0x8000
+tracker.gap.low:            equ tracker.gap             - 0x8000
+tracker.instruments.low:    equ tracker.instruments     - 0x8000
 
-sample.table.low:           equ sample.table        - 0x8000
+sample.table.low:           equ sample.table            - 0x8000
 
-; mod file structure
-
-mod.song_name:              equ 0x8000
-mod.sample_info:            equ 0x8014
-
-    mod.sample.name:            equ 0x00
-    mod.sample.length:          equ 0x16 ; big endian words
-    mod.sample.finetune:        equ 0x18
-    mod.sample.volume:          equ 0x19
-    mod.sample.repeat:          equ 0x1a ; big endian words
-    mod.sample.repeat.length:   equ 0x1c ; big endian words
-
-    mod.sample_info.length:     equ 0x1e
-
-mod.song_length:            equ mod.sample_info + 31 * mod.sample_info.length
-mod.song_repeat:            equ mod.song_length + 1
-mod.song_positions:         equ mod.song_repeat + 1
-
-mod.signature:              equ mod.song_positions + 128
-
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @install.mod.low:
 
     ld sp,0x4000
 
-    ld a,(sq.ram.low)
+    ld a,(tracker.ram.low)
     and %11100
     jr z,@no.megabyte
 
     ld a,high.memory.external
     out (port.hmpr),a
 
-@no.megabyte:
+ @no.megabyte:
 
-    ld a,(sq.pointer.page.mod.low)
+    ld a,(tracker.ptr.page.mod.low)
     ld (@page.mod.1+1),a
     ld (@page.mod.2+1),a
     ld (@page.mod.3+1),a
@@ -489,16 +470,16 @@ mod.signature:              equ mod.song_positions + 128
 
     call set.high.memory.a
 
-;give gap correct value, 3 for 3 octaves, 6 for 5 octaves
+    ; give gap correct value, 3 for 3 octaves, 6 for 5 octaves
 
-    ld a,(sq.octaves.low)
+    ld a,(tracker.octaves.low)
     cp 5
     ld a,3
     jr nz,$+3
     rlca
-    ld (sq.gap.low),a
+    ld (tracker.gap.low),a
 
-;clear sample table
+    ; clear sample table
 
     ld hl,sample.table.low
     ld de,sample.table.low + 1
@@ -506,84 +487,91 @@ mod.signature:              equ mod.song_positions + 128
     ld (hl),l
     ldir
 
-;figure out how many sample entries the mod contains (15 or 31)
+    ; figure out how many sample entries the mod contains (15 or 31)
 
-    ld de,(mod.signature)
-findmk:
+    ld de,(mod.pt.id + 0x8000)
     ld a,31
-    ld hl,- ( "M" + "." * 0x100 ) ; PROTRACKER 31.inst.
+
+    ld hl,- ( "M" + "." * 0x100 ) ; ProTracker 31.inst.
     or a
     adc hl,de
-    jr z,set.instr
-    ld hl,- ( "M" + "!" * 0x100 ) ; PROTRACKER 31.inst.
+    jr z,@set.instr
+
+    ld hl,- ( "M" + "!" * 0x100 ) ; ProTracker 31.inst.
     or a
     adc hl,de
-    jr z,set.instr
-    ld hl,- ( "F" + "L" * 0x100 ) ; STARTREKKER 31 inst.
+    jr z,@set.instr
+
+    ld hl,- ( "F" + "L" * 0x100 ) ; StarTrekker 31 inst.
     or a
     adc hl,de
-    jr z,set.instr
+    jr z,@set.instr
 
     ld a,15
-set.instr:
-    ld (sq.instruments.low),a
-    ld hl,mod.sample_info
 
-;get start address of song table
+ @set.instr:
+    ld (tracker.instruments.low),a
+    ld hl,mod.samples + 0x8000
 
-    ld de,mod.sample_info.length
-getpat:
-    add hl,de
-    dec a
-    jr nz,getpat
+    ; get start address of song table
+
+    ld de,mod.sample.len
+    @getpat:
+        add hl,de
+        dec a
+        jr nz,@getpat
 
     ld a,(hl)               ; number of songtable entries
-    ld (song.len - 32767),a
+    ld (song.len + 1 - 0x8000),a
     inc hl
     inc hl
 
-;copy song table to area within sequencer page
+    ; copy song table to area within tracker page and find highest pattern
 
-    push hl                 ; move song.tab
-    ld de,song.tab-32768
-    ld bc,128
-    ldir
-    pop hl
-    ld b,128
+    ld de,song.table - 0x8000
+    ld bc,0x8000
 
-;find highest pattern number in song table
+    @loop:
 
-    ld a,(hl)
-@searchtable:
-    cp (hl)
-    jr nc,@alreadyhi
-    ld a,(hl)
-@alreadyhi:
-    inc hl
-    djnz @searchtable
-    inc a
+        ld a,(hl)
+        inc hl
+        ld (de),a
+        inc e
+
+        cp c
+        jr c,@a.le.c
+
+        ld c,a
+
+     @a.le.c:
+
+        djnz @-loop
+
+    inc c
+    ld a,c
 
     push af
 
-;get start address of first pattern
+    ; get start address of first pattern
 
-    ld a,(sq.instruments.low)
+    ld a,(tracker.instruments.low)
     cp 31
     jr nz,@noisetracker
-    ld de,4                 ; 4 bytes extra for signature
+    ld de,mod.pt.id.len
     add hl,de
-@noisetracker:
+ @noisetracker:
     ld a,h
-    ld (origpat.offsh-32767),a
+    ld (origpat.offsh + 1 - 0x8000),a
     ld a,l
-    ld (origpat.offsl-32767),a
+    ld (origpat.offsl + 1 - 0x8000),a
+
     pop af
 
-;A = number of patterns, BHL = first pattern pointer
-;each pattern = 1024 bytes
+    ; A = number of patterns, BHL = first pattern pointer
+    ; each pattern = 1024 bytes
 
     ld e,a
-@page.mod.1:
+ @page.mod.1:
     ld a,page.mod
     ld b,a
 
@@ -603,17 +591,17 @@ getpat:
     add b
     ld b,a
 
-;first sample starts directly after last pattern = BHL
+    ;first sample starts directly after last pattern = BHL
 
-    ld ix,mod.sample_info
+    ld ix,mod.samples + 0x8000
     ld iy,sample.table.low
 
-; - put starting addresses of samples in sample table by adding
-;   the sample length to the current sample
-; - fill in finetune, volume, does sample exist?
-; - fill in loop type (0=none, 1=big, 2=small)
+    ; - put starting addresses of samples in sample table by adding the sample
+    ;   length to the current sample
+    ; - fill in finetune, volume, does sample exist?
+    ; - fill in loop type (0=none, 1=big, 2=small)
 
-    ld a,(sq.instruments.low)   ; [15|31]
+    ld a,(tracker.instruments.low)   ; [15|31]
     ld c,a
 
 @loop.c.convall:
@@ -634,11 +622,11 @@ getpat:
     cp 0x40
     jr c,@volume.ok
     ld a,0x3f            ; volume tables only go to 0x3f
-@volume.ok:
+ @volume.ok:
     ld (iy+st.vol),a
 
-    ld d,(ix+mod.sample.length+0)           ; sample length in big endian WORDS
-    ld e,(ix+mod.sample.length+1)
+    ld d,(ix+mod.sample.len.words+0)           ; sample length in big endian WORDS
+    ld e,(ix+mod.sample.len.words+1)
 
     ld a,d
     or e
@@ -648,32 +636,36 @@ getpat:
     ld (iy+st.sample),a                     ; -1 = no sample
 
 
-; the original protracker idea is that ALL samples repeat,
-; the ones that "do not repeat", repeat on first sample word which is 0x000 -> silence
+    ; the original protracker idea is that ALL samples repeat,
+    ; the ones that "do not repeat", repeat on first sample word which is 0x000 -> silence
 
     push hl
-    ld h,(ix+mod.sample.repeat.length+0)    ; loop length in big endian WORDS
-    ld l,(ix+mod.sample.repeat.length+1)
+    ld h,(ix+mod.sample.repeat.len.words+0) ; loop length in big endian WORDS
+    ld l,(ix+mod.sample.repeat.len.words+1)
     sla l
     rl h                                    ; -> bytes
     ld a,1
     jr c,@gotloop                           ; overflow = big loop
-    ld a,(sq.gap.low)
+
+    ld a,(tracker.gap.low)
     dec a
     cp h
     ld a,1
     jr c,@gotloop
+
     ld a,h
     or a
     ld a,2
     jr nz,@gotloop      ; small loop
+
     ld a,l
     cp 4                ; no looping if loop len < 4 bytes ( = 2 words = <= 1 word )
     ld a,2
     jr nc,@gotloop      ; no loop
+
     xor a
 
-@gotloop:               ; A: 0=no loop, 1=big loop, 2=small loop
+ @gotloop:              ; A: 0=no loop, 1=big loop, 2=small loop
 
     ld (iy+st.loop),a
 
@@ -684,287 +676,295 @@ getpat:
     ld de,smp.tab.len
     add iy,de
 
-    ld de,mod.sample_info.length
+    ld de,mod.sample.len
     add ix,de
 
     dec c
     jr nz,@loop.c.convall
 
-; in dummy instrument only start address is valid data
+    ; in dummy instrument only start address is valid data
 
     ld (iy+st.start+0),l
     ld (iy+st.start+1),h
     ld (iy+st.start+2),b
 
-; calculate how much space needs to be created to accommodate the
-; endings and loopings of samples
-;
-; 1. a sample not looped needs one gap of silence following it
-; 2. a sample with a loop greater than gap needs one gap with the
-;    start of the loop following it
-; 3. a sample with a loop smaller than gap needs three gaps with
-;    the whole loop repeated in it - WHY???
+    ; calculate how much space needs to be created to accommodate the endings
+    ; and loopings of samples
+
+    ; 1. a sample not looped needs one gap of silence following it
+    ; 2. a sample with a loop greater than gap needs one gap with the start of
+    ;    the loop following it
+    ; 3. a sample with a loop smaller than gap needs three gaps with the whole
+    ;    loop repeated in it - see below
 
     ld ix,sample.table.low
     ld bc,smp.tab.len
-    ld a,(sq.instruments.low)
+    ld a,(tracker.instruments.low)
     ld d,a
     ld e,0
-@loop.d:
-    ld a,(ix+st.sample)
-    or a
-    jr z,@no.sample
 
-    ld a,(ix+st.loop)
-    cp 2                ; small loop needs three gaps
-    jr nz,@not.small
-    inc e
-    inc e
-@not.small:
-    inc e
+    @loop.d:
 
-@no.sample:
-    add ix,bc
-    dec d
-    jr nz,@loop.d
+        ld a,(ix+st.sample)
+        or a
+        jr z,@no.sample
 
-; create the space necessary by moving the samples to higher address
+        ld a,(ix+st.loop)
+        cp 2                ; small loop needs three gaps
+        jr nz,@not.small
 
-; IX = entry past last sample table entry
-; E  = number of bytes (gap*256) that need to be spaced out
+        inc e
+        inc e
+
+     @not.small:
+        inc e
+
+     @no.sample:
+
+        add ix,bc
+        dec d
+
+        jr nz,@-loop.d
+
+    ; create the space necessary by moving the samples to higher address
+
+    ; ix = entry past last sample table entry
+    ; e  = number of bytes (gap*256) that need to be spaced out
 
     ld b,e
 
-@shift.all:
+    @shift.all:
 
-    push bc
+        push bc
 
-    push bc
+        push bc
 
-    ld l,(ix+st.start+0)
-    ld h,(ix+st.start+1)
-    ld b,(ix+st.start+2)    ; BHL = address last byte of sample +1
+        ld l,(ix+st.start+0)
+        ld h,(ix+st.start+1)
+        ld b,(ix+st.start+2)    ; BHL = address last byte of sample +1
 
-    ld a,b
-    call set.high.memory.a
+        ld a,b
+        call set.high.memory.a
 
-    push hl
-@page.mod.2:
-    cp page.mod
-    jr z,@nz
+        push hl
+     @page.mod.2:
+        cp page.mod
+        jr z,@nz
 
-    set 6,h
-    dec a
-@nz:
-    dec hl
+        set 6,h
+        dec a
+     @nz:
+        dec hl
 
-    ld (source.lo+1),hl
-    ld (source.hi+1),a
-    pop hl                              ; source is AHL in block D last byte of sample
-    push hl
-    ld e,(ix-(prev.start+2))            ;
-    ld d,(ix-(prev.start+1))            ; needed to add parenthesis
-    ld c,(ix-(prev.start+0))            ;
-    xor a
-    sbc hl,de
-    jr nc,@nooverflow
-    ld de,0x4000
-    add hl,de
-    scf
-@nooverflow:
-    ld a,b
-    sbc c
-    ld (result.lo+1),hl                 ; number of bytes to be
-    ld (result.hi+1),a                  ; copied put in result
-    pop hl
+        ld (source.lo+1),hl
+        ld (source.hi+1),a
+        pop hl                              ; source is AHL in block D last byte of sample
+        push hl
+        ld e,(ix-(prev.start+2))
+        ld d,(ix-(prev.start+1))
+        ld c,(ix-(prev.start+0))
+        xor a
+        sbc hl,de
+        jr nc,@nooverflow
+        ld de,0x4000
+        add hl,de
+        scf
+     @nooverflow:
+        ld a,b
+        sbc c
+        ld (result.lo+1),hl                 ; number of bytes to be
+        ld (result.hi+1),a                  ; copied put in result
+        pop hl
 
-    ld a,b
-    pop bc
+        ld a,b
+        pop bc
 
-    ld e,a
+        ld e,a
 
-    ld a,(sq.gap.low)
-    ld c,a
-im.new.start:
-    ld a,b                              ; bytes to be shifted (* 256)
-    add a,h
-    ld h,a
-    jr nc,@nopinc1
-    inc e
-    inc e
-    set 7,h
-@nopinc1:
-    dec c
-    jr nz,im.new.start
+        ld a,(tracker.gap.low)
+        ld c,a
+     im.new.start:
+        ld a,b                              ; bytes to be shifted (* 256)
+        add a,h
+        ld h,a
+        jr nc,@nopinc1
+        inc e
+        inc e
+        set 7,h
+     @nopinc1:
+        dec c
+        jr nz,im.new.start
 
-    bit 6,h
-    res 6,h
-    jr z,$+3
-    inc e
+        bit 6,h
+        res 6,h
+        jr z,$+3
+        inc e
 
-    ld a,e
-    call set.high.memory.a
+        ld a,e
+        call set.high.memory.a
 
-    ld (ix+st.start+0),l    ; new start address of
-    ld (ix+st.start+1),h    ; sample at shifted
-    ld (ix+st.start+2),a    ; position
-@page.mod.3:
-    cp page.mod
-    jr z,@bottom.page
+        ld (ix+st.start+0),l    ; new start address of
+        ld (ix+st.start+1),h    ; sample at shifted
+        ld (ix+st.start+2),a    ; position
+     @page.mod.3:
+        cp page.mod
+        jr z,@bottom.page
 
-    dec a
-    ld (@page+1),a
-    call set.high.memory.a
+        dec a
+        ld (@page+1),a
+        call set.high.memory.a
 
-    set 6,h
-@bottom.page:
-    dec hl
+        set 6,h
+     @bottom.page:
+        dec hl
 
-    ld a,(ix-prev.sample)   ; st.sample-16
-    or a
-    jr z,@noaddgap
+        ld a,(ix-prev.sample)   ; st.sample-16
+        or a
+        jr z,@noaddgap
 
-; how much gap needed behind sample
+        ; how much gap needed behind sample
 
-    ld a,(ix-prev.loop)     ; -16 + st.loop
-    cp 2
-    ld a,(sq.gap.low)
-    jr nz,@only1
-    ld c,a
-    add a,a
-    add a,c                 ; 3 * gap
-@only1:
+        ld a,(ix-prev.loop)     ; -16 + st.loop
+        cp 2
+        ld a,(tracker.gap.low)
+        jr nz,@only1
+        ld c,a
+        add a,a
+        add a,c                 ; 3 * gap
+     @only1:
 
-; clear needed gap * 256 to no sound
+        ; clear needed gap * 256 to no sound
 
-    ld c,a
-    xor a                   ; 0 = no volume (sample is signed 8 bit integer)
-    ld b,a
-@clearend:
-    ld (hl),a
-    dec hl
-    djnz @clearend
-    dec c
-    jr nz,@clearend
-@noaddgap:
+        ld c,a
+        xor a                   ; 0 = no volume (sample is signed 8 bit integer)
+        ld b,a
+        @clearend:
+                ld (hl),a
+                dec hl
+                djnz @clearend
+            dec c
+            jr nz,@clearend
 
-@page:
-    ld a,0
-@page.mod.4:
-    cp page.mod
-    jr z,@nz
+     @noaddgap:
 
-    bit 6,h
-    set 6,h
-    jr nz,@nz
-    dec a
-@nz:
-; now pointing to address before gap
+     @page:
+        ld a,0
+     @page.mod.4:
+        cp page.mod
+        jr z,@nz
 
-    ld (target.lo+1),hl
-    ld (target.hi+1),a
+        bit 6,h
+        set 6,h
+        jr nz,@nz
+        dec a
+     @nz:
+        ; now pointing to address before gap
 
-; so lddr copy sample from old position to higher address
+        ld (target.lo+1),hl
+        ld (target.hi+1),a
 
-copy.loop:
-result.lo:
-    ld hl,0
-result.hi:
-    ld a,0
-    ld bc,move.size
-    or a
-    sbc hl,bc
-    jr nc,keepcopying
-    sub 1
-    jr c,nomoreadd
-    ld de,0x4000
-    add hl,de
-    jr keepcopying
-nomoreadd:
-    add hl,bc
-    ld c,l
-    ld b,h
-keepcopying:
-    ld (result.lo+1),hl
-    ld (result.hi+1),a
+        ; so lddr copy sample from old position to higher address
 
-    ld a,b
-    or c
-    jr z,nocopy
+     copy.loop:
+     result.lo:
+        ld hl,0
+     result.hi:
+        ld a,0
+        ld bc,move.size
+        or a
+        sbc hl,bc
+        jr nc,keepcopying
+        sub 1
+        jr c,nomoreadd
+        ld de,0x4000
+        add hl,de
+        jr keepcopying
+     nomoreadd:
+        add hl,bc
+        ld c,l
+        ld b,h
+     keepcopying:
+        ld (result.lo+1),hl
+        ld (result.hi+1),a
 
-source.lo:
-    ld hl,0
-source.hi:
-    ld a,0
-    call set.high.memory.a
+        ld a,b
+        or c
+        jr z,nocopy
 
-    ld de,move.spc + move.size - 1
-    push bc
-    lddr                        ; copying
+     source.lo:
+        ld hl,0
+     source.hi:
+        ld a,0
+        call set.high.memory.a
 
-@page.mod.5:
-    cp page.mod
-    jr z,@nz
+        ld de,move.spc + move.size - 1
+        push bc
+        lddr                        ; copying
 
-    bit 6,h
-    set 6,h
-    jr nz,@nz
-    dec a
-@nz:
-    ld (source.hi+1),a
-    ld (source.lo+1),hl
+     @page.mod.5:
+        cp page.mod
+        jr z,@nz
 
-    ld hl,move.spc + move.size-1
-target.lo:
-    ld de,0
-target.hi:
-    ld a,0
-    call set.high.memory.a
+        bit 6,h
+        set 6,h
+        jr nz,@nz
+        dec a
+     @nz:
+        ld (source.hi+1),a
+        ld (source.lo+1),hl
 
-    pop bc
-    lddr                        ; copying
-@page.mod.6:
-    cp page.mod
-    jr z,@nz
+        ld hl,move.spc + move.size-1
+     target.lo:
+        ld de,0
+     target.hi:
+        ld a,0
+        call set.high.memory.a
 
-    bit 6,d
-    set 6,d
-    jr nz,@nz
-    dec a
-@nz:
-    ld (target.hi+1),a
-    ld (target.lo+1),de
-nocopy:
-    ld a,(result.hi+1)
-    inc a               ;stop when A=255
-    jr nz,copy.loop
+        pop bc
+        lddr                        ; copying
+     @page.mod.6:
+        cp page.mod
+        jr z,@nz
 
-    ld bc,-smp.tab.len
-    add ix,bc
+        bit 6,d
+        set 6,d
+        jr nz,@nz
+        dec a
+     @nz:
+        ld (target.hi+1),a
+        ld (target.lo+1),de
+     nocopy:
+        ld a,(result.hi+1)
+        inc a               ;stop when A=255
 
-    ld a,(ix+st.sample)
-    or a
-    ld a,0
-    jr z,nosamplegap
+        jr nz,copy.loop
 
-;get number of gaps used
+        ld bc,-smp.tab.len
+        add ix,bc
 
-    ld a,(ix+st.loop)
-    cp 2
-    ld a,0
-    jr nz,$+4
-    add 2               ;for small loop
-    inc a
-nosamplegap:
-    ld e,a
+        ld a,(ix+st.sample)
+        or a
+        ld a,0
+        jr z,nosamplegap
 
-    pop bc
+        ;get number of gaps used
 
-    ld a,b              ;update how much to move
-    sub e
-    ld b,a
+        ld a,(ix+st.loop)
+        cp 2
+        ld a,0
+        jr nz,$+4
+        add 2               ;for small loop
+        inc a
+     nosamplegap:
+        ld e,a
 
-    jp nz,@shift.all
+        pop bc
+
+        ld a,b              ;update how much to move
+        sub e
+        ld b,a
+
+        jp nz,@shift.all
 
 ; check ALL samples for Noisetracker bug
 ; -> loop offset in bytes instead of in words
@@ -977,11 +977,11 @@ nosamplegap:
 ; -> loop len > len sample -> loop len = len sample
 
     ld iy,sample.table.low
-    ld ix,mod.sample_info
-    ld a,(sq.instruments.low)
+    ld ix,mod.samples + 0x8000
+    ld a,(tracker.instruments.low)
     ld b,a
 
-    ld a,(sq.pointer.page.mod.low)
+    ld a,(tracker.ptr.page.mod.low)
     call set.high.memory.a
 
 find.bug.lp:
@@ -989,23 +989,24 @@ find.bug.lp:
     ld a,(iy+st.loop)
     or a
     jr z,find.lp.ok         ;no loop -> no bug
-    ld h,(ix+22)            ;sample len
-    ld l,(ix+23)
-    ld d,(ix+28)            ;loop len
-    ld e,(ix+29)
+    ld h,(ix+mod.sample.len.words+0)
+    ld l,(ix+mod.sample.len.words+1)
+    ld d,(ix+mod.sample.repeat.len.words+0)
+    ld e,(ix+mod.sample.repeat.len.words+1)
     or a
     sbc hl,de               ;assuming loop len<sample len
     jr nc,assumpt.ok
     add hl,de
-    ld (ix+28),h            ;set loop len to sample len
-    ld (ix+29),l
+    ld (ix+mod.sample.repeat.len.words+0),h ;set loop len to sample len
+    ld (ix+mod.sample.repeat.len.words+1),l
     ld hl,0                 ;sample len-loop len
 assumpt.ok:
-    ld d,(ix+26)            ;loop offs
-    ld e,(ix+27)
+    ld d,(ix+mod.sample.repeat.offset.words+0)  ;loop offs
+    ld e,(ix+mod.sample.repeat.offset.words+1)
     sbc hl,de
     jr c,found.bug          ;loop offs+len>sample len
     jr find.lp.ok
+
 found.bug:
     add hl,de
     srl d
@@ -1025,7 +1026,7 @@ loop.bug.2:
 find.lp.ok:
     ld bc,smp.tab.len
     add iy,bc
-    ld bc,30
+    ld bc,mod.sample.len
     add ix,bc
     pop bc
     djnz find.bug.lp
@@ -1035,22 +1036,22 @@ found.bugged:   ;A=0 -> normal looping
                 ;A=2 -> soul-o-matic bug
     ld (loop.bug+1),a
 
-;fill in end addresses of samples in sample table by adding
-;sample length bytes (*2) to start address OR if the sample is
-;looped by adding the offset + the sample length
+    ; fill in end addresses of samples in sample table by adding sample length
+    ; bytes (*2) to start address OR if the sample is looped by adding the
+    ; offset + the sample length
 
     ld iy,sample.table.low
-    ld ix,mod.sample_info
+    ld ix,mod.samples + 0x8000
 
-    ld a,(sq.instruments.low)
+    ld a,(tracker.instruments.low)
     ld c,a
-@fillend:
+ @fillend:
     ld l,(iy+st.start+0)
     ld h,(iy+st.start+1)
     ld b,(iy+st.start+2)
 
-    ld d,(ix+22)            ; sample length
-    ld e,(ix+23)
+    ld d,(ix+mod.sample.len.words+0)
+    ld e,(ix+mod.sample.len.words+1)
 
     ld a,(iy+st.loop)
     or a
@@ -1063,63 +1064,65 @@ found.bugged:   ;A=0 -> normal looping
     dec a
     jr z,@noisebug
 
-;soul-o-matic bug
-    ld d,(ix+28)            ;loop len hi
-    ld e,(ix+29)            ;loop len lo
+    ;soul-o-matic bug
+    ld d,(ix+mod.sample.repeat.len.words+0)
+    ld e,(ix+mod.sample.repeat.len.words+1)
     call add.bhl.de2
     jr @got.gap
 
-@normal:
-    ld d,(ix+26)            ;loop offs (in words)
-    ld e,(ix+27)
+ @normal:
+    ld d,(ix+mod.sample.repeat.offset.words+0)
+    ld e,(ix+mod.sample.repeat.offset.words+1)
     call add.bhl.de
     jr @contnorm
 
-@noisebug:
-    ld d,(ix+26)            ;loop offs (in bytes!)
-    ld e,(ix+27)
+ @noisebug:
+    ld d,(ix+mod.sample.repeat.offset.words+0)  ;loop offs (in bytes!)
+    ld e,(ix+mod.sample.repeat.offset.words+1)
 
-@contnorm:
+ @contnorm:
     call add.bhl.de
-    ld d,(ix+28)            ;loop len (in words)
-    ld e,(ix+29)
-@notloop:
+    ld d,(ix+mod.sample.repeat.len.words+0) ;loop len (in words)
+    ld e,(ix+mod.sample.repeat.len.words+1)
+ @notloop:
     call add.bhl.de2
-@got.gap:
+ @got.gap:
     ld (iy+st.end+0),l
     ld (iy+st.end+1),h
     ld (iy+st.end+2),b
 
     ld de,smp.tab.len
     add iy,de
-    ld de,30
+    ld de,mod.sample.len
     add ix,de
 
     dec c
     jr nz,@fillend
 
 
-;fill in GAP to accomodate looped samples, small and large
+    ; fill in GAP to accomodate looped samples, small and large
 
     ld iy,sample.table.low
-    ld ix,mod.sample_info
-    ld a,(sq.instruments.low)
+    ld ix,mod.samples + 0x8000
+    ld a,(tracker.instruments.low)
     ld b,a
+
 conv.looping:
+
     push bc
 
-    ld a,(sq.pointer.page.mod.low)
+    ld a,(tracker.ptr.page.mod.low)
     call set.high.memory.a
 
     ld a,(iy+st.loop)
     or a
     jp z,conv.donelp
 
-    ld h,(ix+22)      ;sample len
-    ld l,(ix+23)
-    ld d,(ix+26)      ;loop offs
-    ld e,(ix+27)
-loop.bug:
+    ld h,(ix+mod.sample.len.words+0)
+    ld l,(ix+mod.sample.len.words+1)
+    ld d,(ix+mod.sample.repeat.offset.words+0)
+    ld e,(ix+mod.sample.repeat.offset.words+1)
+ loop.bug:
     ld a,0
     or a
     jr z,loop.ok
@@ -1127,23 +1130,23 @@ loop.bug:
     jr z,noise.bug
     jr soul.bug
 
-;bug in noisetracker code, loop offset in bytes instead of words
+    ; bug in noisetracker code, loop offset in bytes instead of words
 
-noise.bug:
+ noise.bug:
     srl d
     rr e
     jr loop.ok
 
-;in SOUL-O-MATIC the loop len is given as loop end offset
+    ; in SOUL-O-MATIC the loop len is given as loop end offset
 
-soul.bug:
+ soul.bug:
     or a
     sbc hl,de
-    ld (ix+28),h            ; now loop len = loopend off -
-    ld (ix+29),l            ;                loopstart off
+    ld (ix+mod.sample.repeat.len.words+0),h ; now loop len = loopend off -
+    ld (ix+mod.sample.repeat.len.words+1),l ;                loopstart off
 
 
-loop.ok:                    ; DE = loop offset
+ loop.ok:                    ; DE = loop offset
     ld l,(iy+st.start+0)
     ld h,(iy+st.start+1)
     ld b,(iy+st.start+2)
@@ -1154,16 +1157,15 @@ loop.ok:                    ; DE = loop offset
     dec a
     jr z,bigloop
 
-; small loop, can be up to gap in size, it has to cover the end
-; loop marker meaning that three gaps are needed
-; if the loop is gap-1 then the first marker is after 2*(gap-1)
-; at the next frame it is possible that the sample will then be
-; at position 3*(gap-3).  Then the difference between the current
-; position and the first repeat end after gap can be added to gap
-; to get new position. - follow that?  It took me a while to
-; think that one up... 8-)
+    ; Small loop, can be up to gap in size, it has to cover the end loop marker
+    ; meaning that three gaps are needed if the loop is gap-1 then the first
+    ; marker is after 2*(gap-1) at the next frame it is possible that the sample
+    ; will then be at position 3*(gap-3).  Then the difference between the
+    ; current position and the first repeat end after gap can be added to gap to
+    ; get new position.
+    ; - follow that?  It took me a while to think that one up... 8-)
 
-    ld a,(sq.gap.low)
+    ld a,(tracker.gap.low)
     ld d,a
     add a,a
     add a,d
@@ -1174,8 +1176,8 @@ loop.ok:                    ; DE = loop offset
     ld a,b
 
     ; ld de,move.spc
-    ld b,(ix+28)        ; loop length
-    ld c,(ix+29)
+    ld b,(ix+mod.sample.repeat.len.words+0)
+    ld c,(ix+mod.sample.repeat.len.words+1)
     sla c
     rl b
 
@@ -1200,9 +1202,9 @@ loop.ok:                    ; DE = loop offset
 
     push af             ; make small loop pointer
     ld hl,0             ; at least gap size
-sm.loop.big:
+ sm.loop.big:
     add hl,bc           ; -> possibly 2 * ( gap - 1 )
-    ld a,(sq.gap.low)
+    ld a,(tracker.gap.low)
     cp h
     jr nc,sm.loop.big
     pop af
@@ -1216,44 +1218,45 @@ sm.loop.big:
     ld (iy+st.loope+1),h
     ld (iy+st.loope+2),a
 
-; keep copying loop until 3 * gap space is filled
+    ; keep copying loop until 3 * gap space is filled
 
-copysmalllp:
-totalgap:
+ copysmalllp:
+ totalgap:
     ld hl,0
     or a
     sbc hl,bc
     ld (totalgap+1),hl
     jr c,im.donemost
     jr z,im.doneall
-sm.lp.src:
+ sm.lp.src:
     ld hl,0
     push bc
     ldir
     pop bc
     jr copysmalllp
-im.donemost:
+
+ im.donemost:
     add hl,bc
     ld c,l
     ld b,h
     ld hl,(sm.lp.src+1)
     ldir
-im.doneall:
+ im.doneall:
     jp conv.donelp
 
-bigloop:
+ bigloop:
     ld (iy+st.loops+0),l
     ld (iy+st.loops+1),h
     ld (iy+st.loops+2),b
 
-; copy start of loop to gap after end loop for gap bytes
+    ; copy start of loop to gap after end loop for gap bytes
 
     ld a,b
     call set.high.memory.a
 
     ld de,move.spc
     ld c,0
-    ld a,(sq.gap.low)
+    ld a,(tracker.gap.low)
     ld b,a
     push bc
     ldir
@@ -1268,13 +1271,15 @@ bigloop:
     ldir                    ;copy to beginloop
 
 
-conv.donelp:
+ conv.donelp:
     ld bc,smp.tab.len
     add iy,bc
-    ld bc,30
+    ld bc,mod.sample.len
     add ix,bc
+
     pop bc
     dec b
+
     jp nz,conv.looping
 
     ; ld a,31
@@ -1295,6 +1300,7 @@ upfirst:
     add hl,bc
     dec a
     jr nz,upfirst
+
 exit.install:
 
 ;create an empty sample if necessary
@@ -1328,7 +1334,7 @@ exit.install:
 
     push hl ; added to make sense of comment below
 
-    ld a,(sq.gap.low)
+    ld a,(tracker.gap.low)
     ld c,a
     ld b,0
 @ce.dosilence:
@@ -1372,8 +1378,7 @@ exit.install:
 ;---------------------------------------------------------------
 add.bhl.de:
 
-; add DE to BHL, result -> HL 0-16383 bit 7 unchanged, B 0-31
-;---------------------------------------------------------------
+    ; add DE to BHL, result -> HL 0-16383 bit 7 unchanged, B 0-31
 
     push de
     ld a,d
@@ -1397,8 +1402,7 @@ add.bhl.de:
 ;---------------------------------------------------------------
 add.bhl.de2:
 
-; add DE * 2 to BHL, result -> same as above
-;---------------------------------------------------------------
+    ; add DE * 2 to BHL, result -> same as above
 
     push de
     ld a,d
@@ -1424,13 +1428,11 @@ add.bhl.de2:
 ;---------------------------------------------------------------
 set.high.memory.a:
 
-;   a = page high memory
-
-;---------------------------------------------------------------
+    ;   a = page high memory
 
     push af
 
-    ld a,(sq.ram.low)
+    ld a,(tracker.ram.low)
     and %11100
 
     jr z, @no.megabyte
@@ -1443,7 +1445,7 @@ set.high.memory.a:
 
     ret
 
-@no.megabyte:
+ @no.megabyte:
 
     pop af
     out (port.hmpr),a
@@ -1451,14 +1453,14 @@ set.high.memory.a:
     ret
 
 ;===============================================================
-    org $+32768
-;---------------------------------------------------------------
+    org $ + 0x8000
+
 fs.high:
 rs.bp.page:
     ld a,0      ;burst page
     or low.memory.ram.0
     out (port.lmpr),a
-    ld sp,32768
+    ld sp,0x8000
 
     ld a,c
 c1.mk.off9:
@@ -1514,11 +1516,11 @@ c4.mk.pag9:
     ld a,-1
     ld (sample.table+2),a   ; page of no instrument
 
-;put correct maximum & minimum periods into sequencer
+;put correct maximum & minimum periods into tracker
 
     ld hl,113
     ld de,856
-    ld a,(sq.octaves)
+    ld a,(tracker.octaves)
     cp 5
     jr nz,mm.per.3
     ld hl,56
@@ -1534,7 +1536,7 @@ mm.per.3:
     ld (c4+max.period+1),de
 
 reset.song:
-    ld a,255
+    ld a,0xff
     ld hl,c1.on
     ld (hl),a
     inc l
@@ -1647,12 +1649,13 @@ reset.list:
     defb 0
     defw 0
 
-;============= sequencer =======================================
+;===============================================================================
+; tracker
 
-    defs align 256
+    defs align 0x100
 
-song.tab:
-    defs 256
+song.table:
+    defs 0x100
 
 sample.table:
 st.start:       equ $ - sample.table
@@ -1905,7 +1908,7 @@ retrig.table:   ;counter / x = int ( counter / x )
     defb 0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0
 
 
-sequencer:
+tracker:
 bar.1:
     ; ld a,0x10
     ; out (port.clut),a
@@ -1985,7 +1988,7 @@ no.new.all:
 get.new.note:
     ld a,(song.pos)
     ld l,a
-    ld h,song.tab / 256
+    ld h,song.table / 0x100
     ld a,(hl)               ;get pattern
     ld (pattern.num),a
     ld d,a
@@ -1995,7 +1998,7 @@ get.new.note:
     rlca
     rlca
     ld c,a
-    ld a,(sq.pointer.page.mod)
+    ld a,(tracker.ptr.page.mod)
     add c
     ld c,a
 

@@ -24,7 +24,7 @@
 
 ;---------------------------------------------------------------
 @file.loading.scr:  defm "loading.$    "
-@file.sequencer:    defm "sequencer    "
+@file.tracker:      defm "tracker      "
 @file.burstplayer:  defm "burstplayer  "
 @file.loader:       defm "loader       "
 @file.demo:         defm "demo         "
@@ -48,8 +48,8 @@
     ld hl,@file.loading.scr
     call @load.file
 
-    ld a,page.sequencer
-    ld hl,@file.sequencer
+    ld a,page.tracker
+    ld hl,@file.tracker
     call @load.file
 
     ld a,page.create.burstplayer

@@ -1,4 +1,4 @@
-;SAM MOD player - DEMO routine for BURST + SEQUENCER
+;SAM MOD player - demo
 
 ;(C) 1996-2021 Stefan Drissen
 
@@ -14,8 +14,8 @@ demo.device:    equ 49152+3     ; device, set by loader [0-5]   ; !!! external r
 
 
 ;===============================================================
-;demo is the program that runs in "foreground" mode
-;   the sequencer is called by the burst routine every frame
+; demo is the program that runs in "foreground" mode
+;   the tracker is called by the burst routine every frame
 
     org demo.setup  ; 0x6000 - aBcd
 
@@ -63,16 +63,16 @@ demo.ram:           defb 0  ; %XXXRR (RAM / 256K)
     ld bc,mod.header.len
     ldir
 
-    ld a,page.sequencer
+    ld a,page.tracker
     call @fix.page
     out (port.hmpr),a
     ld hl,demo
-    ld (sq.pointer.addr.demo),hl
+    ld (tracker.ptr.addr.demo),hl
     ld a,page.demo - 1  ; - 1 since demo is in D
     call @fix.page
-    ld (sq.pointer.page.demo),a
+    ld (tracker.ptr.page.demo),a
     ex af,af'
-    ld (sq.octaves),a
+    ld (tracker.octaves),a
     ld hl,tracker.display - 0x8000
     cp 3
     jr nz,@display.periods
@@ -87,23 +87,23 @@ demo.ram:           defb 0  ; %XXXRR (RAM / 256K)
     ld (hl),a
 
     ld a,(demo.ram)
-    ld (sq.ram),a
+    ld (tracker.ram),a
     and %11100
     ld a,page.mod
     jr z,@no.megabyte
     ld a,page.mod.megabyte
 @no.megabyte:
-    ld (sq.pointer.page.mod),a
+    ld (tracker.ptr.page.mod),a
 
-seq.setup:
+tracker.setup:
     ld a,0
     or a
-    call z,sequencer.init
+    call z,tracker.init
 
     ld a,1
-    ld (seq.setup+1),a
+    ld (tracker.setup+1),a
 
-    call sequencer.install.mod
+    call tracker.install.mod
 
     ld a,page.burstplayer
     call @fix.page
@@ -617,9 +617,9 @@ set.palette:
 ;===============================================================
 
 ;PATTERN TRACKER for MOD player
-;(C) 1995-2019 Stefan Drissen
+;(C) 1995-2021 Stefan Drissen
 ;
-;runs off SEQUENCER frame interrupt
+;runs off tracker frame interrupt
 ;only run when frame counter <> 0
 
 printer:

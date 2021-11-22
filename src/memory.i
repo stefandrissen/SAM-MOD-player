@@ -1,75 +1,53 @@
-; memory layout
-
-;   0x00 0x40   for basic - can use approx 7k (clear 0x61ff -> 0x1e00 bytes)
-;   0x1a        burst player
-;   0x1b        burst player
-;   0x1c        sequencer
-;   0x1d 0x60   dos
-;   0x1e 0xc0   screen -> 1 page is enough for mode 2
-;   0x1f 0xc0   screen -> replace with loader + demo
-
-
-;               loader
-;               loading screen      -> open new screen
-;               loader / demo       -> 0x1f
-;               make burstplayer    -> 0x19 -> 0x1a 0x1b
-;               sequencer           -> 0x1c
+; SAM MOD player - memory layout
 
 inst.buffer:    equ 0x4f00
-
-
-; burstplayer
-
-; todo: make pages dynamic based on available?
-
                                         ; 256K
-page.create.burstplayer:    equ 0x19    ; 0x09
+page.mod:                   equ 0x01    ; 0x01
+page.mod.megabyte:          equ 0x00    ;       in external memory
+page.create.burstplayer:    equ 0x19    ; 0x09  can be reclaimed
 page.burstplayer:           equ 0x1a    ; 0x0a
-page.sequencer:             equ 0x1c    ; 0x0c
+page.tracker:               equ 0x1c    ; 0x0c
 page.dos:                   equ 0x1d    ; 0x0d
 page.screen:                equ 0x1e    ; 0x0e
 page.loader:                equ 0x1f    ; 0x0f
 page.demo:                  equ 0x1f    ; 0x0f
     demo.setup:                 equ 0x6000
 
-page.sequencer:             equ 0x1c
-
-    sequencer.init:             equ 0x8000  ; initialise sequencer routine
-    sequencer.install.mod:      equ 0x8003  ; install mod by adding "runways"
-    sq.pointer.addr.demo:       equ 0x8006  ; address of foreground program (>32k)
-    sq.pointer.page.demo:       equ 0x8008  ; page of foreground program
-    sq.pointer.page.mod:        equ 0x8009  ; page mod loaded in at (at 32k)
-    sq.octaves:                 equ 0x800a  ; 3 or 5 octave mode
-    sq.ram:                     equ 0x800b
-
-page.create.burstplayer:    equ 0x19    ; once created -> mode 2 screen
-
-;page.mod:                  equ 6 - when example
-page.mod:                   equ 0x01    ; 0 when megabyte
-page.mod.megabyte:          equ 0x00
 ;---------------------------------------------------------------
 ; page.burstplayer
 
-burstplayer.create:         equ 0x8000
-burstplayer.device:         equ 0x8003
-burstplayer.port:           equ 0x8004
-burstplayer.amiga:          equ 0x8005
-burstplayer.ram:            equ 0x8006
-burstplayer.page:           equ 0x8007
+    burstplayer.create:         equ 0x8000
+    burstplayer.device:         equ 0x8003
+    burstplayer.port:           equ 0x8004
+    burstplayer.amiga:          equ 0x8005
+    burstplayer.ram:            equ 0x8006
+    burstplayer.page:           equ 0x8007
 
-bp.id:                      equ 53      ; "BUR"
-bp.device:                  equ 105
-bp.pointers:                equ 106     ; offsets to variables located in burst page
-bp.pointer.addr.sequencer:  equ 106
-bp.pointer.page.sequencer:  equ 108
-bp.pointer.addr.demo:       equ 110
-bp.pointer.page.demo:       equ 112
-bp.pointer.addr.enable:     equ 114
-bp.pointer.addr.exit:       equ 116
+    bp.id:                      equ 53      ; "BUR"
+    bp.device:                  equ 105
+    bp.pointers:                equ 106     ; offsets to variables located in burst page
+    bp.ptr.addr.tracker:        equ 106
+    bp.ptr.page.tracker:        equ 108
+    bp.ptr.addr.demo:           equ 110
+    bp.ptr.page.demo:           equ 112
+    bp.ptr.addr.enable:         equ 114
+    bp.ptr.addr.exit:           equ 116
 
-bp.pointers.sample:         equ 118
-bp.pointers.length:         equ 12
+    bp.pointers.sample:         equ 118
+    bp.pointers.length:         equ 12
 
+;---------------------------------------------------------------
+; page.tracker:
+
+    tracker.init:               equ 0x8000  ; initialise tracker routine
+    tracker.install.mod:        equ 0x8003  ; install mod by adding "runways"
+    tracker.ptr.addr.demo:      equ 0x8006  ; address of foreground program (>32k)
+    tracker.ptr.page.demo:      equ 0x8008  ; page of foreground program
+    tracker.ptr.page.mod:       equ 0x8009  ; page mod loaded in at (at 32k)
+    tracker.octaves:            equ 0x800a  ; 3 or 5 octave mode
+    tracker.ram:                equ 0x800b
+
+;---------------------------------------------------------------
 ; store for current pattern row + other common variables
 ; there are 256 bytes reserved for this
 
@@ -89,8 +67,8 @@ vol.update:             equ var + 40    ; when set do extra burst volume update 
                                         ; burstplayer acts on changed value of c?.on.
 
 countint:               equ var + 41    ; user frame counter
-counter.fract:          equ var + 42    ; 1/256 frame counter for sequencer
-counter:                equ var + 43    ; frame counter for sequencer
+counter.fract:          equ var + 42    ; 1/256 frame counter for tracker
+counter:                equ var + 43    ; frame counter for tracker
 speed:                  equ var + 44    ; song speed in frames
 tempo:                  equ var + 45    ; bpm speed (relative to 125)
 song.pos:               equ var + 47    ; position in songtable (0-127)

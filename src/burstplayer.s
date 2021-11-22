@@ -520,7 +520,7 @@ output.bits:
 
     ld a,(burstplayer.ram)
     bit 1,a
-    ld a,page.sequencer
+    ld a,page.tracker
     jr nz,@is.512K
     and high.memory.page.mask.256k
 @is.512K:
@@ -583,7 +583,7 @@ get.pattern.size:   equ 49
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ; ld (hl),page.sequencer
+    ; ld (hl),page.tracker
     inc hl
 
     ld (hl),opcode.out_n_a
@@ -1783,8 +1783,8 @@ mk.rec2:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.pointer.page.sequencer),hl
-    ; ld (hl),page.sequencer
+    ld (bp.ptr.page.tracker),hl
+    ; ld (hl),page.tracker
     inc hl
 
     cp 4
@@ -1857,7 +1857,7 @@ mk.sto23:
 
     ld (hl),opcode.call_nn
     inc hl
-    ld (bp.pointer.addr.sequencer),hl
+    ld (bp.ptr.addr.tracker),hl
     inc hl
     inc hl
 
@@ -1908,7 +1908,7 @@ mk.sto3:
 ;---------------------------------------------------------------
 ;enable burstplayer
 enable:
-    ld (bp.pointer.addr.enable),hl      ; enableplayer:
+    ld (bp.ptr.addr.enable),hl      ; enableplayer:
 
     ld (hl),opcode.in_a_n
     inc hl
@@ -2068,7 +2068,7 @@ set.silence:
 ;
 ;   call sound.driver.reset
 ;   call set.silence
-;   ld a,page.sequencer
+;   ld a,page.tracker
 ;   out (port.hmpr),a
 ;   jp addr.demo
 
@@ -2091,7 +2091,7 @@ set.silence:
 
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.pointer.page.demo),hl
+    ld (bp.ptr.page.demo),hl
     inc hl
 
     ld (hl),opcode.out_n_a
@@ -2101,7 +2101,7 @@ set.silence:
 
     ld (hl),opcode.jp_nn
     inc hl
-    ld (bp.pointer.addr.demo),hl
+    ld (bp.ptr.addr.demo),hl
     inc hl
     inc hl
 
@@ -3504,46 +3504,45 @@ bp.device:          defb 0
 
 bp.pointers:
 
-bp.pointer.addr.sequencer:  defw 0
-bp.pointer.page.sequencer:  defw 0
-bp.pointer.addr.demo:       defw 0
-bp.pointer.page.demo:       defw 0
+    bp.ptr.addr.tracker:        defw 0
+    bp.ptr.page.tracker:        defw 0
+    bp.ptr.addr.demo:           defw 0
+    bp.ptr.page.demo:           defw 0
 
-bp.pointer.addr.enable:     defw 0
-bp.pointer.addr.exit:       defw bp.exit
+    bp.ptr.addr.enable:         defw 0
+    bp.ptr.addr.exit:           defw bp.exit
 
 bp.pointers.sample:
 
-bp.chan1.page:              defw 0
-bp.chan1.offs:              defw 0
-bp.chan1.vol:               defw 0
-bp.chan1.speedlo:           defw 0
-bp.chan1.speedhi:           defw 0
-bp.chan1.sp.frct:           defw 0
+    bp.chan1.page:              defw 0
+    bp.chan1.offs:              defw 0
+    bp.chan1.vol:               defw 0
+    bp.chan1.speedlo:           defw 0
+    bp.chan1.speedhi:           defw 0
+    bp.chan1.sp.frct:           defw 0
 
 ;bp.pointers.length: equ $ - bp.pointers.sample
 
-bp.chan2.page:              defw 0
-bp.chan2.offs:              defw 0
-bp.chan2.vol:               defw 0
-bp.chan2.speedlo:           defw 0
-bp.chan2.speedhi:           defw 0
-bp.chan2.sp.frct:           defw 0
+    bp.chan2.page:              defw 0
+    bp.chan2.offs:              defw 0
+    bp.chan2.vol:               defw 0
+    bp.chan2.speedlo:           defw 0
+    bp.chan2.speedhi:           defw 0
+    bp.chan2.sp.frct:           defw 0
 
-bp.chan3.page:              defw 0
-bp.chan3.offs:              defw 0
-bp.chan3.vol:               defw 0
-bp.chan3.speedlo:           defw 0
-bp.chan3.speedhi:           defw 0
-bp.chan3.sp.frct:           defw 0
+    bp.chan3.page:              defw 0
+    bp.chan3.offs:              defw 0
+    bp.chan3.vol:               defw 0
+    bp.chan3.speedlo:           defw 0
+    bp.chan3.speedhi:           defw 0
+    bp.chan3.sp.frct:           defw 0
 
-bp.chan4.page:              defw 0
-bp.chan4.offs:              defw 0
-bp.chan4.vol:               defw 0
-bp.chan4.speedlo:           defw 0
-bp.chan4.speedhi:           defw 0
-bp.chan4.sp.frct:           defw 0
-
+    bp.chan4.page:              defw 0
+    bp.chan4.offs:              defw 0
+    bp.chan4.vol:               defw 0
+    bp.chan4.speedlo:           defw 0
+    bp.chan4.speedhi:           defw 0
+    bp.chan4.sp.frct:           defw 0
 
 if 0 > 1
 ; set saa for samples
@@ -3561,7 +3560,7 @@ length: equ  mk.movecode - 0x8000 + sound.driver.reset
 
 if defined( testing )
 
-    ; testing will test burstplayer only with dummy sequencer and demo
+    ; testing will test burstplayer only with dummy tracker and demo
 
     ;-------------------------------------------------------------------------------
 
@@ -3611,7 +3610,7 @@ if defined( testing )
         ld a,page.burstplayer
         out (port.hmpr),a
 
-        call @test.set.sequencer
+        call @test.set.tracker
         call @test.set.demo
         call @test.set.palette
 
@@ -3624,20 +3623,20 @@ if defined( testing )
         ret
 
     ;-------------------------------------------------------------------------------
-    @test.set.sequencer:
+    @test.set.tracker:
 
         in a,(port.lmpr)
         and low.memory.page.mask
 
-        ld hl,(bp.pointer.page.sequencer + 0x8000)
+        ld hl,(bp.ptr.page.tracker + 0x8000)
         set 7,h
         ld (hl),a
 
-        ld hl,(bp.pointer.addr.sequencer + 0x8000)
+        ld hl,(bp.ptr.addr.tracker + 0x8000)
         set 7,h
-        ld (hl),@test.sequencer \ 0x100
+        ld (hl),@test.tracker \ 0x100
         inc hl
-        ld (hl),@test.sequencer / 0x100
+        ld (hl),@test.tracker / 0x100
 
         ret
 
@@ -3647,11 +3646,11 @@ if defined( testing )
         in a,(port.lmpr)
         and low.memory.page.mask
 
-        ld hl,(bp.pointer.page.demo + 0x8000)
+        ld hl,(bp.ptr.page.demo + 0x8000)
         set 7,h
         ld (hl),a
 
-        ld hl,(bp.pointer.addr.demo + 0x8000)
+        ld hl,(bp.ptr.addr.demo + 0x8000)
         set 7,h
         ld (hl),@test.demo \ 0x100
         inc hl
@@ -3744,11 +3743,11 @@ if defined( testing )
         jr @loop
 
     @enable.burst:
-        ld hl,(bp.pointer.addr.enable)
+        ld hl,(bp.ptr.addr.enable)
         jp (hl)
 
     ;-------------------------------------------------------------------------------
-    @test.sequencer:
+    @test.tracker:
 
         ; set sample pointers to 0x8000
 

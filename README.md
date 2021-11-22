@@ -8,7 +8,7 @@
 - loader
 - burstplayer
 - demo
-- sequencer
+- tracker
 - example
 
 ### boot
@@ -19,12 +19,12 @@ This autoboot file will load the loading screen, all code and then start the SAM
 
 This is the initial front end. It provides a screen to select the output device:
 
-- colour lookup table
 - [saa1099 sound chip](https://www.worldofsam.org/products/saa1099)
 - [samdac](https://www.worldofsam.org/products/samdac)
 - dac
 - [blue alpha sampler](https://www.worldofsam.org/products/sound-sampler)
 - [quazar soundcard](https://www.worldofsam.org/products/quazar-surround)
+- colour lookup table
 
 And the type of Amiga the mod was intended for:
 
@@ -63,9 +63,9 @@ This shows information on the module being played via various screens:
 - supported effects (f5)
 - sample debug info (f6)
 
-### sequencer
+### tracker
 
-This is the sequencer. It is called every frame.
+This is the tracker. It is called every frame.
 It reads the pattern and sample information and fills the pointers for the sample playback buffers.
 
 ### example
@@ -74,9 +74,9 @@ This is a simple example that replaces the "demo".
 
 ## compiling
 
-I use Eclipse. Ant is used to invoke [pyz80](https://github.com/simonowen/pyz80) for assembling.
+Ant is used to invoke [pyz80](https://github.com/simonowen/pyz80) for assembling, this can be executed from Eclipse or Visual Studio Code.
 
-"all" will assemble loader, demo, burstplayer and sequencer, the four object files are then assembling boot which produces an autoboot modplayer.dsk image.
-SimCoupe is then started with the modplayer.dsk image.
+"all" will assemble loader, demo, burstplayer and tracker, the four object files are then assembling boot which produces an autoboot disk image.
+SimCoupe is then started with the disk image.
 
-The properties used to find python, pyz80 and [SimCoupe](http://www.simcoupe.org/) are at the top of the build.xml file.
+The properties used to find python, pyz80 and [SimCoupe](https://www.simcoupe.org/) are at the top of the build.xml file.

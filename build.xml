@@ -64,7 +64,7 @@ defm "${version}"
 			<assemble source="loader" mapfile="${mapfile}" />
 			<assemble source="demo" mapfile="${mapfile}" />
 			<assemble source="burstplayer" mapfile="${mapfile}" debug="true" />
-			<assemble source="sequencer" mapfile="${mapfile}" />
+			<assemble source="tracker" mapfile="${mapfile}" />
 
 			<antcall target="assemble-test-mod" />
 
@@ -78,11 +78,13 @@ defm "${version}"
 				<arg line="-I res/dos/bdos15t-6" if:true="@{b-dos-trinity}" />
 
 				<arg line="-I res/loading.$" />
-				<arg line="-I obj/sequencer" />
+				<arg line="-I obj/tracker" />
 				<arg line="-I obj/burstplayer" />
 				<arg line="-I obj/loader" />
 				<arg line="-I obj/demo" />
 				<arg line="-I res/test.m" />
+				<!-- <arg line="-I res/mods/odeprotr.m" /> -->
+				<!-- <arg line="-I res/mods/face_day.m" /> -->
 				<!-- <arg line="-I res/mods/think_tw.m" /> -->
 				<!-- <arg line="-I res/mods/keysimag.m" /> -->
 				<!-- <arg line="-I res/mods/mixified.m" /> -->
@@ -152,13 +154,13 @@ defm "${version}"
 	<target name="create-example">
 
 		<assemble source="burstplayer" mapfile="${mapfile}" />
-		<assemble source="sequencer" mapfile="${mapfile}" />
+		<assemble source="tracker" mapfile="${mapfile}" />
 
 		<exec executable="${python}" failonerror="true">
 			<arg file="${pyz80}" />
 			<arg line="-I res/mods/think_tw.m" />
 			<arg line="-I obj/burstplayer" />
-			<arg line="-I obj/sequencer" />
+			<arg line="-I obj/tracker" />
 			<arg line="-o obj/example.mgt" />
 			<arg value="src/example.s" />
 		</exec>
