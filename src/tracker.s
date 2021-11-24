@@ -475,13 +475,13 @@ build.list:
 ;===============================================================================
     org $ - 0x8000
 
-tracker.ptr.page.mod.low:   equ tracker.ptr.page.mod    - 0x8000
-tracker.octaves.low:        equ tracker.octaves         - 0x8000
-tracker.ram.low:            equ tracker.ram             - 0x8000
-tracker.gap.low:            equ tracker.gap             - 0x8000
-tracker.instruments.low:    equ tracker.instruments     - 0x8000
+    tracker.ptr.page.mod.low:   equ tracker.ptr.page.mod    - 0x8000
+    tracker.octaves.low:        equ tracker.octaves         - 0x8000
+    tracker.ram.low:            equ tracker.ram             - 0x8000
+    tracker.gap.low:            equ tracker.gap             - 0x8000
+    tracker.instruments.low:    equ tracker.instruments     - 0x8000
 
-sample.table.low:           equ sample.table            - 0x8000
+    sample.table.low:           equ sample.table            - 0x8000
 
 ;-------------------------------------------------------------------------------
 @install.mod.low:
@@ -566,7 +566,7 @@ sample.table.low:           equ sample.table            - 0x8000
     ; copy song table to area within tracker page and find highest pattern
 
     ld de,song.table - 0x8000
-    ld bc,0x8000
+    ld bc,mod.pattern.table.len * 0x100
 
     @loop:
 
@@ -594,8 +594,10 @@ sample.table.low:           equ sample.table            - 0x8000
     ld a,(tracker.instruments.low)
     cp 31
     jr nz,@noisetracker
+
     ld de,mod.pt.id.len
     add hl,de
+
  @noisetracker:
     ld a,h
     ld (origpat.offsh + 1 - 0x8000),a
