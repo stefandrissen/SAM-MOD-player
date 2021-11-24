@@ -2217,7 +2217,7 @@ tables:
     inc h
     ld b,(hl)         ;output bits
 
-include "volume.i"
+include "volume.s"
 
 ;===============================================================
 bits.per.dev:
