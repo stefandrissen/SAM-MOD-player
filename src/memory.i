@@ -121,5 +121,9 @@ video.memory.bytes.per.row:     equ 0x20
 video.memory.24.rows:   equ ( 8 * video.memory.bytes.per.row )
 video.memory.32.rows:   equ ( 6 * video.memory.bytes.per.row )
 
-loader.font_high:   equ 0xc011
+;---------------------------------------------------------------
+; page.loader:
+
+    loader.device:      equ 0xc011
+    loader.font_high:   equ 0xc012
 

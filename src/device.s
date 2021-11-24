@@ -310,6 +310,8 @@ device.start:
     ldir
 
     ld a,(device.device)
+    ld (loader.device),a
+
     ld hl,@device.mapping
     add a,l
     ld l,a

@@ -35,7 +35,7 @@ load.offs:  equ 0x8000
     loader.drive_2.tracks:  defb 0 ; (dvar 2)
     loader.drive:           defb 0 ; [1-2]
     loader.record:          defw 0
-
+    loader.device:          defb 0 ; [0-5]
 ;---------------------------------------------------------------
 loader.font_high:
 

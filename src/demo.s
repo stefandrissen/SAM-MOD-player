@@ -8,11 +8,6 @@ include "ports/megabyte.i"
 include "ports/keyboard.i"
 include "constants/opcodes.i"
 
-;---------------------------------------------------------------
-
-demo.device:    equ 49152+3     ; device, set by loader [0-5]   ; !!! external ram seems to be there now
-
-
 ;===============================================================
 ; demo is the program that runs in "foreground" mode
 ;   the tracker is called by the burst routine every frame
@@ -513,12 +508,12 @@ not.c:
     and %01000000   ; +
     jr nz,not.plus
 
-    ld hl,(amp.fac+1)
+    ld hl,(amplification.factor+1)
     add hl,bc
     ld a,h
     cp 10
     jr z,not.plus
-    ld (amp.fac+1),hl
+    ld (amplification.factor+1),hl
     call tables
     ld a,(trackon+1)
     cp 4
@@ -529,10 +524,10 @@ not.plus:
     in a,(port.status)
     and %00100000   ; -
     jr nz,not.minus
-    ld hl,(amp.fac+1)
+    ld hl,(amplification.factor+1)
     sbc hl,bc
     jr c,not.minus
-    ld (amp.fac+1),hl
+    ld (amplification.factor+1),hl
     call tables
     ld a,(trackon+1)
     cp 4
@@ -2167,7 +2162,7 @@ txt.author:     include "constants/txt.copyright.i"
 
 pr.amp.fac:
     ld hl,video.memory.24.rows * 1 + 5 + video.memory.high
-    ld bc,(amp.fac+1)
+    ld bc,(amplification.factor+1)
 
 ;convert &xx.xx to %
 ;entry = BC
@@ -2209,7 +2204,7 @@ do.percent:
 
 tables:
 
-    ld a,(demo.device)
+    ld a,(loader.device)
     ld hl,bits.per.dev
     add a,l
     ld l,a
@@ -2217,7 +2212,7 @@ tables:
     inc h
     ld b,(hl)         ;output bits
 
-include "volume.s"
+    include "volume.s"
 
 ;===============================================================
 bits.per.dev:
