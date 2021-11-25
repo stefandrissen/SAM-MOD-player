@@ -499,9 +499,9 @@ not.c:
     ld a,keyboard.vcxz_shift
     in a,(port.keyboard)
     and %00000001   ; shift
-    ld bc,64
+    ld bc,0x0040    ; delta 25%
     jr nz,$+5
-    ld bc,256
+    ld bc,0x0100    ; delta 100%
 
     ld a,keyboard.delete_plus_minus
     in a,(port.status)
@@ -2160,45 +2160,71 @@ txt.author:     include "constants/txt.copyright.i"
                 include "constants/txt.version.i"
 
 
+;-------------------------------------------------------------------------------
 pr.amp.fac:
+
     ld hl,video.memory.24.rows * 1 + 5 + video.memory.high
     ld bc,(amplification.factor+1)
 
-;convert &xx.xx to %
-;entry = BC
+ do.percent:
+    ; convert 0x##.## to %
 
-do.percent:
+    ; input:
+    ; - bc = fixed 8.8 (b = integer, c = fraction)
+
+    ld a," "
+    ld (@leading.zero+1),a
+
     ld a,b
-    or a
-    jr nz,$+4
-    ld a," " - "0"
-    add "0"
-    call print.chr
+    call @print.decimal ; integer (100%)
     ex de,hl
+
     ld hl,0
     ld b,h
     add hl,bc
+
     add hl,hl
     add hl,hl
     add hl,bc
-    add hl,hl
+    add hl,hl           ; * 10
+
     ld a,h
-    add "0"
+
     ex de,hl
-    call print.chr
+    call @print.decimal ; fraction (10%)
     ex de,hl
+
     ld c,l
     ld b,0
     ld h,b
+
     add hl,hl
     add hl,hl
     add hl,bc
-    add hl,hl
-    ld a,h
-    add "0"
-    ex de,hl
-    jp print.chr
+    add hl,hl           ; * 10
 
+    ld a,h
+
+    ex de,hl
+    jr @print           ; fraction (1%)
+
+ @print.decimal:
+
+    or a
+    jr z,@leading.zero
+
+ @print:
+
+    add a,"0"
+    call print.chr
+    ld a,"0"
+    ld (@leading.zero+1),a
+    ret
+
+ @leading.zero:
+
+    ld a," "
+    jp print.chr
 
 ;---------------------------------------------------------------
 
