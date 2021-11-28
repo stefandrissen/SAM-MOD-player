@@ -1972,8 +1972,8 @@ colours:
 
 load.screen:
     defm "SAM MOD player             "
-    include "constants/txt.version.i"
-    include "constants/txt.copyright.i"
+    include "constants/text.version.i"
+    include "constants/text.copyright.i"
     defb 0,30
     defm "Use CURSORS + RETURN or JOYSTICK"
 

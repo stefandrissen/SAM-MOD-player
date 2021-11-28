@@ -55,7 +55,7 @@ burstplayer.page:   defb page.burstplayer
 
     defm "                         "
     defm "MAKEBURST "
-    include "constants/txt.copyright.i"
+    include "constants/text.copyright.i"
     defm "Thanks to Edwin Blink for the   "
     defm "original burst idea and code...."
 

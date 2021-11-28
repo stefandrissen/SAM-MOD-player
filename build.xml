@@ -57,7 +57,7 @@
 
 		<sequential>
 
-			<echo file="src/constants/txt.version.i">; SAM MOD player version
+			<echo file="src/constants/text.version.i">; SAM MOD player version
 
 defm "${version}"
 </echo>
