@@ -25,9 +25,9 @@ tracker.ptr.page.demo:  defb 0              ; & page of demo (foreground)
 
 tracker.ptr.page.mod:   defb page.mod       ; page mod loaded in at
 tracker.octaves:        defb 3              ; number of octaves (3 or 5)
+tracker.samples:        defb 0              ; [15,31]
 tracker.ram:            defb 0              ; %XXXRR (RAM / 256K)
 tracker.gap:            defb 0
-tracker.instruments:    defb 0
 
 @init.tracker:
     di
@@ -478,8 +478,8 @@ build.list:
     tracker.ptr.page.mod.low:   equ tracker.ptr.page.mod    - 0x8000
     tracker.octaves.low:        equ tracker.octaves         - 0x8000
     tracker.ram.low:            equ tracker.ram             - 0x8000
+    tracker.samples.low:        equ tracker.samples         - 0x8000
     tracker.gap.low:            equ tracker.gap             - 0x8000
-    tracker.instruments.low:    equ tracker.instruments     - 0x8000
 
     sample.table.low:           equ sample.table            - 0x8000
 
@@ -529,25 +529,25 @@ build.list:
     ld de,(mod.pt.id + 0x8000)
     ld a,31
 
-    ld hl,- ( "M" + "." * 0x100 ) ; ProTracker 31.inst.
+    ld hl,- ( "M" + "." * 0x100 ) ; ProTracker 31 samples
     or a
     adc hl,de
-    jr z,@set.instr
+    jr z,@set.samples
 
-    ld hl,- ( "M" + "!" * 0x100 ) ; ProTracker 31.inst.
+    ld hl,- ( "M" + "!" * 0x100 ) ; ProTracker 31 samples
     or a
     adc hl,de
-    jr z,@set.instr
+    jr z,@set.samples
 
-    ld hl,- ( "F" + "L" * 0x100 ) ; StarTrekker 31 inst.
+    ld hl,- ( "F" + "L" * 0x100 ) ; StarTrekker 31 samples
     or a
     adc hl,de
-    jr z,@set.instr
+    jr z,@set.samples
 
     ld a,15
 
- @set.instr:
-    ld (tracker.instruments.low),a
+ @set.samples:
+    ld (tracker.samples.low),a
     ld hl,mod.samples + 0x8000
 
     ; get start address of song table
@@ -591,7 +591,7 @@ build.list:
 
     ; get start address of first pattern
 
-    ld a,(tracker.instruments.low)
+    ld a,(tracker.samples.low)
     cp 31
     jr nz,@noisetracker
 
@@ -640,7 +640,7 @@ build.list:
     ; - fill in finetune, volume, does sample exist?
     ; - fill in loop type (0=none, 1=big, 2=small)
 
-    ld a,(tracker.instruments.low)   ; [15|31]
+    ld a,(tracker.samples.low)  ; [15|31]
     ld c,a
 
 @loop.c.convall:
@@ -721,7 +721,7 @@ build.list:
     dec c
     jr nz,@loop.c.convall
 
-    ; in dummy instrument only start address is valid data
+    ; in dummy sample only start address is valid data
 
     ld (iy+st.start+0),l
     ld (iy+st.start+1),h
@@ -738,7 +738,7 @@ build.list:
 
     ld ix,sample.table.low
     ld bc,smp.tab.len
-    ld a,(tracker.instruments.low)
+    ld a,(tracker.samples.low)
     ld d,a
     ld e,0
 
@@ -1017,7 +1017,7 @@ build.list:
 
     ld iy,sample.table.low
     ld ix,mod.samples + 0x8000
-    ld a,(tracker.instruments.low)
+    ld a,(tracker.samples.low)
     ld b,a
 
     ld a,(tracker.ptr.page.mod.low)
@@ -1082,7 +1082,7 @@ found.bugged:   ;A=0 -> normal looping
     ld iy,sample.table.low
     ld ix,mod.samples + 0x8000
 
-    ld a,(tracker.instruments.low)
+    ld a,(tracker.samples.low)
     ld c,a
  @fillend:
     ld l,(iy+st.start+0)
@@ -1143,7 +1143,7 @@ found.bugged:   ;A=0 -> normal looping
 
     ld iy,sample.table.low
     ld ix,mod.samples + 0x8000
-    ld a,(tracker.instruments.low)
+    ld a,(tracker.samples.low)
     ld b,a
 
 conv.looping:
@@ -1553,7 +1553,7 @@ c4.mk.pag9:
     ld (hl),b
     ldir
     ld a,-1
-    ld (sample.table+2),a   ; page of no instrument
+    ld (sample.table+2),a   ; page of no sample
 
 ;put correct maximum & minimum periods into tracker
 
@@ -1641,6 +1641,8 @@ im.stsp:
 im.lmpr:
     ld a,0
     out (port.lmpr),a
+
+    ld a,(tracker.samples)
 
     ; ei
     ret
@@ -2345,7 +2347,7 @@ play.voice:
     inc a
 
  r1.005:
-    jp z,set.regs       ; page -1 -> no instrument
+    jp z,set.regs       ; page -1 -> no sample
     dec a
     inc l
  r2.002:

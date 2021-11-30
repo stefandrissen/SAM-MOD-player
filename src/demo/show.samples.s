@@ -133,37 +133,10 @@ get.samples:
 
     call print.title
 
-    ld c,31
-    ld hl,mod.header + mod.pt.id
-    ld a,(hl)
-    cp "M"             ; M.K. / M!K!
-    jr nz,@not.m
-
-    inc hl
-    ld a,(hl)
-    cp "."
-    jr z,@ins.31
-
-    cp "!"
-    jr z,@ins.31
-
-    jr @ins.15
-
- @not.m:
-    cp "F"              ; FLT4
-    jr nz,@ins.15
-
-    inc hl
-    ld a,(hl)
-    cp "L"
-    jr z,@ins.31
-
- @ins.15:
-    ld c,15
-
- @ins.31:
     ld hl,video.memory.32.rows * 1 + 1 + video.memory.high
     ld de,mod.header + mod.title.len
+    ld a,(demo.samples.high)
+    ld c,a
 
     ret
 

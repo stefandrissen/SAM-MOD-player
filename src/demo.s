@@ -30,6 +30,8 @@ demo.setup:
 ;-------------------------------------------------------------------------------
 
 demo.ram:           defb 0  ; %XXXRR (RAM / 256K)
+demo.samples:       defb 0  ; [15,31]
+    demo.samples.high:  equ demo.samples + 0x8000
 
 ;-------------------------------------------------------------------------------
 @fix.page:
@@ -127,6 +129,8 @@ demo.ram:           defb 0  ; %XXXRR (RAM / 256K)
     ld (tracker.setup+1),a
 
     call tracker.install.mod
+
+    ld (demo.samples),a
 
     ld a,page.burstplayer
     call @fix.page

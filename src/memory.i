@@ -45,7 +45,8 @@ page.demo:                  equ 0x1f    ; 0x0f
     tracker.ptr.page.demo:      equ 0x8008  ; page of foreground program
     tracker.ptr.page.mod:       equ 0x8009  ; page mod loaded in at (at 32k)
     tracker.octaves:            equ 0x800a  ; 3 or 5 octave mode
-    tracker.ram:                equ 0x800b
+    tracker.samples:            equ 0x800b  ; [15,31]
+    tracker.ram:                equ 0x800c  ; XXXRR
 
 ;---------------------------------------------------------------
 ; store for current pattern row + other common variables
