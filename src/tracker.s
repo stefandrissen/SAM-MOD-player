@@ -25,7 +25,7 @@ tracker.ptr.page.demo:  defb 0              ; & page of demo (foreground)
 
 tracker.ptr.page.mod:   defb page.mod       ; page mod loaded in at
 tracker.octaves:        defb 3              ; number of octaves (3 or 5)
-tracker.samples:        defb 0              ; [15,31]
+tracker.samples:        defb 0              ; [15|31]
 tracker.ram:            defb 0              ; %XXXRR (RAM / 256K)
 tracker.gap:            defb 0
 

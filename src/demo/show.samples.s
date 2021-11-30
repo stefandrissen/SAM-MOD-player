@@ -82,7 +82,7 @@ set.sample.interrupt:
 get.samples:
 
  ; output
- ; - c  = samples [15,31]
+ ; - c  = samples [15|31]
  ; - de = sample table
 
     xor a
