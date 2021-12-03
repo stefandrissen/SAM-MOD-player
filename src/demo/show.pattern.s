@@ -482,7 +482,14 @@ pattern.interrupt:
     ld a,(ix+2)             ; command
     and 0x0f
 
-    jr z,@blank
+    jr nz,@+not.blank
+    ld c,a
+    ld a,(ix+3)
+    or a
+    jr z,@+blank
+    ld a,c
+
+@not.blank:
 
     call print.lo.nibble
     inc l
