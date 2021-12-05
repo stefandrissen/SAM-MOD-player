@@ -2,9 +2,11 @@
 
 ;(C) 1995-2021 Stefan Drissen
 
-;first execute "BURST" and install "DEMO"
+; first execute "BURST" and install "DEMO"
 
-; !!! compare implementation with https://greg-kennedy.com/tracker/modformat.html
+; https://pastebin.com/pg95YduC - 8bitbubsy
+; https://github.com/cmatsuoka/tracker-history/blob/master/reference/amiga/soundtracker/Ultimate_Soundtracker-format.txt
+; https://github.com/OpenMPT/openmpt/blob/master/soundlib/Load_mod.cpp
 
 include "memory.i"
 include "ports/internal.i"
@@ -563,9 +565,9 @@ build.list:
     inc hl
     inc hl
 
-    ; copy song table to area within tracker page and find highest pattern
+    ; copy pattern table to area within tracker page and find highest pattern
 
-    ld de,song.table - 0x8000
+    ld de,pattern.table - 0x8000
     ld bc,mod.pattern.table.len * 0x100
 
     @loop:
@@ -645,12 +647,8 @@ build.list:
 
 @loop.c.convall:
 
-    inc hl                  ; skip first sample word
-    inc hl
     ld (iy+st.start+0),l
     ld (iy+st.start+1),h
-    dec hl
-    dec hl
     ld (iy+st.start+2),b
 
     ld a,(ix+mod.sample.finetune)
@@ -670,10 +668,9 @@ build.list:
     ld a,d
     or e
     ld a,0
-    jr z,$+3
+    jr z,$+3                                ; !!! length 1 word should also be no sample
     dec a
     ld (iy+st.sample),a                     ; -1 = no sample
-
 
     ; the original protracker idea is that ALL samples repeat,
     ; the ones that "do not repeat", repeat on first sample word which is 0x000 -> silence
@@ -712,7 +709,7 @@ build.list:
 
     call add.bhl.de2
 
-    ld de,smp.tab.len
+    ld de,sample.table.len
     add iy,de
 
     ld de,mod.sample.len
@@ -737,7 +734,7 @@ build.list:
     ;    loop repeated in it - see below
 
     ld ix,sample.table.low
-    ld bc,smp.tab.len
+    ld bc,sample.table.len
     ld a,(tracker.samples.low)
     ld d,a
     ld e,0
@@ -805,10 +802,13 @@ build.list:
         xor a
         sbc hl,de
         jr nc,@nooverflow
+
         ld de,0x4000
         add hl,de
         scf
+
      @nooverflow:
+
         ld a,b
         sbc c
         ld (result.lo+1),hl                 ; number of bytes to be
@@ -978,7 +978,7 @@ build.list:
 
         jr nz,copy.loop
 
-        ld bc,-smp.tab.len
+        ld bc,-sample.table.len
         add ix,bc
 
         ld a,(ix+st.sample)
@@ -1063,16 +1063,21 @@ loop.bug.2:
     jr found.bugged
 
 find.lp.ok:
-    ld bc,smp.tab.len
+    ld bc,sample.table.len
     add iy,bc
     ld bc,mod.sample.len
     add ix,bc
     pop bc
     djnz find.bug.lp
+
     xor a
-found.bugged:   ;A=0 -> normal looping
-                ;A=1 -> noisetracker bugged loop
-                ;A=2 -> soul-o-matic bug
+
+found.bugged:
+
+    ; a = 0 -> normal looping
+    ; a = 1 -> noisetracker bugged loop
+    ; a = 2 -> soul-o-matic bug
+
     ld (loop.bug+1),a
 
     ; fill in end addresses of samples in sample table by adding sample length
@@ -1110,18 +1115,20 @@ found.bugged:   ;A=0 -> normal looping
     jr @got.gap
 
  @normal:
+
     ld d,(ix+mod.sample.repeat.offset.words+0)
     ld e,(ix+mod.sample.repeat.offset.words+1)
+
     call add.bhl.de
     jr @contnorm
 
  @noisebug:
-    ld d,(ix+mod.sample.repeat.offset.words+0)  ;loop offs (in bytes!)
+    ld d,(ix+mod.sample.repeat.offset.words+0)  ; loop offs (in bytes!)
     ld e,(ix+mod.sample.repeat.offset.words+1)
 
  @contnorm:
     call add.bhl.de
-    ld d,(ix+mod.sample.repeat.len.words+0) ;loop len (in words)
+    ld d,(ix+mod.sample.repeat.len.words+0)     ; loop len (in words)
     ld e,(ix+mod.sample.repeat.len.words+1)
  @notloop:
     call add.bhl.de2
@@ -1130,7 +1137,7 @@ found.bugged:   ;A=0 -> normal looping
     ld (iy+st.end+1),h
     ld (iy+st.end+2),b
 
-    ld de,smp.tab.len
+    ld de,sample.table.len
     add iy,de
     ld de,mod.sample.len
     add ix,de
@@ -1186,6 +1193,7 @@ conv.looping:
 
 
  loop.ok:                    ; DE = loop offset
+
     ld l,(iy+st.start+0)
     ld h,(iy+st.start+1)
     ld b,(iy+st.start+2)
@@ -1194,7 +1202,7 @@ conv.looping:
 
     ld a,(iy+st.loop)
     dec a
-    jr z,bigloop
+    jr z,@big.loop
 
     ; Small loop, can be up to gap in size, it has to cover the end loop marker
     ; meaning that three gaps are needed if the loop is gap-1 then the first
@@ -1210,7 +1218,7 @@ conv.looping:
     add a,d
     ld d,a
     ld e,0
-    ld (totalgap+1),de  ; DE < gap
+    ld (@totalgap+1),de  ; DE < gap
 
     ld a,b
 
@@ -1222,7 +1230,7 @@ conv.looping:
 
     call set.high.memory.a
 
-    ld (sm.lp.src+1),hl
+    ld (@sm.lp.src+1),hl
 
     ;  push bc
     ;  ldir
@@ -1259,31 +1267,35 @@ conv.looping:
 
     ; keep copying loop until 3 * gap space is filled
 
- copysmalllp:
- totalgap:
-    ld hl,0
-    or a
-    sbc hl,bc
-    ld (totalgap+1),hl
-    jr c,im.donemost
-    jr z,im.doneall
- sm.lp.src:
-    ld hl,0
-    push bc
-    ldir
-    pop bc
-    jr copysmalllp
+    @loop.copy.small.loop:
+
+     @totalgap:
+        ld hl,0
+        or a
+        sbc hl,bc
+        ld (@totalgap+1),hl
+        jr c,im.donemost
+        jr z,im.doneall
+
+     @sm.lp.src:
+        ld hl,0
+        push bc
+        ldir
+        pop bc
+
+        jr @loop.copy.small.loop
 
  im.donemost:
     add hl,bc
     ld c,l
     ld b,h
-    ld hl,(sm.lp.src+1)
+    ld hl,(@sm.lp.src+1)
     ldir
  im.doneall:
     jp conv.donelp
 
- bigloop:
+ @big.loop:
+
     ld (iy+st.loops+0),l
     ld (iy+st.loops+1),h
     ld (iy+st.loops+2),b
@@ -1311,7 +1323,7 @@ conv.looping:
 
 
  conv.donelp:
-    ld bc,smp.tab.len
+    ld bc,sample.table.len
     add iy,bc
     ld bc,mod.sample.len
     add ix,bc
@@ -1321,48 +1333,36 @@ conv.looping:
 
     jp nz,conv.looping
 
-    ; ld a,31
-    ; ld hl,sample.table.low
-    ; ld bc,16
-
-;first word of sample is not used
-
-upfirst:
-    ld e,(hl)
-    inc hl
-    ld d,(hl)
-    inc de
-    inc de
-    ld (hl),d
-    dec hl
-    ld (hl),e
-    add hl,bc
-    dec a
-    jr nz,upfirst
-
 exit.install:
 
-;create an empty sample if necessary
+; create an empty sample if necessary
 
     ld b,31
     ld iy,sample.table.low
-    ld de,16
-@ce.findblank:
-    ld a,(iy+st.sample)
-    or a
-    jr z,@ce.nosample       ; no sample -> no gap
-    ld a,(iy+st.loop)
-    or a
-    jr nz,@ce.nosample      ; looped -> no gap
+    ld de,sample.table.len
 
-    ld l,(iy+st.end+0)
-    ld h,(iy+st.end+1)
-    ld c,(iy+st.end+2)
-    jr @ce.gotblank
+    @loop:
 
-@ce.nosample:
-    add iy,de
-    djnz @ce.findblank
+        ld a,(iy+st.sample)
+        or a
+        jr z,@next              ; no sample -> no gap
+
+        ld a,(iy+st.loop)
+        or a
+        jr nz,@next             ; looped -> no gap
+
+        ld l,(iy+st.end+0)
+        ld h,(iy+st.end+1)
+        ld c,(iy+st.end+2)
+
+        jr @ce.gotblank
+
+     @next:
+
+        add iy,de
+
+        djnz @-loop
+
     ld l,(iy+st.start+0)
     ld h,(iy+st.start+1)
     ld c,(iy+st.start+2)
@@ -1371,41 +1371,50 @@ exit.install:
     call set.high.memory.a
     ld e,a
 
-    push hl ; added to make sense of comment below
+    push hl
 
     ld a,(tracker.gap.low)
     ld c,a
     ld b,0
-@ce.dosilence:
-    ld (hl),0               ; create silent sample
-    inc hl                  ; at postion after all other
-    djnz @ce.dosilence      ; samples
-    dec c
-    jr nz,@ce.dosilence
+
+    @loop:
+
+        ld (hl),0               ; create silent sample
+        inc hl                  ; at postion after all other
+        djnz @-loop             ; samples
+
+        dec c
+        jr nz,@-loop
 
     ld c,e
-    pop hl  ; added to make sense of comment below
+    pop hl
 
-;now CHL is address of silent sound gap
-;replace all blank samples with address for silence
+    ; CHL is address of silent sound gap
+    ; replace all blank samples with address for silence
 
 @ce.gotblank:
+
     ld b,31
     ld iy,sample.table.low
-    ld de,16
-@fs.blp:
-    ld a,(iy+st.sample)
-    or a
-    jr nz,@fs.issamp
-    ld (iy+st.start+0),l
-    ld (iy+st.start+1),h
-    ld (iy+st.start+2),c
-    ld (iy+st.end+0),l
-    ld (iy+st.end+1),h
-    ld (iy+st.end+2),c
-@fs.issamp:
-    add iy,de
-    djnz @fs.blp
+    ld de,sample.table.len
+
+    @loop:
+
+        ld a,(iy+st.sample)
+        or a
+        jr nz,@next
+
+        ld (iy+st.start+0),l
+        ld (iy+st.start+1),h
+        ld (iy+st.start+2),c
+        ld (iy+st.end+0),l
+        ld (iy+st.end+1),h
+        ld (iy+st.end+2),c
+
+     @next:
+
+        add iy,de
+        djnz @-loop
 
     in a,(port.lmpr)
     and low.memory.page.mask
@@ -1548,8 +1557,8 @@ c4.mk.pag9:
     ld bc,31 * 16
     lddr
     ld hl,sample.table
-    ld de,sample.table+1
-    ld bc,smp.tab.len-1
+    ld de,sample.table + 1
+    ld bc,sample.table.len - 1
     ld (hl),b
     ldir
     ld a,-1
@@ -1695,44 +1704,45 @@ reset.list:
 
     defs align 0x100
 
-song.table:
+pattern.table:
     defs 0x100
 
 sample.table:
-st.start:       equ $ - sample.table
+
+ st.start:       equ $ - sample.table
     defw 0x0000         ; offset
     defb 0x00           ; page
 
-st.end:         equ $ - sample.table
+ st.end:         equ $ - sample.table
     defw 0x0000         ; offset
     defb 0x00           ; page = start gap
 
-st.loop:        equ $ - sample.table
+ st.loop:        equ $ - sample.table
     defb 0x00           ; 0 = none, 1 = small, 2 = big
 
-st.loope:       equ $ - sample.table    ; small -> loop end in gap
-st.loops:       equ $ - sample.table    ; big   -> loop start
+ st.loope:       equ $ - sample.table    ; small -> loop end in gap
+ st.loops:       equ $ - sample.table    ; big   -> loop start
     defw 0x0000
     defb 0x00
 
-st.vol:         equ $ - sample.table
+ st.vol:         equ $ - sample.table
     defb 0x00           ; volume
 
-st.finetune:    equ $ - sample.table
+ st.finetune:    equ $ - sample.table
     defb 0x00           ; fine tune value
 
-st.sample:      equ $ - sample.table  ;empty sample?
+ st.sample:      equ $ - sample.table  ;empty sample?
     defb 0x00
 
     defb 0x00,0x00,0x00    ; unused
 
-smp.tab.len:    equ $ - sample.table    ; 16
+ sample.table.len:    equ $ - sample.table    ; 16
 
 prev.loop:      equ 16 - st.loop
 prev.start:     equ 16 - st.start - 2
 prev.sample:    equ 16 - st.sample
 
-    defs 31 * smp.tab.len
+    defs 31 * sample.table.len
 
 
 finet.tab:  defs 1024
@@ -2029,7 +2039,7 @@ tracker:
 
     ld a,(song.pos)
     ld l,a
-    ld h,song.table / 0x100
+    ld h,pattern.table / 0x100
     ld a,(hl)               ;get pattern
     ld (pattern.num),a
     ld d,a
