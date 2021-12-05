@@ -56,29 +56,35 @@ properties.samdac.2:
 ;-------------------------------------------------------------------------------
 
 @buffer.init:
-    ld c,4                      ; 2 buffers, 2 channels per buffer
+    ld c,2                      ; buffers
     ld hl,bp.audio_buffer.1
-@buffers:
-    ld b,64                     ; 2^(bits-1)
-    ld a,0
-@loop:
-    ld (hl),a
-    inc hl
-    ld (hl),a
-    inc hl
-    ld (hl),a
-    inc hl
-    inc a
-    djnz @-loop
 
-    ld b,bp.audio_buffer.bytes - ( 64 * 3 )
-@loop:
-    ld (hl),a
-    inc hl
-    djnz @-loop
+    @buffers:
 
-    dec c
-    jr nz,@-buffers
+        ld b,0x80               ; amplitude zero
+        ld a,0
+
+        @loop:
+
+            ld (hl),a           ; left
+            inc hl
+            ld (hl),a           ; right
+            inc hl
+            inc a
+            djnz @-loop
+
+        ld b,bp.audio_buffer.bytes - 0x80
+
+        @loop:
+
+            ld (hl),a           ; left
+            inc hl
+            ld (hl),a           ; right
+            inc hl
+            djnz @-loop
+
+        dec c
+        jr nz,@-buffers
 
 @buffer.init.len: equ $ - @buffer.init
 
