@@ -1,34 +1,15 @@
+; SAM MOD player - source code mod file
 
-; Volume of sample. Legal values are 0..64. Volume is the linear
-; difference between sound intensities. 64 is full volume, and
-; the change in decibels can be calculated with 20*log10(Vol/64)
-
-; unrolled (incorrect) sample at 883c: 01 02 81 80 01 02 81 80 01 02 81 80
-
-; st 0c00
-
-; 64 volume tables
-; 0200
-; 2100 0x40 -> & 7f -> 0 -> 3f
-
-; 2a7a = sample buffer 7f 80 80 80 40 80 40 80 7f 80 80 80 40 80 40 80
-
-; 5ff4 = write
-
-
-; loop: 81 80 ff 00 81 80 ff 00 81 80 ff 00
-
-; https://pastebin.com/pg95YduC
-
-; an attempt at a source code mod file
+    include "constants/mod.i"
 
     org 0
 
-song.name:
+mod.title:
+
     defm "song name           "
 
-;---------------------------------------------------------------
-sample.info:                                    ; 31 samples
+;-------------------------------------------------------------------------------
+mod.samples:                                    ; 31 samples
 
     defm "sample one            "
     defb ( sample.1.length / 2 ) / 256          ; length - in big endian WORDS
@@ -40,27 +21,28 @@ sample.info:                                    ; 31 samples
     defb ( sample.1.repeat.length / 2 ) / 256   ; repeat length - in big endian WORDS
     defb ( sample.1.repeat.length / 2 ) \ 256
 
-    defs 30 * ( $ - sample.info )
+    defs ( 31 - 1 ) * mod.sample.len
 
-assert ( $ == 950 )
+mod.pt.song.positions:
 
-song.length:    defb 1
-                defb 0
-;---------------------------------------------------------------
-song.positions:
+    defb 1
+    defb 0
+
+;-------------------------------------------------------------------------------
+mod.pt.pattern.table:
 
     defb 0
     defs 127
 
+mod.pt.id:
+
     defm "M.K."
 
-assert ( $ == 1084 )
+;-------------------------------------------------------------------------------
+mod.pt.pattern:
 
-;---------------------------------------------------------------
-patterns:
-
-; standard protracker is 3 octaves [1-3]
-; octave 0 and 4 are additional for 5 octave mods
+ ; standard protracker is 3 octaves [1-3]
+ ; octave 0 and 4 are additional for 5 octave mods
 
     note.C_0:   equ 1712 ; 0x6b0
     note.Cs0:   equ 1616
@@ -131,7 +113,7 @@ patterns:
     note.test.h:    equ note.test / 256
     note.test.l:    equ note.test \ 256
 
-row.1:
+ row.1:
 
     ; SPPPSECC S = sample, p = period, e = effect, c = command
 
@@ -156,7 +138,7 @@ row.1:
         defb 0x10
         defb 0x00
 
-row.2:
+ row.2:
 
     @channel.1:
         defb 0x00       ; H  = upper sample, L upper note
@@ -179,28 +161,26 @@ row.2:
         defb 0x00
         defb 0x00
 
-row.63:
+ row.63:
 
     defs 62 * 16
 
 
-assert ( ( $ - patterns ) \ 1024 == 0 )
+ assert ( ( $ - mod.pt.pattern ) \ 1024 == 0 )
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 samples:
 
-sample.1:
+ sample.1:
 
-    defb 0x01,0x02  ; first two bytes /should/ be 0x00,0x00
+    defb  0x00, 0x00  ; first two bytes /should/ be 0x00,0x00
 
-sample.1.repeat:
-sample.1.repeat.offset: equ $ - sample.1
+  sample.1.repeat:
+  sample.1.repeat.offset: equ $ - sample.1
 
-;    for 52, defb 127
-;    for 156, defb -128
-    defb 127,-128
-    defb 127,-128
+    defb -0x30,-0x10
+    defb +0x10,+0x30
 
-sample.1.repeat.length: equ $ - sample.1.repeat
+  sample.1.repeat.length: equ $ - sample.1.repeat
 
-sample.1.length: equ $ - sample.1
+  sample.1.length: equ $ - sample.1
