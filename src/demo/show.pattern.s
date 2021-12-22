@@ -430,6 +430,9 @@ pattern.interrupt:
     bit 7,a
     jr nz,@sharp
 
+    or a
+    jr z,@invalid.note
+
     call print.fast.char
     ld a,17                 ; -
     call print.fast.char
@@ -449,6 +452,10 @@ pattern.interrupt:
     call print.fast.char
 
     jr @continue.2
+
+ @invalid.note:
+
+    ld d,(ix+0)
 
  display.period_values:
 
