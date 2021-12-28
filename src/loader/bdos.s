@@ -76,7 +76,7 @@ read.directory.bdos:
         push ix
         push de
         ld hl,temp.spc+9
-        call mod.type
+        call mod.determine.type
         pop de
         pop ix
 
@@ -388,6 +388,8 @@ bdos.read.dir:
     cp samdos.filetype.code
     ret nz
 
+    push hl
+
     ex de,hl
 
     ld l,samdos.dir.sectors
@@ -436,17 +438,14 @@ bdos.read.dir:
     ldi ; month
     ldi ; year
 
+    pop hl
     ex de,hl
 
     ret
 
  @file.too.small:
 
-    ex de,hl
-
-    ld c,0x0b
-    or a
-    sbc hl,bc
+    pop hl
     ld (hl),0
 
     ret

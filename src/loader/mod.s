@@ -44,11 +44,6 @@
 
 ;-------------------------------------------------------------------------------
 
-    ld hl,0xc000
-    jp mod.type
-
-;-------------------------------------------------------------------------------
-
     @var.mod.type:      defb 0
     @var.mod.samples:   defb 0
     @var.mod.patterns:  defb 0
@@ -195,7 +190,7 @@ mod.text.de:
     ret
 
 ;-------------------------------------------------------------------------------
-mod.type:
+mod.determine.type:
 
  ; input:
  ; - hl = mod start
@@ -357,7 +352,10 @@ mod.type:
 
         djnz @-loop
 
-    ld a,mod.type.ust.15
+    ; can be ust.15 or st.15
+
+    call @scan.first.pattern.commands
+
     jr @leave
 
  @invalid:
@@ -367,6 +365,62 @@ mod.type:
  @leave:
 
     ld (@var.mod.type),a
+
+    ret
+
+;-------------------------------------------------------------------------------
+@scan.first.pattern.commands:
+
+ ; Ultimate Soundtracker has commands:
+ ; - 1   arpeggio
+ ; - 2   portamento
+ ; - 3-B modulation
+
+ ; Soundtracker II introduces
+ ; - C   volume
+
+ ; SoundTracker III introduces
+ ; - F   speed
+
+    ld hl,(@var.mod.offset)
+    ld de,mod.title.len + 15 * mod.sample.len + mod.pattern.table.len + 2
+    add hl,de   ; -> first channel first pattern
+    inc hl
+    inc hl      ; -> effect (lower nibble)
+    ld de,4     ; bytes per channel
+
+    ; 3 sectors in memory
+    ; 3 * 510 = 1530 - 9 (file header) = 1521 bytes
+
+    ; module header:
+    ;    20 title
+    ;   450 samples (15 * 30)
+    ;     2 positions + restart
+    ;   128 pattern entries
+    ;   ---
+    ;   600 bytes
+
+    ; leaves: 1521 - 600 = 921 bytes for pattern entries
+    ; 921 / 4 = 230 pattern entries
+    ; 230 / 4 =  57 rows of first pattern
+
+    ld b,230
+    ld c,mod.type.st.15
+
+    @loop:
+
+        ld a,(hl)
+        and 0x0f
+        cp 0x0c
+        ld a,c
+
+        ret nc  ; command >= c found -> st.15
+
+        add hl,de
+
+        djnz @-loop
+
+    ld a,mod.type.ust.15
 
     ret
 
@@ -590,14 +644,15 @@ mod.type:
 
         djnz @-loop
 
-    ; cp with file.len (populated by directory)
-    ; ld a,h
-    ; ld (file.len+1),a
-    ; ld a,c
-    ; ld (file.len+2),a
+    ld a,(file.len+2)
+    cp c
+    ret nz
+
+    ld a,(file.len+1)
+    cp h
+    ret nz                  ; needs refinement for 4 bit mods
 
     xor a       ; set z
-
     ld a,(@var.mod.type)
 
     ret
