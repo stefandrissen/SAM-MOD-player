@@ -215,7 +215,7 @@
     ld bc,13
     ldir
     ld ix,uifa
-    ld (ix),uifa.filetype.code
+    ld (ix),samdos.filetype.code
 
     ld hl,dos.exit.routine
     ld (svar.doser),hl
