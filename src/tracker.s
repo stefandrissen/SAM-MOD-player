@@ -2189,22 +2189,22 @@ routines:
 
  chkmore.tab:
     ; table for commands on counter 0
-    r0.000: defw per.nop        ;0
-    r0.001: defw per.nop        ;1
-    r0.002: defw per.nop        ;2
-    r0.003: defw per.nop        ;3 check earlier (tone porta)
-    r0.004: defw per.nop        ;4
-    r0.005: defw per.nop        ;5 check earlier (tone porta)
-    r0.006: defw per.nop        ;6
-    r0.007: defw per.nop        ;7
-    r0.008: defw per.nop        ;8
-    r0.009: defw sampleoffs     ;9
-    r0.010: defw per.nop        ;A
-    r0.011: defw pos.jump       ;B
-    r0.012: defw volchange      ;C
-    r0.013: defw patbreak       ;D
-    r0.014: defw e.command      ;E
-    r0.015: defw setspeed       ;F
+    r0.000: defw per.nop                ; 0
+    r0.001: defw per.nop                ; 1
+    r0.002: defw per.nop                ; 2
+    r0.003: defw per.nop                ; 3 check earlier (tone porta)
+    r0.004: defw per.nop                ; 4
+    r0.005: defw per.nop                ; 5 check earlier (tone porta)
+    r0.006: defw per.nop                ; 6
+    r0.007: defw per.nop                ; 7
+    r0.008: defw per.nop                ; 8
+    r0.009: defw sampleoffs             ; 9
+    r0.010: defw per.nop                ; A
+    r0.011: defw pos.jump               ; B
+    r0.012: defw @command.set_volume    ; C
+    r0.013: defw patbreak               ; D
+    r0.014: defw e.command              ; E
+    r0.015: defw setspeed               ; F
 
  checkfx.tab:
     ; table for commands not on counter 0
@@ -3292,15 +3292,23 @@ pos.jump:
     ld (posjump.flag+1),a
     ret
 
-;---------------------------------------------------------------
-; Effect C - Volume Change
-;---------------------------------------------------------------
-volchange:
+;-------------------------------------------------------------------------------
+@command.set_volume:
+
+ ; Effect C - Set Volume
+
+ ; https://www.un4seen.com/forum/?topic=14471.msg101020#msg101020
+ ; SoundTracker sends volume directly to Paula, which means:
+ ; - bit 7 ignored
+ ; - bit 6 max volume
+
+ ; -> move all bounds checking to setup mod?
+
  r1.112:
     ld a,(cmdlo+1)
-    cp 64
+    cp 0x40
     jr c,$+4
-    ld a,63
+    ld a,0x3f
  r1.113:
     ld (volume+1),a
  r1.114:
