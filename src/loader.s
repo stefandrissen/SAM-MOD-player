@@ -482,7 +482,8 @@ loader:
     bit 7,a
     jr nz,@disc.mess
 
-    res 6,a
+    call @insert.sample.bits
+
     call mod.text.de
 
     ; push ix
@@ -662,6 +663,31 @@ loader:
     ret
 
 ;-------------------------------------------------------------------------------
+@insert.sample.bits:
+
+ ; insert 4b when mod is compressed 4 bit mod
+
+    push bc
+
+    ld bc," " * 0x101
+    bit 6,a
+    jr z,@insert.bc
+
+    res 6,a
+    ld bc,"4" + "b" * 0x100
+
+ @insert.bc:
+
+    ld hl,@mes.details.sample.bits
+    ld (hl),c
+    inc hl
+    ld (hl),b
+
+    pop bc
+
+    ret
+
+;-------------------------------------------------------------------------------
 @insert.samples:
 
     ld l,(ix + @loader.dir.samples)
@@ -791,161 +817,6 @@ loader.quit:
     xor a
     out (port.lmpr),a
     rst 0
-
-;-------------------------------------------------------------------------------
-file.check:
-
-
- if defined( old )
-
-    ;check to see if the sum of sample lengths + patterns = file len
-
-    ; input:
-    ; a = 1 (compressed) or 2 (normal)
-
-    ld hl,temp.spc + 9
-    ld bc,mod.title.len
-    ldir
-
-    ld (bytes.per+1),a
-
-    push ix
-    ld bc,(temp.spc + 9 + mod.pt.id)
-
-    ld a,1      ; 1 = protracker
-    or a
-    ld hl,"M" + "." * 0x100
-    sbc hl,bc
-
-    jr z,@got.module.type
-
-    inc a       ; 2 = startrekker
-    or a
-    ld hl,"F" + "L" * 0x100
-    sbc hl,bc
-
-    jr z,@got.module.type
-
-    inc a       ; 3 = protracker extended
-    or a
-    ld hl,"M" + "!" * 0x100
-    sbc hl,bc
-
-    jr z,@got.module.type
-
-    xor a       ; 0 = noisetracker
-
- @got.module.type:
-
-    ld (de),a
-    ld a,(bytes.per+1)
-    dec a
-    ld a,(de)
-    jr nz,@not.compressed
-
-    set 6,a                 ; compressed 4 bit
-    ld (de),a
-
-  @not.compressed:
-
-    inc de
-    ld hl, temp.spc + 9 + mod.pt.song.positions
-    and 63
-    jr nz,@not.noisetracker
-
-    ld hl, temp.spc + 9 + mod.nt.song.positions
-
- @not.noisetracker:
-
-    ldi
-    push de
-
-    ld bc,0x1f00                    ; b = 31 samples
-    ld hl,mod.pt.pattern
-    and 63
-    jr nz,@not.noisetracker
-
-    ld b,0x0f                       ; b = 15 samples
-    ld hl,mod.nt.pattern
-
- @not.noisetracker:
-
-    xor a
-    ld (sample.count+1),a
-    ld ix,temp.spc + 9 + mod.samples
-
- @loop.add_all_samples:
-
-    ld d,(ix+mod.sample.len.words+0)
-    ld e,(ix+mod.sample.len.words+1)
-  bytes.per:
-    ld a,2
-    @times.sample:
-        add hl,de
-        jr nc,$+3
-        inc c
-        dec a
-        jr nz,@times.sample
-
-    ld a,d
-    or a
-    jr nz,@is.sample    ; length >= 0x0100
-
-    ld a,e
-    cp 2
-    jr c,@next.sample   ; length < 0x0002
-
-  @is.sample:
-    ld a,(sample.count+1)
-    inc a
-    ld (sample.count+1),a
-
-  @next.sample:
-    ld de,mod.sample.len
-    add ix,de
-
-    djnz @-loop.add_all_samples
- ; loop.add_all_samples
-
-    inc ix
-    inc ix
-    ld b,128            ; length pattern table
-    ld e,0
-
-    @loop.get_highest_pattern:
-        ld a,(ix)
-        inc ix
-        cp e
-        jr c,$+3
-        ld e,a
-        djnz @-loop.get_highest_pattern
-
-    inc e
-    ld b,e
-    ld de,mod.pattern.len
-
-    @loop.add_all_patterns:
-        add hl,de
-        jr nc,$+3
-        inc c
-        djnz @-loop.add_all_patterns
-        ;so now chl = calc. size
-
-    ld a,(bytes.per+1)
-    dec a
-    jr z,fl.is.half
-
-    ld a,h
-    ld (file.len+1),a
-    ld a,c
-    ld (file.len+2),a
- fl.is.half:
-    pop de
-    pop ix
-
- endif
-
-    ret
 
 ;-------------------------------------------------------------------------------
 insert.file.size:
@@ -1598,13 +1469,11 @@ cursor.print:
  mes.no_label:          defm "No label        "
  mes.no_disc:           defm "No disc         "
 
- ;mes.noisetracker:   defm "Noisetracker, 15 samples, 8 bits"
- ;mes.protracker:     defm "Protracker,   31 samples, 8 bits"
- ;mes.startrekker:    defm "Startrekker,  31 samples, 8 bits"
  @mes.details:
-    @mes.details.samples:          defm "00 samples, "
-    @mes.details.patterns:         defm "000 patterns    "
-    @mes.details.size:             defm "000K"
+    @mes.details.samples:       defm "00 samples "
+    @mes.details.sample.bits:   defm "4b "
+    @mes.details.patterns:      defm "000 patterns  "
+    @mes.details.size:          defm "000K"
 
  mes.drv:               defm "Press RETURN for new directory. "
 
@@ -2199,13 +2068,13 @@ loader.dir:
  @loader.dir.title:     equ $ - loader.dir
     defm "20 char module title"
  @loader.dir.type:      equ $ - loader.dir
-    defb 0          ; module type 0=noise, 1=pro, 2=star +64 = 4 bit compressed, +128 = drive
+    defb 0          ; module type (see mod.s) +64 = 4 bit compressed, +128 = drive
  @loader.dir.patterns:  equ $ - loader.dir
     defb 0          ; length in patterns
  @loader.dir.date:      equ $ - loader.dir
     defm "10061972" ; our stamp
  @loader.dir.size:      equ $ - loader.dir
-    defw 0          ; total size in k
+    defw 0          ; total size in K
  @loader.dir.samples:   equ $ - loader.dir
     defb 0          ; number of samples (len>1)
 

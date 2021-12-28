@@ -30,15 +30,6 @@ read.directory.bdos:
         or a
         jr z,@leave
 
-     if defined( old )
-
-        push hl
-        call @check.file.extension
-        pop hl
-        jr nz,@next.file
-
-     endif
-
         push hl
         pop ix
 
@@ -82,31 +73,6 @@ read.directory.bdos:
 
         cp mod.type.invalid
         jr nz,@file.valid
-
-     if defined(old)
-
-        ld a,2
-        call file.check
-
-        call fc.sam
-        jr z,@file.valid
-
-      ;not MOD, maybe compressed mod (4 bit)
-
-        pop de
-        push de
-
-        ld hl,8
-        add hl,de
-        ex de,hl
-
-        ld a,1              ; only add sample length once
-        call file.check
-
-        call fc.sam
-        jr z,@file.valid
-
-     endif
 
      @next.file.pop:
 
@@ -166,37 +132,6 @@ read.directory.bdos:
 ;-------------------------------------------------------------------------------
 
     include "mod.s"
-
-;-------------------------------------------------------------------------------
-@check.file.extension:
-
-    inc hl
-    inc hl
-
-    ld b,8
-
-    @loop:
-
-        ld a,(hl)
-        inc hl
-        cp "."
-        jr nz,@next.chr
-
-        ld a,(hl)
-        set 5,a             ; -> lowercase
-        cp "m"
-        jr nz,@next.chr
-
-        ret
-
-     @next.chr:
-
-        djnz @-loop
-
-    ld a,1
-    or a                ; nz
-
-    ret
 
 ;-------------------------------------------------------------------------------
 @read.first.sectors:

@@ -550,11 +550,10 @@ mod.determine.type:
 
  ; get number of samples supported by format (15 or 31)
 
- ; input:
- ; - a = mod.type
-
  ; output:
  ; - b = samples
+
+    ld a,(@var.mod.type)
 
     ld b,15
     cp mod.type.ust.15
@@ -576,7 +575,6 @@ mod.determine.type:
  ; - nz = has at least one sample with a length
 
     call @get.mod.samples.ix
-
     call @get.samples.format.b
 
     @loop:
@@ -621,10 +619,10 @@ mod.determine.type:
 
     cp mod.type.st23
     jr c,@no.id
-    inc hl
-    inc hl
-    inc hl
-    inc hl
+    inc l
+    inc l
+    inc l
+    inc l
  @no.id:
 
     ld de,mod.sample.len
@@ -634,7 +632,6 @@ mod.determine.type:
         add hl,de
         djnz @-loop
 
-    call @get.total.sample.length.chl
     call @get.highest.pattern.b
 
     ld de,0x40 * 4 * 4    ; 64 rows, 4 channels, 4 bytes
@@ -644,21 +641,55 @@ mod.determine.type:
 
         djnz @-loop
 
+    call @get.total.sample.length.chl
+
+    push bc
+    push hl
+
+    call @get.total.sample.length.chl
+
     ld a,(file.len+2)
     cp c
-    ret nz
+    jr nz,@different
 
     ld a,(file.len+1)
     cp h
-    ret nz                  ; needs refinement for 4 bit mods
+    jr nz,@different
+
+    pop hl
+    pop bc
 
     xor a       ; set z
     ld a,(@var.mod.type)
 
     ret
 
+ @different: ; check if file size equals sample lengths added as bytes (4-bit)
+
+    pop hl
+    pop bc
+
+    ld a,(file.len+2)
+    cp c
+    ret nz
+
+    ld a,(file.len+1)
+    cp h
+    ret nz
+
+    xor a       ; set z
+    ld a,(@var.mod.type)
+    set 6,a     ; 4 bit mod
+    ld (@var.mod.type),a
+
+    ret
+
+
+
 ;-------------------------------------------------------------------------------
 @get.total.sample.length.chl:
+
+ ; get length as bytes (= half actual bytes since lengths are in words)
 
     call @get.mod.samples.ix
     call @get.samples.format.b
@@ -671,7 +702,6 @@ mod.determine.type:
         ld d,(ix + mod.sample.len.words + 0)
         ld e,(ix + mod.sample.len.words + 1)
 
-        call @add.chl.de
         call @add.chl.de
 
         ld a,d
@@ -715,7 +745,6 @@ mod.determine.type:
 
     ld de,mod.sample.len
 
-    ld a,(@var.mod.type)
     call @get.samples.format.b
 
     @loop:
