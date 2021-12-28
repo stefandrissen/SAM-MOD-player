@@ -30,7 +30,7 @@ loader.unpack:
     ld a,c
     res 6,a
 
-    ld hl,20 + 31 * 30 + 2 + 0x8000
+    ld hl,20 + 31 * 30 + 2 + 0x8000 ; !!!
     ld de,4
     or a
     ld a,31
@@ -81,7 +81,7 @@ loader.unpack:
     ld a,e
     ld (@sample.offset.page+1),a
 
-    ld ix,0x8000 + 20   ; start sample table
+    ld ix,0x8000 + mod.samples  ; start sample table
 
   @samples:
     ld b,0
@@ -89,13 +89,13 @@ loader.unpack:
     ld hl,0                 ; length in bytes
     xor a                   ; length in 16K pages
     @loop:
-        ld d,(ix+22)        ; length in words msb
-        ld e,(ix+23)        ; length in words lsb
+        ld d,(ix + mod.sample.len.words + 0)
+        ld e,(ix + mod.sample.len.words + 1)
         add hl,de           ; only once, two sample nibbles per byte
         jr nc,$+4
         add 4               ; > 64K -> +4 pages
 
-        ld de,30            ; length sample table entry
+        ld de,mod.sample.len
         add ix,de
 
         djnz @-loop

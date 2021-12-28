@@ -18,111 +18,154 @@ read.directory.bdos:
     ; now convert the SAM stuff to loader format
 
     pop de
-    ld hl,fat
+    ld hl,loader.directory
 
     ld a,80             ; 80 directory entries
-@loop.directory.entries:
 
-    push af
+    @loop.directory.entries:
 
-    ld a,(hl)
-    and %00111111
-    cp uifa.filetype.code
-    jr nz,@next.file
+        push af
 
-    push hl
-    call @check.file.extension
-    pop hl
-    jr nz,@next.file
+        ld a,(hl)
+        or a
+        jr z,@leave
 
-    push hl
-    pop ix
+     if defined( old )
 
-    push hl
-    push de
+        push hl
+        call @check.file.extension
+        pop hl
+        jr nz,@next.file
 
-    inc hl
-    ld b,8
-@loop:
-    ld a,(hl)
-    ld (de),a
-    inc hl
-    inc de
+     endif
 
-    djnz @-loop
+        push hl
+        pop ix
 
-    push de
+        push hl
+        push de
 
-    ld e,(ix+uifa.sector)
-    ld d,(ix+uifa.track)    ; first sector
+        ld b,8
 
-    in a,(port.hmpr)
-    and high.memory.page.mask
-    ld c,a
+        @loop:
 
-    call @read.first.sectors
-    pop de
-    jr z,@next.file.pop
+            ld a,(hl)
+            ld (de),a
+            inc hl
+            inc de
 
-    ld a,2
-    call file.check
+            djnz @-loop
 
-    call fc.sam
-    jr z,sm.file.ok
+        push de
 
-;not MOD, maybe compressed mod (4 bit)
+        ld e,(ix + loader.directory.size_kb)
+        ld d,(ix + loader.directory.size_kb + 1)
+        ld (file.len+1),de
 
-    pop de
-    push de
+        ld e,(ix + loader.directory.sector)
+        ld d,(ix + loader.directory.track)  ; first sector
 
-    ld hl,8
-    add hl,de
-    ex de,hl
+        in a,(port.hmpr)
+        and high.memory.page.mask
+        ld c,a
 
-    ld a,1              ; only add sample length once
-    call file.check
+        call @read.first.sectors
+        pop de
+        jr z,@next.file.pop
 
-    call fc.sam
-    jr z,sm.file.ok
+        push ix
+        push de
+        ld hl,temp.spc+9
+        call mod.type
+        pop de
+        pop ix
 
- @next.file.pop:
+        cp mod.type.invalid
+        jr nz,@file.valid
 
-    pop de
-    pop hl
-    jr @next.file
+     if defined(old)
 
-sm.file.ok:
+        ld a,2
+        call file.check
 
-    call @insert.file.date
+        call fc.sam
+        jr z,@file.valid
 
-    for 6, inc de
+      ;not MOD, maybe compressed mod (4 bit)
 
-    call insert.file.size
+        pop de
+        push de
 
-    ld hl,loader.entries
-    inc (hl)
-    pop hl
-    ld bc,load.len
-    add hl,bc
-    ex de,hl
-    pop hl
+        ld hl,8
+        add hl,de
+        ex de,hl
 
-@next.file:
+        ld a,1              ; only add sample length once
+        call file.check
 
-    ld bc,16
-    add hl,bc
+        call fc.sam
+        jr z,@file.valid
 
-    pop af
-    ld b,a
-    ld a,(loader.entries)
-    cp 27
-    ret z
+     endif
 
-    ld a,b
-    dec a
-    jr nz,@-loop.directory.entries
+     @next.file.pop:
+
+        pop de
+        pop hl
+        jr @next.file
+
+     @file.valid:
+
+        ld hl,temp.spc + 9 + mod.sample.title
+        ld bc,mod.title.len
+        ldir
+
+        ld (de),a               ; type
+        inc de
+
+        call mod.get.patterns.a
+        ld (de),a               ; patterns
+        inc de
+
+        call @insert.file.date
+
+        for 8, inc de
+
+        call insert.file.size
+
+        ld hl,loader.entries
+        inc (hl)
+        pop hl
+        ld bc,loader.dir.len
+        add hl,bc
+        ex de,hl
+        pop hl
+
+     @next.file:
+
+        ld bc,loader.directory.len
+        add hl,bc
+
+        pop af
+        ld b,a
+        ld a,(loader.entries)
+        cp 27
+        ret z
+
+        ld a,b
+        dec a
+        jr nz,@-loop.directory.entries
 
     ret
+
+ @leave:
+
+    pop af
+    ret
+
+;-------------------------------------------------------------------------------
+
+    include "mod.s"
 
 ;-------------------------------------------------------------------------------
 @check.file.extension:
@@ -132,22 +175,23 @@ sm.file.ok:
 
     ld b,8
 
-@loop:
+    @loop:
 
-    ld a,(hl)
-    inc hl
-    cp "."
-    jr nz,@next.chr
+        ld a,(hl)
+        inc hl
+        cp "."
+        jr nz,@next.chr
 
-    ld a,(hl)
-    set 5,a             ; -> lowercase
-    cp "m"
-    jr nz,@next.chr
+        ld a,(hl)
+        set 5,a             ; -> lowercase
+        cp "m"
+        jr nz,@next.chr
 
-    ret
+        ret
 
-@next.chr:
-    djnz @-loop
+     @next.chr:
+
+        djnz @-loop
 
     ld a,1
     or a                ; nz
@@ -163,11 +207,9 @@ sm.file.ok:
     call @read.sector
     ret z
 
-    ld hl,temp.spc + 510
     call @read.sector
     ret z
 
-    ld hl,temp.spc + 2 * 510
     call @read.sector
 
     ld a,1
@@ -177,13 +219,16 @@ sm.file.ok:
 
 ;-------------------------------------------------------------------------------
 @read.sector:
-; input:
-; - hl = destination
-; - d  = track
-; - e  = sector
-;
-; output:
-; - z = no next sector
+ ; input:
+ ; - hl = destination
+ ; - d  = track
+ ; - e  = sector
+
+ ; output:
+ ; - hl = destination + 510
+ ; - d  = next track
+ ; - e  = next sector
+ ; - z  = no next sector (de = 0)
 
     push hl
 
@@ -195,9 +240,15 @@ sm.file.ok:
     ld hl,dos.sector
     ld bc,510
     ldir
+
+    push de
+
     ld d,(hl)
     inc hl
     ld e,(hl)
+
+    pop hl
+
     ld a,d
     or e
 
@@ -206,34 +257,61 @@ sm.file.ok:
 ;-------------------------------------------------------------------------------
 @insert.file.date:
 
-    push de
+ ; input
+ ; - ix = directory entry (loader.directory format)
+
+ ; output
+ ; - (de) ddmmyyyy or * when invalid
+
     ld a,"*"
     ld (de),a
 
-sm.check.date:
-    ld a,(ix+11)
+    ; day
+    ld a,(ix + loader.directory.date.day)
     or a
-    jr z,sm.done.date       ; 0 -> invalid date
+    ret z                   ; = 0
     cp 32
-    jr nc,sm.done.date      ; day > 31 = invalid date
-    ld a,(ix+12)
-    or a
-    jr z,sm.done.date       ; 0 -> invalid date
-    cp 13
-    jr nc,sm.done.date      ; month > 12 = invalid date
-    ld a,(ix+15)
-    or a
-    jr z,sm.done.date       ; 0 -> invalid date
-    inc a
-    jr z,sm.done.date       ; 255 -> invalid date
+    ret nc                  ; > 31
 
-    ld a,(ix+11)
+    ; month
+    ld a,(ix + loader.directory.date.month)
+    or a
+    ret z                   ; = 0
+    cp 13
+    ret nc                  ; > 12
+
+    ; year (100 -> 2000)
+    ld a,(ix + loader.directory.date.year)
+    or a
+    ret z                   ; = 0
+    inc a
+    ret z                   ; = 255
+
+    push de
+
+    ld a,(ix + loader.directory.date.day)
     call cnv.a.to.de
-    ld a,(ix+12)
+
+    ld a,(ix + loader.directory.date.month)
     call cnv.a.to.de
-    ld a,(ix+15)
+
+    ld a,(ix + loader.directory.date.year)
+    ld c,19
+ @loop:
+        sub 100
+        jr c,@leave
+        inc c
+        jr @-loop
+
+ @leave:
+
+    add a,100
+    push af
+    ld a,c
     call cnv.a.to.de
-sm.done.date:
+    pop af
+    call cnv.a.to.de
+
     pop de
 
     ret
@@ -241,113 +319,122 @@ sm.done.date:
 ;-------------------------------------------------------------------------------
 bdos.read.dir:
 
-; first read in SAM directory
+ ; first read in SAM directory
 
-; read directory sectors and copy relevant 16 bytes per entry to screen memory
-; for processing
-;-------------------------------------------------------------------------------
+ ; read directory sectors into loader.directory format for processing
 
     in a,(port.hmpr)
     and high.memory.page.mask
     ld c,a
 
-    ld hl,fat
-    ld de,fat+1
-    ld bc,16 * 80 - 1
+    ld hl,loader.directory
+    ld de,loader.directory + 1
+    ld bc,loader.directory.len * 80 - 1
     ld (hl),0
     ldir
 
-    ld hl,fat
+    ld hl,loader.directory
 
     ld d,0      ; track
 
-@loop.tracks:
-    ld e,1      ; sector
+    @loop.tracks:
 
-@loop.sectors:
+        ld e,1      ; sector
 
-    push hl
-    ld hl,@sector
-    call bdos.read.sector
-    pop hl
+        @loop.sectors:
 
-    ld a,d
-    dec e
-    or e
-    call z,@get.volume.label
-    inc e
+            push hl
+            ld hl,@sector
+            call bdos.read.sector
+            pop hl
 
-    push de
+            ld a,d
+            dec e
+            or e
+            call z,@get.volume.label
+            inc e
 
-    ld de,@sector
-    call @get.entry
+            push de
 
-    ld de,@sector + 0x100
-    call @get.entry
+            ld de,@sector
+            call @get.entry
 
-    pop de
+            ld de,@sector + 0x100
+            call @get.entry
 
-    inc e
-    ld a,e
-    cp 11
-    jr nz,@-loop.sectors
+            pop de
 
-    inc d
-    ld a,d
-    cp 4
-    jr nz,@-loop.tracks
+            inc e
+            ld a,e
+            cp 11
+            jr nz,@-loop.sectors
+
+        inc d
+        ld a,d
+        cp 4
+        jr nz,@-loop.tracks
 
     ret
 
 ;-------------------------------------------------------------------------------
 @get.entry:
-; move 16 bytes into directory structure
-;
-; 0x00  filetype
-; 0x01  filename
-; 0x0b  day      <-
-; 0x0c  month    <-
-; 0x0d  track
-; 0x0e  sector
-; 0x0f  year     <-
-;
-; input:
-;   de = @sector
-;   hl = directory store
+ ; move bytes into loader.directory structure
+
+ ; input:
+ ; - de = @sector
+ ; - hl = directory store
 
     ld a,(de)   ; filetype
-    cp uifa.filetype.code
+    cp samdos.filetype.code
     ret nz
 
     ex de,hl
 
-    ld bc,0x0b
-    ldir        ; filetype + filename
-
-    ld a,(hl)   ; msb sectors
+    ld l,samdos.dir.sectors
+    ld a,(hl)   ; lsb sectors
     or a
     jr nz,@ok
 
     inc l
-    ld a,(hl)   ; lsb sectors
-    dec l
+    ld a,(hl)   ; msb sectors
     cp 5        ; smallest mod is 2108 bytes (https://sitomani.github.io/4champ/2020ds/ds_06.html)
     jr c,@file.too.small
 
  @ok:
 
-    ld c,uifa.timestamp.day - 0x0b
-    add hl,bc
-    ldi         ; day
-    inc c
-    ldi         ; month
-    inc c
-    or a
-    sbc hl,bc
-    ldi         ; track
-    ldi         ; sector
-    add hl,bc
-    ldi         ; year
+    ld l,samdos.dir.filename
+    ld bc,loader.directory.filename.len
+    ldir
+
+    ld l,samdos.dir.track
+    ldi         ; first track
+    ldi         ; first sector
+
+    ld l,samdos.dir.length.pages
+    ld b,(hl)                           ; 0b11111111 16K pages
+    ld l,samdos.dir.length.bytes + 1
+    ld c,(hl)                           ; 0b--111111 0x0000 - 0x3fff
+                                        ; 0b11111111 --111111
+
+    sla c
+    sla c                               ; 0b11111111 11111100
+
+    srl b
+    rr c                                ; 0b01111111 11111110
+    srl b
+    rr c                                ; 0b00111111 11111111
+
+    ld a,c
+    ld (de),a
+    inc de
+    ld a,b
+    ld (de),a
+    inc de
+
+    ld l,samdos.dir.timestamp
+    ldi ; day
+    ldi ; month
+    ldi ; year
 
     ex de,hl
 
@@ -371,12 +458,12 @@ bdos.read.dir:
     push de
 
     ld de,m.vollabel
-    ld hl,@sector+uifa.diskname
+    ld hl,@sector + samdos.dir.diskname
     ld a,(hl)
     cp "*"
     jr nz,@has.label
     ld (hl),0
-@has.label:
+ @has.label:
     res 7,(hl)
     ld bc,10
     ldir
@@ -386,9 +473,9 @@ bdos.read.dir:
     cp dvar.version.b_dos.max + 1
     jr nc,@not.bdos
 
-    ld hl,@sector+uifa.diskname.b_dos
+    ld hl,@sector + samdos.dir.diskname.b_dos
 
-@not.bdos:
+ @not.bdos:
     ld bc,6
     ldir
 
@@ -398,28 +485,12 @@ bdos.read.dir:
     ret
 
 ;-------------------------------------------------------------------------------
-
-
-if defined (debug)
-
-    text.track.sector:
-            defm "T:"
-    @trk:   defm "00"
-            defm "S:"
-    @sec:   defm "00"
-            defb 0
-
-endif
-
-
-;-------------------------------------------------------------------------------
 bdos.read.sector:
 
-; read physical sector from disc
-;   d = track (+128 for side 2)
-;   e = sector
-;   hl= address
-;-------------------------------------------------------------------------------
+    ; read physical sector from disc
+    ;   d = track (+128 for side 2)
+    ;   e = sector
+    ;   hl= address
 
     di
 
@@ -429,7 +500,7 @@ bdos.read.sector:
     push de
     push hl
 
-if defined(debug)
+ if defined(debug)
 
     push hl
     push de
@@ -458,7 +529,7 @@ if defined(debug)
     pop de
     pop hl
 
-endif
+ endif
 
     ld hl,@dos.exit.routine
     ld hl,0
@@ -482,10 +553,10 @@ endif
     pop af
     pop ix
 
-;   ei
+ ;   ei
     ret
 
-@dos.exit.routine:
+ @dos.exit.routine:
 
     ld hl,0
     ld (svar.doser),hl
@@ -495,31 +566,32 @@ endif
 
     ret
 
-@dos.error:
+ @dos.error:
+
     di
     ld bc,port.border
 
-@loop:
-    out (c),a
-    out (c),b
+    @loop:
+        out (c),a
+        out (c),b
 
-    jr @loop
+        jr @loop
 
     push af
 
-@nokey:
-    xor a
-    in a,(port.keyboard)
-    and %00011111
-    cp %00011111
-    jr nz,@nokey
+    @nokey:
+        xor a
+        in a,(port.keyboard)
+        and %00011111
+        cp %00011111
+        jr nz,@nokey
 
-@anykey:
-    xor a
-    in a,(port.keyboard)
-    and %00011111
-    cp %00011111
-    jr z,@anykey
+    @anykey:
+        xor a
+        in a,(port.keyboard)
+        and %00011111
+        cp %00011111
+        jr z,@anykey
 
     pop af
 
@@ -528,19 +600,18 @@ endif
 ;-------------------------------------------------------------------------------
 bdos.get.dvar:
 
-; get dvar value and return it in a
-;   a = dvar to get
-;-------------------------------------------------------------------------------
+ ; get dvar value and return it in a
+ ;   a = dvar to get
 
     call relocate.low
 
-@store.org:
+ @store.org:
 
     defw @get.dvar.len
 
     org inst.buffer
 
-@get.dvar:
+ @get.dvar:
     push hl
     push de
 
@@ -557,7 +628,7 @@ bdos.get.dvar:
     add hl,de
     ld e,(hl)
 
-@store.hmpr:
+ @store.hmpr:
     ld a,0
     out (port.hmpr),a
 
@@ -568,7 +639,7 @@ bdos.get.dvar:
 
     ret
 
-@get.dvar.len:  equ $ - @get.dvar
+ @get.dvar.len:  equ $ - @get.dvar
 
     org @store.org + @get.dvar.len + 2
 
@@ -577,9 +648,9 @@ bdos.get.dvar:
 ;-------------------------------------------------------------------------------
 bdos.get.dvar.word:
 
-; get dvar word value and return it in hl
-;   a = dvar to get
-;-------------------------------------------------------------------------------
+ ; get dvar word value and return it in hl
+ ;   a = dvar to get
+
     push af
     call bdos.get.dvar
     ld l,a
@@ -593,8 +664,7 @@ bdos.get.dvar.word:
 ;-------------------------------------------------------------------------------
 bdos.select.record.hl:
 
-; select record hl
-;-------------------------------------------------------------------------------
+ ; select record hl
 
     push bc
 

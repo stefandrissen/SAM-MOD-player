@@ -27,7 +27,7 @@ load.offs:  equ 0x8000
 
     jp device.start
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 ; loader.variables
     loader.ram:             defb 0 ; %XXXRR (RAM / 256K)
 
@@ -36,12 +36,12 @@ load.offs:  equ 0x8000
     loader.drive:           defb 0 ; [1-2]
     loader.record:          defw 0
     loader.device:          defb 0 ; [0-5]
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 loader.font_high:
 
     mdat "../res/font.bin"
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 cursor.init:
 
     ; input
@@ -61,7 +61,7 @@ cursor.init:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 row.a.to.line:
 
     ; input:
@@ -85,7 +85,7 @@ row.a.to.line:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 cursor.select:
 
     ; selection routine
@@ -117,7 +117,7 @@ cursor.select:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @cursor.move.up:
 
     ld a,c
@@ -139,7 +139,7 @@ cursor.select:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @cursor.move.down:
 
     max.select:
@@ -165,7 +165,7 @@ cursor.select:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 scan.escape:
     ld a,keyboard.caps_tab_esc
     in a,(port.status)
@@ -183,7 +183,7 @@ scan.escape:
 
         ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 scan.keyboard.return:
 
     ld a,keyboard.hjkl_return
@@ -216,7 +216,7 @@ scan.keyboard.return:
 
         ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @scan.keyboard.left.right.shifted:
 
     ld c,1
@@ -319,7 +319,7 @@ loader.palette:
 
     defb %1110111 ;    F
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @show.screen:
 
     ; print header / footer
@@ -332,7 +332,7 @@ loader.palette:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @loader.init:
 
     ld hl,mes.no_disc
@@ -348,7 +348,7 @@ loader.palette:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @check.drives:
 
     ; output:
@@ -356,7 +356,7 @@ loader.palette:
 
     ld hl,option.dir
     ld de,loader.dir
-    ld bc,load.len
+    ld bc,loader.dir.len
     ldir
 
     ld a,(loader.dos.version)
@@ -368,7 +368,7 @@ loader.palette:
     ld a,1
     jr z,@no.drive.2
 
-    ld bc,load.len
+    ld bc,loader.dir.len
     ldir
     ld a,2
 
@@ -397,7 +397,7 @@ loader.palette:
         ld (loader.entries),a
 
         ld hl,record.dir
-        ld bc,load.len
+        ld bc,loader.dir.len
         ldir
 
         push de
@@ -416,16 +416,16 @@ loader.palette:
 
         ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @display.record.number:
 
     ld a,dvar.record
     call bdos.get.dvar.word
 
-    ld de,loader.dir + load.len + 15
+    ld de,loader.dir + loader.dir.len + 15
     jp text.hl.decimal
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 loader:
 
     call @loader.init
@@ -478,118 +478,49 @@ loader:
     cursor.lp:
 
     call get.entry.ix.from.c
-    ld a,(ix+28)
-    res 6,a
-    ld de,mes.noisetracker
-    or a
-    jr z,got.mes
-    ld de,mes.protracker
-    dec a
-    jr z,got.mes
-    ld de,mes.startrekker
-    dec a
-    jr z,got.mes
-    ld de,mes.protracker    ; m!k!
-    dec a
-    jr z,got.mes
-    ld de,mes.drv
- got.mes:
-    ld a,(ix+28)
+    ld a,(ix + @loader.dir.type)
     bit 7,a
-    jp nz,disc.mess     ; new disc message
-    push ix
-    push de
-    pop ix
-    ld (ix+26),"8"
-    bit 6,a
-    jr z,gm.is.8
-    ld (ix+26),"4"
- gm.is.8:
-    pop ix
-    push bc             ; c = select position
-    push de
-    ld a,e
-    add 14
-    ld e,a
-    jr nc,$+3
-    inc d
-    ld a,(ix+38)
-    call cnv.a.to.de
-    pop de
+    jr nz,@disc.mess
 
-    ld b,32
+    res 6,a
+    call mod.text.de
+
+    ; push ix
+    ; push de
+    ; pop ix
+    ; ld (ix+26),"8"      ; 8 bit
+    ; bit 6,a
+    ; jr z,gm.is.8
+    ; ld (ix+26),"4"      ; 4 bit
+
+ ; gm.is.8:
+   ; pop ix
+    push bc             ; c = select position
+;    push de
+;    ld a,e
+;    add 14
+;    ld e,a
+;    jr nc,$+3
+;    inc d
+
+    ld b,32 - 10
     ld hl,video.memory.32.rows * 29 + video.memory.high
     call print.de.b
 
-    ld hl,mes.size
-    ld a,(ix+29)        ; length in patterns
-    ld b,"0"
-    cp 100
-    jr c,gm.len.100
-    inc b
-    sub 100
- gm.len.100:
-    ld (hl),b
-    inc hl
-    ex de,hl
-    call cnv.a.to.de
+    ld hl,video.memory.32.rows * 29 + video.memory.high + 32 - 10
+    call @print.date
 
-    ld l,(ix+36)
-    ld h,(ix+37)
+    call @insert.samples
+    call @insert.patterns
+    call @insert.size
 
-    ld bc,100
-    ld a,"0"-1
-    or a
- gm.get.big:
-    sbc hl,bc
-    inc a
-    jr nc,gm.get.big
-    add hl,bc
-    ld de,mes.size+18
-    ld (de),a
-    inc de
-    ld a,l
-    call cnv.a.to.de
-
-    ld de,mes.size+24
-    ld a,(ix+30)
-    cp "*"
-    jr nz,gm.is.date
-    ld hl,mes.no_date
-    ld bc,8
-    ldir
-    jr gm.got.date
-
- gm.is.date:
-    ex de,hl
-    ld (hl),a
-    inc hl
-    ld a,(ix+31)
-    ld (hl),a
-    inc hl
-    ld (hl),"-"
-    inc hl
-    ld a,(ix+32)
-    ld (hl),a
-    inc hl
-    ld a,(ix+33)
-    ld (hl),a
-    inc hl
-    ld (hl),"-"
-    inc hl
-    ld a,(ix+34)
-    ld (hl),a
-    inc hl
-    ld a,(ix+35)
-    ld (hl),a
-
- gm.got.date:
-
-    ld de,mes.size
     pop bc
-    jr normal.mess
 
- disc.mess:
+    ld de,@mes.details
+    jr @+continue
+
+ @disc.mess:
+
     ld hl,video.memory.32.rows * 29 + video.memory.high
     ld b,32
     @loop:
@@ -597,7 +528,10 @@ loader:
         call print.chr
         djnz @-loop
 
- normal.mess:
+    ld de,mes.drv
+
+ @continue:
+
     ld b,32
     ld hl,video.memory.32.rows * 30 + video.memory.high
     call print.de.b
@@ -629,7 +563,7 @@ loader:
     ld (@still.o),a
  @not.o.nc:
 
-    ld a,(ix+28)
+    ld a,(ix + @loader.dir.type)
     cp 0x81     ; drive 2
     jr nz,@not.drive_2
 
@@ -686,7 +620,76 @@ loader:
     ld c,1
     jp select.key
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
+@print.date:
+
+    ld a,(ix + @loader.dir.date)        ; day (10)
+    cp "*"
+    jr z,@no.date
+
+    call print.chr
+    ld a,(ix + @loader.dir.date + 1)    ; day (1)
+    call print.chr
+    ld a,"/"
+    call print.chr
+    ld a,(ix + @loader.dir.date + 2)    ; month (10)
+    call print.chr
+    ld a,(ix + @loader.dir.date + 3)    ; month (1)
+    call print.chr
+    ld a,"/"
+    call print.chr
+    ld a,(ix + @loader.dir.date + 4)    ; year (1000)
+    call print.chr
+    ld a,(ix + @loader.dir.date + 5)    ; year (100)
+    call print.chr
+    ld a,(ix + @loader.dir.date + 6)    ; year (10)
+    call print.chr
+    ld a,(ix + @loader.dir.date + 7)    ; year (1)
+    call print.chr
+
+    ret
+
+ @no.date:
+
+    ld b,10
+
+    @loop:
+
+        ld a," "
+        call print.chr
+        djnz @-loop
+
+    ret
+
+;-------------------------------------------------------------------------------
+@insert.samples:
+
+    ld l,(ix + @loader.dir.samples)
+    ld h,0
+    ld de,@mes.details.samples
+
+    jp @text.hl.decimal.10.right
+
+;-------------------------------------------------------------------------------
+@insert.patterns:
+
+    ld l,(ix + @loader.dir.patterns)
+    ld h,0
+    ld de,@mes.details.patterns
+
+    jp @text.hl.decimal.100.right
+
+;-------------------------------------------------------------------------------
+@insert.size:
+
+    ld l,(ix + @loader.dir.size + 0)
+    ld h,(ix + @loader.dir.size + 1)
+
+    ld de,@mes.details.size
+
+    jp @text.hl.decimal.100.right
+
+;-------------------------------------------------------------------------------
 @print.octave:
 
     ld hl,video.memory.32.rows * 1 + 26 + video.memory.high
@@ -700,7 +703,7 @@ loader:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @print.drive.number:
 
     ld a,(loader.drive)
@@ -709,7 +712,7 @@ loader:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @set.drive.label:
 
     ; sets drive label (from m.vollabel) or no label if empty
@@ -730,7 +733,7 @@ loader:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @print.drive.label:
 
     call @set.drive.label
@@ -742,7 +745,7 @@ loader:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @print.files:
 
     ld a,(loader.entries)
@@ -772,7 +775,7 @@ loader:
 
         pop de
         ld a,e
-        add load.len
+        add loader.dir.len
         ld e,a
         jr nc,$+3
         inc d
@@ -782,15 +785,18 @@ loader:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 loader.quit:
 
     xor a
     out (port.lmpr),a
     rst 0
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 file.check:
+
+
+ if defined( old )
 
     ;check to see if the sum of sample lengths + patterns = file len
 
@@ -937,29 +943,34 @@ file.check:
     pop de
     pop ix
 
+ endif
+
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 insert.file.size:
 
  file.len:
-    ld hl,0
+    ld hl,0     ; ch (-> in 256 bytes)
     srl h
     rr l
     srl h
     rr l
+    jr nc,@no.round
+    inc hl
+ @no.round:
     ex de,hl
     ld (hl),e   ; size in k
     inc hl
     ld (hl),d
     inc hl
- sample.count:
-    ld a,0
+
+    call mod.get.samples.a
     ld (hl),a
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 fc.sam:
     push de
 
@@ -998,14 +1009,14 @@ fc.sam:
 
 mes.load:   defm " Loading: "
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 select.key:
 
     ; c = current record [0-25]
 
     call get.entry.ix.from.c
 
-    ld a,(ix+28)            ;mod type ,+128=drive
+    ld a,(ix + @loader.dir.type)    ;mod type ,+128=drive
     bit 7,a
     jp nz,new.read
     push af
@@ -1046,7 +1057,7 @@ select.key:
     or a
     jr z,sam.load
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 
 msdos.load: ; !!! does not work yet, needs to be moved to inst.buffer
 
@@ -1115,7 +1126,7 @@ msdos.load: ; !!! does not work yet, needs to be moved to inst.buffer
     jp file.loaded
 
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 sam.load:
 
     ld d,0
@@ -1144,11 +1155,11 @@ sam.load:
  file.notfound:
     jp loader
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 sam.match:
     push ix
     ld a,(hl)
-    cp uifa.filetype.code
+    cp samdos.filetype.code
     jr nz,sam.no.match
 
     ld b,8
@@ -1207,7 +1218,7 @@ sam.match:
     pop ix
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 relocate.load.mod:
 
     org inst.buffer
@@ -1290,7 +1301,7 @@ relocate.load.mod:
 
     org relocate.load.mod + load.mod.len
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 relocate.meg.load.mod:
 
     org inst.buffer
@@ -1384,7 +1395,7 @@ relocate.meg.load.mod:
 
     org relocate.meg.load.mod + meg.load.mod.len
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 file.loaded:
 
     pop af
@@ -1422,14 +1433,17 @@ file.loaded:
 
     jp loader.quit
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 get.entry.ix.from.c:
 
- ; -> c
- ; <- ix
+ ; input:
+ ; - c  = record #
 
-    ld ix,loader.dir-load.len
-    ld de,load.len
+ ; output:
+ ; - ix = pointer to directory entry
+
+    ld ix,loader.dir - loader.dir.len
+    ld de,loader.dir.len
     ld b,c
     inc b
     @loop:
@@ -1438,7 +1452,7 @@ get.entry.ix.from.c:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 new.read:
 
     and 0x7f
@@ -1450,11 +1464,11 @@ new.read:
 
     jp loader
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 var.cursor.blink.timer:     defb 0
 var.cursor.previous.row:    defb 0  ; relative to offset
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 cursor.print.first:
 
  ; input
@@ -1476,7 +1490,7 @@ cursor.print.first:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 cursor.print:
 
     ; input
@@ -1557,7 +1571,7 @@ cursor.print:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 @cursor.get.address:
 
  ; input
@@ -1574,22 +1588,25 @@ cursor.print:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 ; messages
- mes.oct:            defm "Oct: "
- mes.drive:          defm "Drive 1: "
+ mes.oct:               defm "Oct: "
+ mes.drive:             defm "Drive 1: "
 
- mes.label:          defm "Solar Flare     "
- @mes.label.len:     equ $ - mes.label
- mes.no_label:       defm "No label        "
- mes.no_disc:        defm "No disc         "
+ mes.label:             defm "Solar Flare     "
+    @mes.label.len:        equ $ - mes.label
+ mes.no_label:          defm "No label        "
+ mes.no_disc:           defm "No disc         "
 
- mes.noisetracker:   defm "Noisetracker, 15 samples, 8 bits"
- mes.protracker:     defm "Protracker,   31 samples, 8 bits"
- mes.startrekker:    defm "Startrekker,  31 samples, 8 bits"
- mes.drv:            defm "Press RETURN for new directory. "
- mes.size:           defm "127 song entries, 999k,         "
- mes.no_date:        defm "no date "
+ ;mes.noisetracker:   defm "Noisetracker, 15 samples, 8 bits"
+ ;mes.protracker:     defm "Protracker,   31 samples, 8 bits"
+ ;mes.startrekker:    defm "Startrekker,  31 samples, 8 bits"
+ @mes.details:
+    @mes.details.samples:          defm "00 samples, "
+    @mes.details.patterns:         defm "000 patterns    "
+    @mes.details.size:             defm "000K"
+
+ mes.drv:               defm "Press RETURN for new directory. "
 
 option.dir:
     defm " < 1: > "
@@ -1617,33 +1634,35 @@ record.dir:
     defw 0
     defb 0
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 text.hl.decimal:
 
- ;put decimal value of hl at address de
+ ;put decimal value of hl at address de, left aligned
 
     ld bc,10000
     call divide.hl.bc
-    ld (@var.buffer+0),a
+    ld (@var.buffer + 0),a
 
     ld bc,1000
     call divide.hl.bc
-    ld (@var.buffer+1),a
+    ld (@var.buffer + 1),a
 
     ld bc,100
     call divide.hl.bc
-    ld (@var.buffer+2),a
+    ld (@var.buffer + 2),a
 
     ld bc,10
     call divide.hl.bc
-    ld (@var.buffer+3),a
+    ld (@var.buffer + 3),a
 
     ld a,l
-    ld (@var.buffer+4),a
+    ld (@var.buffer + 4),a
 
     ld hl,@var.buffer
     ld b,5
+
     @loop:
+
         ld a,(hl)
         or a
         jr nz,@digit
@@ -1653,7 +1672,9 @@ text.hl.decimal:
         djnz @-loop
 
         inc b
+
     @digit:
+
         add "0"
         ld (de),a
         inc de
@@ -1666,7 +1687,80 @@ text.hl.decimal:
 
     @var.buffer: defs 5
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
+@text.hl.decimal.100.right:
+
+ ;put decimal value of hl at address de, right aligned
+
+ ; input:
+ ; - hl = number
+ ; - de = destination
+
+    ld bc,100
+    call divide.hl.bc
+    ld (@var.buffer + 0),a
+
+    ld bc,10
+    call divide.hl.bc
+    ld (@var.buffer + 1),a
+
+    ld a,l
+    ld (@var.buffer + 2),a
+
+    ld hl,@var.buffer
+    ld b,3
+
+ @text.buffer.to.de:
+
+    @loop:
+
+        ld a,(hl)
+        or a
+        jr nz,@digit
+
+        ld a," "
+        ld (de),a
+        inc de
+        inc hl
+
+        djnz @-loop
+
+        inc b
+
+    @digit:
+
+        add "0"
+        ld (de),a
+        inc de
+        inc hl
+        ld a,(hl)
+
+        djnz @-digit
+
+    ret
+
+;-------------------------------------------------------------------------------
+@text.hl.decimal.10.right:
+
+ ;put decimal value of hl at address de, right aligned
+
+ ; input:
+ ; - hl = number
+ ; - de = destination
+
+    ld bc,10
+    call divide.hl.bc
+    ld (@var.buffer + 0),a
+
+    ld a,l
+    ld (@var.buffer + 1),a
+
+    ld hl,@var.buffer
+    ld b,2
+
+    jr @text.buffer.to.de
+
+;-------------------------------------------------------------------------------
 divide.hl.bc:
 
  ; a = hl / bc
@@ -1685,7 +1779,7 @@ divide.hl.bc:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 cnv.a.to.de:
 
  ; put a at address de and de+1 in ascii format
@@ -1710,7 +1804,7 @@ cnv.a.to.de:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 print.num:
 
     ld b,a
@@ -1729,7 +1823,7 @@ print.num:
     jr c,$+4
     add 7
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 print.chr:
 
  ; a = character to print
@@ -1772,7 +1866,7 @@ print.chr:
     inc l
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 print.screen:
 
     push de
@@ -1842,7 +1936,7 @@ print.screen:
 
     jr @-rows
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 cls:
 
  ; clear mode 2 screen
@@ -1875,7 +1969,7 @@ cls:
 
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 print.de.b:
 
  ; print text at DE, with padded out to B characters
@@ -1898,7 +1992,7 @@ print.de.b:
     ret
 
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 set.attributes:
 
  ; apply attributes to mode 2 screen
@@ -1948,7 +2042,7 @@ set.attributes:
     jr nz,col.loop
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 
 colours:
  colour.black:   equ 0
@@ -1991,11 +2085,11 @@ black.attributes:
     defb  2,colour.green
     defb  1,colour.yellow
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 
 m.vollabel: defm "0123456789abcdef"
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 errnodisc:
 
     ; this WAS called by the FDC routines
@@ -2005,7 +2099,7 @@ errnodisc:
     ld (nodisc+1),a
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 findfile:
 
     ld (save.sam.sp+1),sp
@@ -2045,7 +2139,7 @@ findfile:
     pop af              ; chuck return address
     jp file.notfound
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 select.drive.1:
     ld a,1
     ld hl,fat.path_a
@@ -2054,13 +2148,13 @@ select.drive.1:
     ld (fat.path),hl
     ret
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 select.drive.2:
     ld a,2
     ld hl,fat.path_b
     jr @select.drive
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 relocate.low:
 
  ; move code after call to inst.buffer and execute it
@@ -2089,35 +2183,54 @@ relocate.low:
 
     jp inst.buffer
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 
 include "loader/bdos.s"
 include "loader/unpack.s"
 include "loader/fat.s"
 
-;---------------------------------------------------------------
+;-------------------------------------------------------------------------------
 
 loader.entries: defb 0
 
 loader.dir:
+ @loader.dir.file:      equ $ - loader.dir
     defm "filename"
+ @loader.dir.title:     equ $ - loader.dir
     defm "20 char module title"
-    defb 0          ; module type 0=noise, 1=pro, 2=star +64 = 4 bit compressed
+ @loader.dir.type:      equ $ - loader.dir
+    defb 0          ; module type 0=noise, 1=pro, 2=star +64 = 4 bit compressed, +128 = drive
+ @loader.dir.patterns:  equ $ - loader.dir
     defb 0          ; length in patterns
-    defm "100672"   ; date stamp
+ @loader.dir.date:      equ $ - loader.dir
+    defm "10061972" ; our stamp
+ @loader.dir.size:      equ $ - loader.dir
     defw 0          ; total size in k
+ @loader.dir.samples:   equ $ - loader.dir
     defb 0          ; number of samples (len>1)
 
-    load.len:   equ $ - loader.dir
+    loader.dir.len:     equ $ - loader.dir
 
-    ; defs 27 * load.len  ;max 27 on screen (25 files) - overwrite device selection
+    ; defs 27 * loader.dir.len  ;max 27 on screen (25 files) - overwrite device selection
 
 
 ; in screen area
 
-fat:            equ video.memory.high + 2 * video.memory.32.rows
+; fat:            equ video.memory.high + 2 * video.memory.32.rows
+loader.directory:   equ video.memory.high + 2 * video.memory.32.rows
+    loader.directory.filename:      equ 0x00        ; 10 characters
+        loader.directory.filename.len:  equ 0x0a
+    loader.directory.track:         equ 0x0a        ; byte
+    loader.directory.sector:        equ 0x0b        ; byte
+    loader.directory.size_kb:       equ 0x0c        ; word
+    loader.directory.date:          equ 0x0e        ;
+        loader.directory.date.day:      equ 0x0e    ;
+        loader.directory.date.month:    equ 0x0f    ;
+        loader.directory.date.year:     equ 0x10    ;
 
-temp.spc:       equ video.memory.high + video.memory.32.rows * 32
+loader.directory.len:               equ loader.directory.date + 3
+
+temp.spc:           equ video.memory.high + 32 * video.memory.32.rows
 
 ;===============================================================
 
