@@ -133,7 +133,7 @@ pc.file.ok:
     ld hl,loader.entries
     inc (hl)
     pop hl
-    ld bc,load.len
+    ld bc,loader.dir.len
     add hl,bc
     ex de,hl
     pop hl
@@ -223,7 +223,7 @@ rdrtlp:
 fat.reset_path:
 
     ld hl,(fat.path)
-    ld (hl),"\"
+    ld (hl),@char.backslash
     inc hl
     ld (hl),0
     call fat.copy_path
@@ -343,7 +343,7 @@ fat.get_input_path:
     ld hl,fat.parameter
     ld de,fat.path_temp
     ld a,(hl)
-    cp "\"
+    cp @char.backslash
     jr z,gipnewpath
     ld a,(de)
     or a
@@ -358,12 +358,12 @@ gipfindend:
     jr nz,gipnewpath
     dec de
 gipnewpath:
-    ld a,"\"
+    ld a,@char.backslash
     ld (de),a
     inc de
 
     ld a,(fat.parameter)
-    cp "\"
+    cp @char.backslash
     jr nz,gipns
     ld a,(fat.parameter+1)
     or a
@@ -385,7 +385,7 @@ gipns:
 gipfndlstp:
     dec de
     ld a,(de)
-    cp "\"
+    cp @char.backslash
     jr nz,gipfndlstp
     ld a,e
     cp fat.path_temp \ 256
@@ -433,7 +433,7 @@ gipcopyext:
     djnz gipcopyext
 gipdoneext:
     ld a,(fat.parameter)
-    cp "\"
+    cp @char.backslash
     jr z,gipnewpath
 gipend:
     xor a
@@ -461,7 +461,7 @@ gifcopynm:
     inc hl
     or a
     jr z,gifendname
-    cp "\"
+    cp @char.backslash
     jr z,gifcopynm
     ld (de),a
     inc de
@@ -572,7 +572,7 @@ fat.read_fat:
     push hl
 
     ld de,1
-    ld hl,fat
+    ld hl,loader.directory ; fat
     ld a,(bssecsfat)
     ld b,a
 rfblp:
@@ -698,7 +698,7 @@ fat.get_entry:
     add hl,hl
     add hl,de
 
-    ld de,fat
+    ld de,loader.directory ; fat
     srl h
     rr l
     jr c,oddfat
@@ -820,7 +820,7 @@ getparlp:
     jr z,gpnomore
     cp " "
     jr z,gpnomore
-    cp "\"
+    cp @char.backslash
     jr z,gpnomore
     cp "."
     jr z,gpnomore
@@ -886,17 +886,17 @@ fat.matchfile:      defs 11
 fat.path:           defw fat.path_a
 
 fat.path_a:
-    defb "\",0
+    defb @char.backslash,0
     defs 63
     defb 0
 
 fat.path_b:
-    defb "\",0
+    defb @char.backslash,0
     defs 63
     defb 0
 
 fat.path_temp:
-    defb "\"
+    defb @char.backslash
     defs 64
 
 
@@ -922,3 +922,5 @@ fat.boot_sector:    equ dos.sector
 fat.bytes_cluster:  equ fat.boot_sector + 54
 fat.dir_entries:    equ fat.boot_sector + 56
 fat.data:           equ fat.boot_sector + 58    ; points to first address after FAT
+
+@char.backslash:    equ "\"
