@@ -2,6 +2,7 @@
 
 ; https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system
 ; https://en.wikipedia.org/wiki/File_Allocation_Table#FAT12
+; https://www.eit.lth.se/fileadmin/eit/courses/eitn50/Literature/fat12_description.pdf
 
 ; to do:
 ; - fix msdos
