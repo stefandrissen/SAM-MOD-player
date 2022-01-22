@@ -7,27 +7,26 @@
 ; to do:
 ; - fix msdos
 
-;(C) 2019-2021 Stefan Drissen
+;(C) 2019-2022 Stefan Drissen
 
 ;-------------------------------------------------------------------------------
 read.directory.fat:
 
-    ld hl,(fat.data)
+    ld hl,(@fat.data)
 
     @loop.directory.entries:
 
         ld a,(hl)
-        or a
+        or a                ; 0 = end of directory
         ret z
 
-        cp 229
-        jp z,@next.file    ; deleted file
+        cp 0xe5             ; deleted file
+        jp z,@next.file
 
         push hl
         pop ix
-        ld a,(ix+11)
-        and 8
-        jp nz,@next.file   ; volume label
+        bit 3,(ix+11)       ; 3 = volume label, 11 = attribute
+        jp nz,@next.file
 
         ld a,(ix+8)
         cp "M"
@@ -53,24 +52,19 @@ read.directory.fat:
 
         push de
 
-        ld e,(ix+26)
-        ld d,(ix+27)        ; first cluster
+        ld e,(ix+26)        ;
+        ld d,(ix+27)        ; starting cluster
 
         ld hl,dos.sector
 
         @read.more:
 
-            call fat.read_cluster
-            call fat.get_entry
+            call @cluster.read
+            call @entry.get
             ld a,h
-            cp ( temp.spc + 1084 ) / 256 + 1
+            cp ( screen.free + mod.pt.pattern ) / 256 + 1
 
             jr c,@-read.more
-
-        ld hl,temp.spc+1083
-        ld de,temp.spc+1083
-        ld bc,1084
-        lddr
 
         pop de
 
@@ -79,9 +73,9 @@ read.directory.fat:
 
         push de
 
-        ld e,(ix+28)
-        ld d,(ix+29)
-        ld a,(ix+30)
+        ld e,(ix+28)    ;
+        ld d,(ix+29)    ; file size in bytes
+        ld a,(ix+30)    ;
         ex de,hl
      @pc.resub:
         or a
@@ -96,7 +90,7 @@ read.directory.fat:
         ld c,b
         jr @pc.resub
 
-     @pc.got.maxmin:          ; ahl = difference calc len & file len
+     @pc.got.maxmin:        ; ahl = difference calc len & file len
         pop de
         or h
         jr z,@file.ok
@@ -108,26 +102,26 @@ read.directory.fat:
      @file.ok:
 
      ;get date
-        ld a,(ix+24)
+        ld a,(ix+24)        ; date 7/4/5
         ld b,a
         and %00011111       ; day
         call cnv.a.to.de
         ld a,b
-        and %11100000
+        and %11100000       ; low bits month
         rlca
         rlca
         rlca
         ld c,a
-        ld a,(ix+25)
+        ld a,(ix+25)        ; date 7/4/5
         ld b,a
-        and %00000001
+        and %00000001       ; high bit month
         rlca
         rlca
         rlca
         or c                ; month
         call cnv.a.to.de
         ld a,b
-        and %11111110
+        and %11111110       ; year
         rrca
         add 80
         sub 100
@@ -146,7 +140,7 @@ read.directory.fat:
 
      @next.file:
 
-        ld bc,32
+        ld bc,32            ; directory entry size
         add hl,bc
         ld a,(loader.entries)
         cp 27
@@ -159,22 +153,21 @@ fat.read.dir:
 
     ld (save.sam.sp+1),sp   ; for quick exits
 
-    call fat.readroot
+    call @root.read
 
     xor a
-    ld (m.vollabel),a
+    ld (text.volume.label),a
 
-    ld a,(fat.dir_entries)
-    ld hl,(fat.data)
-    ld de,11
+    ld a,(@var.dir_entries)
+    ld hl,(@fat.data)
+    ld de,11    ; to attribute byte
     add hl,de
-    ld de,32
+    ld de,32    ; directory entry size
     ld b,a
 
     @find.label:
 
-        ld a,(hl)
-        and 8
+        bit 3,(hl)
         jr nz,@found.label
 
         add hl,de
@@ -184,11 +177,11 @@ fat.read.dir:
 
  @found.label:
 
-    ld de,11
+    ld de,11    ; to attribute byte
     xor a
     sbc hl,de
     ld b,11
-    ld de,m.vollabel
+    ld de,text.volume.label
 
     @loop:
 
@@ -200,37 +193,37 @@ fat.read.dir:
 
  @no.label:
 
-    call fat.copy_path
-    call fat.load_path
-    call c,fat.reset_path
+    call @path.copy
+    call @path.load
+    call c,@path.reset
 
     ret
 
 ;-------------------------------------------------------------------------------
-fat.readroot:
+@root.read:
 
  ; read root directory
 
  ; input
  ; - hl = address
 
-    call fat.read_boot_sector
-    call fat.read_fat
-    call fat.startcluster
+    call @boot_sector.read
+    call @fat.read
+    call @startcluster
     push de
-    call fat.startroot
+    call @startroot
     pop hl
     xor a
     sbc hl,de
     ld b,l
     push bc
-    call fat.startroot
+    call @startroot
     pop bc
-    ld hl,(fat.data)
+    ld hl,(@fat.data)
 
     @loop:
 
-        call fat.rdlogsec
+        call @logical_sector.read
         inc de
         djnz @-loop
 
@@ -240,23 +233,23 @@ fat.readroot:
     ret
 
 ;-------------------------------------------------------------------------------
-fat.reset_path:
+@path.reset:
 
     ld hl,(fat.path)
-    ld (hl),@char.backslash
+    ld (hl),"\"
     inc hl
     ld (hl),0
-    call fat.copy_path
-    jp fat.readroot
+    call @path.copy
+    jp @root.read
 
 ;-------------------------------------------------------------------------------
-fat.copy_path:
+@path.copy:
 
     push hl
     push de
     push bc
     ld hl,(fat.path)
-    ld de,fat.path_temp
+    ld de,@path.temp
     ld bc,64
     ldir
     pop bc
@@ -265,25 +258,25 @@ fat.copy_path:
     ret
 
 ;-------------------------------------------------------------------------------
-fat.load_path:
+@path.load:
 
-    ld a,(fat.path_temp+1)
+    ld a,(@path.temp+1)
     or a
     ret z
-    ld hl,fat.path_temp
-    ld (fat.parlast),hl
-    call fat.getparameter
+    ld hl,@path.temp
+    ld (@parameter.last),hl
+    call @parameter.get
 
  lploop:
 
-    ld a,(fat.parameter)
+    ld a,(@parameter)
     or a
     ret z
-    call getinputfile
+    call @getinputfile
 
     push hl
-    ld hl,(fat.data)
-    ld bc,(fat.dir_entries)
+    ld hl,(@fat.data)
+    ld bc,(@var.dir_entries)
 
  lpmatchlp:
 
@@ -303,8 +296,7 @@ fat.load_path:
 
     pop bc
     pop ix
-    ld a,(ix+11)
-    and %00010000
+    bit 4,(ix+11)   ; 4 = directory, 11 = attribute
     jr nz,lpisdir
 
     push ix
@@ -314,28 +306,30 @@ fat.load_path:
 
  lpisdir:
 
-    ld e,(ix+26)
-    ld d,(ix+27)
+    ld e,(ix+26)    ;
+    ld d,(ix+27)    ; starting cluster
 
-    ld hl,(fat.data)
+    ld hl,(@fat.data)
     ld bc,0
 
     @read.more:
 
         push bc
-        call fat.read_cluster
+        call @cluster.read
         pop bc
         inc bc
-        call fat.get_entry
+
+        call @entry.get
+
         ld a,d
-        cp 15
+        cp 0x0f
         jr nz,@-read.more
 
         ld a,e
         cp 0xf8
         jr c,@-read.more
 
-    ld hl,(fat.bytes_cluster)
+    ld hl,(@var.bytes_cluster)
     srl h
     rr l
     srl h
@@ -357,7 +351,7 @@ fat.load_path:
         or c
         jr nz,@-loop
 
-    ld (fat.dir_entries),hl
+    ld (@var.dir_entries),hl
     pop hl
 
     jp lploop
@@ -378,13 +372,13 @@ fat.load_path:
     ret
 
 ;-------------------------------------------------------------------------------
-fat.get_input_path:
+@input_path.get:
 
-    call fat.copy_path
-    ld hl,fat.parameter
-    ld de,fat.path_temp
+    call @path.copy
+    ld hl,@parameter
+    ld de,@path.temp
     ld a,(hl)
-    cp @char.backslash
+    cp "\"
     jr z,gipnewpath
     ld a,(de)
     or a
@@ -397,59 +391,59 @@ fat.get_input_path:
         jr nz,@-find.end
 
     ld a,e
-    cp ( fat.path_temp + 1 ) \ 256
+    cp ( @path.temp + 1 ) \ 256
     jr nz,gipnewpath
     dec de
 
  gipnewpath:
 
-    ld a,@char.backslash
+    ld a,"\"
     ld (de),a
     inc de
 
-    ld a,(fat.parameter)
-    cp @char.backslash
+    ld a,(@parameter)
+    cp "\"
     jr nz,gipns
-    ld a,(fat.parameter+1)
+    ld a,(@parameter+1)
     or a
     jr nz,gipns
     push de
-    call fat.getparameter
+    call @parameter.get
     pop de
-    ld a,(fat.parameter)
+    ld a,(@parameter)
  gipns:
     cp "."
     jr nz,gipnotdot
     push de
-    call fat.getparameter
+    call @parameter.get
     pop de
-    ld a,(fat.parameter)
+    ld a,(@parameter)
     cp "."
     jr nz,gipfndlstp
     dec de
  gipfndlstp:
     dec de
     ld a,(de)
-    cp @char.backslash
+    cp "\"
     jr nz,gipfndlstp
     ld a,e
-    cp fat.path_temp \ 256
+    cp @path.temp \ 256
     jr nz,$+3
     inc de
     xor a
     ld (de),a
 
     push de
-    call fat.getparameter
+    call @parameter.get
     pop de
     jp gipdoneext
 
  gipnotdot:
 
     push de
-    call getinputfile
+    call @getinputfile
     pop de
-    jp c,fat.invaliddir
+    jp c,@directory.invalid
 
     ld hl,fat.parafile
     ld b,8
@@ -486,8 +480,8 @@ fat.get_input_path:
         djnz @-copy.ext
 
  gipdoneext:
-    ld a,(fat.parameter)
-    cp @char.backslash
+    ld a,(@parameter)
+    cp "\"
     jr z,gipnewpath
 
  gipend:
@@ -497,7 +491,7 @@ fat.get_input_path:
     ret
 
 ;-------------------------------------------------------------------------------
-getinputfile:
+@getinputfile:
 
     ld hl,fat.parafile
     ld b,11
@@ -508,7 +502,7 @@ getinputfile:
         inc hl
         djnz @-loop
 
-    ld hl,fat.parameter
+    ld hl,@parameter
     ld de,fat.parafile
     ld a,(hl)
     cp "."
@@ -521,7 +515,7 @@ getinputfile:
         or a
         jr z,gifendname
 
-        cp @char.backslash
+        cp "\"
         jr z,@-loop
 
         ld (de),a
@@ -532,10 +526,10 @@ getinputfile:
     ret
 
  gifendname:
-    call fat.getparameter
+    call @parameter.get
     jr z,gifendext
 
-    ld hl,fat.parameter
+    ld hl,@parameter
     ld a,(hl)
     cp "."
     jr nz,gifendext
@@ -553,7 +547,7 @@ getinputfile:
         inc de
         djnz @-copy.ext
 
-    call fat.getparameter
+    call @parameter.get
     scf
     ret             ; extension longer than 3 chars
 
@@ -563,23 +557,41 @@ getinputfile:
     ret
 
 ;-------------------------------------------------------------------------------
-fat.read_boot_sector:
+@sector.read:
+
+ ; input:
+ ; - de = track / sector
+ ; - hl = address (in current page)
+
+    push hl
+
+    ld hl,dos.sector
+    push hl
+    call bdos.read.sector
+    pop hl
+
+    pop de
+
+    ld bc,512
+    ldir
+
+    ret
+
+;-------------------------------------------------------------------------------
+@boot_sector.read:
 
  ; read boot sector from disc at fixed address
 
-    ld de,0x0001
-    ld hl,fat.boot_sector
+    ld de,0x0001                    ; track 0, sector 1
+    ld hl,@boot_sector
+    call @sector.read
 
-    in a,(port.hmpr)
-    and high.memory.page.mask
-    ld c,a
-
-    call bdos.read.sector
-    ld hl,(bs.total_sectors)
-    ld de,(bs.sectors_per_track)
+    ld hl,(@bs.total_sectors)        ; 3.5" DD -> 1440
+    ld de,(@bs.sectors_per_track)    ; 3.5" DD -> 9
     ld a,d
     or e
-    jr z,notpcdisc
+    jr z,notpcdisc  ; sectors / track > 0
+
     xor a
     ld bc,0
 
@@ -593,13 +605,15 @@ fat.read_boot_sector:
     add hl,de
     ld a,h
     or l
-    jr nz,notpcdisc
+    jr nz,notpcdisc ; total sectors / sectors per track
+
     ld h,b
     ld l,c
-    ld de,(bs.number_of_heads)
+    ld de,(@bs.number_of_heads)      ; 3.5" DD -> 2
     ld a,d
     or e
     jr z,notpcdisc
+
     xor a
 
     @loop:
@@ -613,8 +627,8 @@ fat.read_boot_sector:
     jr nz,notpcdisc
 
     ld hl,0
-    ld bc,(bs.bytes_per_sector)
-    ld a,(bs.sectors_per_cluster)
+    ld bc,(@bs.bytes_per_sector)    ; 3.5" DD -> 512
+    ld a,(@bs.sectors_per_cluster)  ; 3.5" DD -> 2
 
     @loop:
 
@@ -622,9 +636,9 @@ fat.read_boot_sector:
         dec a
         jr nz,@-loop
 
-    ld (fat.bytes_cluster),hl
-    ld hl,(bs.max_root_entries)
-    ld (fat.dir_entries),hl
+    ld (@var.bytes_cluster),hl      ; 3.5" DD -> 1024
+    ld hl,(@bs.max_root_entries)    ; 3.5" DD -> 112
+    ld (@var.dir_entries),hl
 
     ld ix,black.attributes
     ld a,6
@@ -638,30 +652,30 @@ fat.read_boot_sector:
     ret
 
 ;-------------------------------------------------------------------------------
-fat.read_fat:
+@fat.read:
 
  ; read FAT at fixed address, (data) -> first address after FAT
 
     push hl
 
-    ld de,1
-    ld hl,loader.directory ; fat
-    ld a,(bs.sectors_per_fat)
+    ld hl,loader.directory
+    ld a,(@bs.sectors_per_fat)
     ld b,a
+    ld de,1                 ; logical sector
 
     @loop:
-        call fat.rdlogsec
+        call @logical_sector.read
         inc de
         djnz @-loop
 
-    ld (fat.data),hl
+    ld (@fat.data),hl
 
     pop hl
 
     ret
 
 ;-------------------------------------------------------------------------------
-fat.read_cluster:
+@cluster.read:
  ; read cluster from disc
 
  ; input:
@@ -673,7 +687,7 @@ fat.read_cluster:
     dec de
     dec de
     ld hl,0
-    ld a,(bs.sectors_per_cluster)
+    ld a,(@bs.sectors_per_cluster)
     ld b,a
 
     @loop:
@@ -681,17 +695,17 @@ fat.read_cluster:
         add hl,de
         djnz @-loop
 
-    call fat.startcluster
+    call @startcluster
     add hl,de
     ex de,hl
     pop hl
 
-    ld a,(bs.sectors_per_cluster)
+    ld a,(@bs.sectors_per_cluster)
     ld b,a
 
     @loop:
 
-        call fat.rdlogsec
+        call @logical_sector.read
         inc de
         djnz @-loop
 
@@ -699,18 +713,18 @@ fat.read_cluster:
     ret
 
 ;-------------------------------------------------------------------------------
-fat.startroot:
+@startroot:
 
  ; calculate start sector of root directory
  ; returns de with
 
     ld de,1
-    ld a,(bs.number_of_fats)
+    ld a,(@bs.number_of_fats)
     ld b,a
 
     @loop:
 
-        ld a,(bs.sectors_per_fat)
+        ld a,(@bs.sectors_per_fat)
         add a,e
         ld e,a
         djnz @-loop
@@ -722,11 +736,11 @@ calcclusters:
 
  ; calculate total number of clusters on disc
 
-    ld hl,(bs.total_sectors)
-    call fat.startcluster
+    ld hl,(@bs.total_sectors)
+    call @startcluster
     xor a
     sbc hl,de
-    ld a,(bs.sectors_per_cluster)
+    ld a,(@bs.sectors_per_cluster)
 
     @loop:
 
@@ -744,7 +758,7 @@ calcclusters:
     ret
 
 ;-------------------------------------------------------------------------------
-fat.startcluster:
+@startcluster:
 
  ; calculate start sector of cluster 2 (first data cluster)
 
@@ -752,14 +766,14 @@ fat.startcluster:
  ; - de = logical sector of first data cluster
 
     push hl
-    ld hl,(bs.max_root_entries)
+    ld hl,(@bs.max_root_entries)
     add hl,hl
     add hl,hl
     add hl,hl
     add hl,hl
     add hl,hl   ; * 32 bytes per entry
     ld de,0
-    ld bc,(bs.bytes_per_sector)
+    ld bc,(@bs.bytes_per_sector)
     xor a
 
     @loop:
@@ -769,7 +783,7 @@ fat.startcluster:
 
     dec e
     ex de,hl
-    call fat.startroot
+    call @startroot
     add hl,de
     ex de,hl
     pop hl
@@ -777,13 +791,15 @@ fat.startcluster:
     ret
 
 ;-------------------------------------------------------------------------------
-fat.get_entry:
+@entry.get:
  ; get FAT entry
+ ; entries are 12 bits
 
  ; input:
  ;   de = cluster
 
     push hl
+
     ld h,d
     ld l,e
     add hl,hl
@@ -792,18 +808,16 @@ fat.get_entry:
     ld de,loader.directory ; fat
     srl h
     rr l
-    jr c,oddfat
+    jr c,@odd
 
     add hl,de
     ld e,(hl)
+
     inc hl
     ld a,(hl)
-    and 0x0f
-    ld d,a
-    pop hl
-    ret
+    jr @set.d
 
- oddfat:
+ @odd:
 
     add hl,de
     ld a,(hl)
@@ -813,26 +827,30 @@ fat.get_entry:
     rrca
     and 0x0f
     ld e,a
+
     inc hl
     ld a,(hl)
+    rlca
+    rlca
+    rlca
+    rlca
     ld d,a
-    rlca
-    rlca
-    rlca
-    rlca
     and 0xf0
     or e
     ld e,a
-    srl d
-    srl d
-    srl d
-    srl d
-    pop hl
 
+    ld a,d
+
+ @set.d:
+
+    and 0x0f
+    ld d,a
+
+    pop hl
     ret
 
 ;-------------------------------------------------------------------------------
-fat.rdlogsec:
+@logical_sector.read:
  ; read logical sector from disc
 
  ; input:
@@ -843,7 +861,7 @@ fat.rdlogsec:
     push de
     push hl
     ex de,hl
-    ld bc,(bs.sectors_per_track)
+    ld bc,(@bs.sectors_per_track)
     ld de,0
     xor a
 
@@ -856,34 +874,153 @@ fat.rdlogsec:
     adc hl,bc
     dec d
     ld e,l
-    ld a,(bs.number_of_heads)
+    ld a,(@bs.number_of_heads)
     cp 2
     jr nz,$+4
     rrc d
     pop hl
 
-    in a,(port.hmpr)
-    and high.memory.page.mask
-    ld c,a
-
-    call bdos.read.sector
+    call @sector.read
     pop de
     pop bc
 
     ret
 
 ;-------------------------------------------------------------------------------
-fat.chdir:
+fat.findfile:
 
-    call fat.getparameter
-    jp z,fat.badcommand
+ ; input
+ ; - hl -> file name
 
-    call fat.get_input_path
-    call fat.readroot
-    call fat.load_path
-    jp c,fat.invaliddir
+    ld (save.sam.sp+1),sp
 
-    ld hl,fat.path_temp
+    ld de,@file.match
+    ld bc,11
+    ldir
+
+    call @root.read
+    call @path.load
+    call c,@path.reset
+    ld bc,(@var.dir_entries)
+    ld hl,(@fat.data)
+
+    @loop.files:
+
+        push hl
+        push bc
+
+        ld b,11
+        ld de,@file.match
+
+        @loop:
+
+            ld a,(de)
+            cp (hl)
+            inc de
+            inc hl
+            jr nz,@leave
+
+            djnz @-loop
+
+     @leave:
+
+        pop bc
+        pop hl
+
+        ret z
+
+        ld de,32
+        add hl,de
+        dec bc
+        ld a,b
+        or c
+
+        jr nz,@-loop.files
+
+    pop af              ; chuck return address
+
+    jp file.notfound
+
+;-------------------------------------------------------------------------------
+
+fat.load: ; !!! does not work yet, needs to be moved to inst.buffer
+
+    push hl
+    pop ix
+    ld e,(ix+26)
+    ld d,(ix+27)
+
+    ld a,(loader.ram)
+    and %11100
+    jr z,@+no.megabyte
+
+    ld a,high.memory.external
+    out (port.hmpr),a
+    ld a,page.mod.megabyte
+    out (port.xmpr.c),a
+    inc a
+    out (port.xmpr.d),a
+    ld (@external+1),a
+
+    jr @+continue
+
+ @no.megabyte:
+
+    ld a,page.mod
+    out (port.hmpr),a
+
+ @continue:
+
+    ld hl,load.offs
+ pc.load.all:
+    call @cluster.read
+    bit 6,h
+    res 6,h
+    jr z,@page.ok
+
+    ld a,(loader.ram)
+    and %11100
+    jr z,@+no.megabyte
+
+ @external:
+    ld a,0
+    out (port.xmpr.c),a
+    inc a
+    out (port.xmpr.d),a
+    ld (@external+1),a
+
+    jr @page.ok
+
+ @no.megabyte:
+
+    in a,(port.hmpr)
+    inc a
+    out (port.hmpr),a
+
+ @page.ok:
+
+    call @entry.get
+    ld a,d
+    cp 0x0f
+    jr nz,pc.load.all
+    ld a,e
+    cp 0xf8
+    jr c,pc.load.all
+
+    jp file.loaded
+
+;-------------------------------------------------------------------------------
+@directory.change:
+
+    call @parameter.get
+    jp z,@command.bad
+
+    call @input_path.get
+    call @root.read
+    call @path.load
+    jp c,@directory.invalid
+
+    ld hl,@path.temp
     ld de,(fat.path)
     ld bc,64
     ldir
@@ -891,10 +1028,10 @@ fat.chdir:
     ret
 
 ;-------------------------------------------------------------------------------
-fat.getparameter:
+@parameter.get:
 
-    ld hl,(fat.parlast)
-    ld de,fat.parameter
+    ld hl,(@parameter.last)
+    ld de,@parameter
 
     @loop:
 
@@ -917,7 +1054,7 @@ fat.getparameter:
         jr z,@leave
         cp " "
         jr z,@leave
-        cp @char.backslash
+        cp "\"
         jr z,@leave
         cp "."
         jr z,@leave
@@ -927,7 +1064,7 @@ fat.getparameter:
  @leave:
 
     dec hl
-    ld (fat.parlast),hl
+    ld (@parameter.last),hl
     xor a
     ld (de),a
     dec a
@@ -936,92 +1073,98 @@ fat.getparameter:
 
 ;-------------------------------------------------------------------------------
 
-fat.badcommand:
-    ld hl,fat.msbadfile
+@command.bad:
+    ld hl,@msbadfile
     ret
 
-fat.badfilename:
-    ld hl,fat.msbadname
+@filename.bad:
+    ld hl,@msbadname
     ret
 
-fat.filenotfound:
-    ld hl,fat.msfilenot
+@file.not_found:
+    ld hl,@msfilenot
     ret
 
-fat.invaliddir:
-    ld hl,fat.msinvdir
+@directory.invalid:
+    ld hl,@msinvdir
     ret
 
 ;-------------------------------------------------------------------------------
 
-fat.msbadfile:
+@msbadfile:
     defb 13
     defm "Bad command or file name"
     defb 13,0
 
-fat.msbadname:
+@msbadname:
     defb 13
     defm "Invalid file name"
     defb 13,0
 
-fat.msfilenot:
+@msfilenot:
     defb 13
     defm "File not found"
     defb 13,0
 
-fat.msinvdir:
+@msinvdir:
     defb 13
     defm "Invalid subdirectory"
     defb 13,0
 
-
-fat.parlast:        defw 0
-
-fat.parameter:      defs 255
-
+;-------------------------------------------------------------------------------
+@parameter.last:    defw 0
+@parameter:         defs 255
 fat.parafile:       defs 11
-
-fat.matchfile:      defs 11
+@file.match:        defs 11
 
 fat.path:           defw fat.path_a
 
 fat.path_a:
-    defb @char.backslash,0
+    defb "\",0
     defs 63
     defb 0
 
 fat.path_b:
-    defb @char.backslash,0
+    defb "\",0
     defs 63
     defb 0
 
-fat.path_temp:
-    defb @char.backslash
+@path.temp:
+    defb "\"
     defs 64
 
+;-------------------------------------------------------------------------------
+@boot_sector:               ; equ dos.sector
+
+ ; https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Bootsector
+
+   ;@bs.oem_name:               equ @boot_sector + 0x003
+
+  ; BIOS Parameter Block
+
+    @bs.bytes_per_sector:       equ @boot_sector + 0x00b
+    @bs.sectors_per_cluster:    equ @boot_sector + 0x00d
+    @bs.reserved_sectors:       equ @boot_sector + 0x00e
+    @bs.number_of_fats:         equ @boot_sector + 0x010
+    @bs.max_root_entries:       equ @boot_sector + 0x011
+    @bs.total_sectors:          equ @boot_sector + 0x013
+   ;@bs.media_descriptor:       equ @boot_sector + 0x015
+    @bs.sectors_per_fat:        equ @boot_sector + 0x016
+    @bs.sectors_per_track:      equ @boot_sector + 0x018
+    @bs.number_of_heads:        equ @boot_sector + 0x01a
+   ;@bs.hidden_sectors:         equ @boot_sector + 0x01c
+   ;@bs.big_total_sectors:      equ @boot_sector + 0x020
+
+  ; Extended BIOS Parameter Block
+
+   ;@bs.physical_drive_number:  equ @boot_sector + 0x024
+    @bs.volume_id:              equ @boot_sector + 0x027
+    @bs.volume_label:           equ @boot_sector + 0x02b    ; 11 characters
 
 ;-------------------------------------------------------------------------------
 
-fat.boot_sector:        equ dos.sector
-    ; bssysid:                equ fat.boot_sector +  3
-    bs.bytes_per_sector:    equ fat.boot_sector + 11
-    bs.sectors_per_cluster: equ fat.boot_sector + 13
-    bs.reserved_sectors:    equ fat.boot_sector + 14
-    bs.number_of_fats:      equ fat.boot_sector + 16
-    bs.max_root_entries:    equ fat.boot_sector + 17
-    bs.total_sectors:       equ fat.boot_sector + 19
-    ; bsformatid:             equ fat.boot_sector + 21
-    bs.sectors_per_fat:     equ fat.boot_sector + 22
-    bs.sectors_per_track:   equ fat.boot_sector + 24
-    bs.number_of_heads:     equ fat.boot_sector + 26
-    ; bshiddensecs:           equ fat.boot_sector + 28
-    ; bsbigtot:               equ fat.boot_sector + 32
-    ; bsphysdrv:              equ fat.boot_sector + 36
-    bs.volume_id:           equ fat.boot_sector + 39
-    bs.volume_label:        equ fat.boot_sector + 43
+@var.bytes_cluster:         equ @bs.volume_label   + 11 ; calculated from the above
+@var.dir_entries:           equ @var.bytes_cluster + 2
+@fat.data:                  equ @var.dir_entries   + 2  ; points to first address after FAT
 
-fat.bytes_cluster:  equ fat.boot_sector + 54
-fat.dir_entries:    equ fat.boot_sector + 56
-fat.data:           equ fat.boot_sector + 58    ; points to first address after FAT
-
-@char.backslash:    equ "\"
+defs 512
