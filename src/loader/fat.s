@@ -10,7 +10,77 @@
 ;(C) 2019-2022 Stefan Drissen
 
 ;-------------------------------------------------------------------------------
-read.directory.fat:
+
+@directory_entry:
+
+    @dir.file_name:                 equ 0x00
+    @dir.file_extension:            equ 0x08
+        @dir.file_name_len:             equ 0x0b
+    @dir.file_attributes:           equ 0x0b
+        @dir.attribute.volume_label:    equ 3
+        @dir.attribute.subdirectory:    equ 4
+
+    @dir.last_modified_date:        equ 0x18    ; yyyyyyy mmmm ddddd (0 = 1980)
+    @dir.start_cluster:             equ 0x1a    ; word
+    @dir.file_size_bytes:           equ 0x1c    ; dword
+
+    @directory_entry.size:          equ 0x20
+
+;-------------------------------------------------------------------------------
+fat.disk.read:
+
+ ; check if disk is a fat formatted disk
+
+    ld (save.sam.sp+1),sp   ; for quick exits
+
+    call @root.read
+
+    xor a
+    ld (text.volume.label),a
+
+    ld a,(@var.dir_entries)
+    ld hl,(@fat.data)
+    ld de,@dir.file_attributes
+    add hl,de
+    ld de,@directory_entry.size
+    ld b,a
+
+    @find.label:
+
+        bit @dir.attribute.volume_label,(hl)
+        jr nz,@found.label
+
+        add hl,de
+        djnz @-find.label
+
+    jr z,@no.label
+
+ @found.label:
+
+    ld de,@dir.file_attributes
+    xor a
+    sbc hl,de
+    ld b,@dir.file_name_len
+    ld de,text.volume.label
+
+    @loop:
+
+        ld a,(hl)
+        ld (de),a
+        inc hl
+        inc de
+        djnz @-loop
+
+ @no.label:
+
+    call @path.copy
+    call @path.load
+    call c,@path.reset
+
+    ret
+
+;-------------------------------------------------------------------------------
+fat.directory.read:
 
     ld hl,(@fat.data)
 
@@ -25,16 +95,16 @@ read.directory.fat:
 
         push hl
         pop ix
-        bit 3,(ix+11)       ; 3 = volume label, 11 = attribute
+        bit @dir.attribute.volume_label,(ix + @dir.file_attributes)
         jp nz,@next.file
 
-        ld a,(ix+8)
+        ld a,(ix + @dir.file_extension + 0)
         cp "M"
         jp nz,@next.file
-        ld a,(ix+9)
+        ld a,(ix + @dir.file_extension + 1)
         cp "O"
         jp nz,@next.file
-        ld a,(ix+10)
+        ld a,(ix + @dir.file_extension + 2)
         cp "D"
         jp nz,@next.file    ; not MOD extension
 
@@ -52,8 +122,8 @@ read.directory.fat:
 
         push de
 
-        ld e,(ix+26)        ;
-        ld d,(ix+27)        ; starting cluster
+        ld e,(ix + @dir.start_cluster + 0)
+        ld d,(ix + @dir.start_cluster + 1)
 
         ld hl,dos.sector
 
@@ -73,9 +143,9 @@ read.directory.fat:
 
         push de
 
-        ld e,(ix+28)    ;
-        ld d,(ix+29)    ; file size in bytes
-        ld a,(ix+30)    ;
+        ld e,(ix + @dir.file_size_bytes + 0)
+        ld d,(ix + @dir.file_size_bytes + 1)
+        ld a,(ix + @dir.file_size_bytes + 2)
         ex de,hl
      @pc.resub:
         or a
@@ -102,7 +172,7 @@ read.directory.fat:
      @file.ok:
 
      ;get date
-        ld a,(ix+24)        ; date 7/4/5
+        ld a,(ix + @dir.last_modified_date + 0) ; date yyyyyyy m|mmm ddddd
         ld b,a
         and %00011111       ; day
         call cnv.a.to.de
@@ -112,7 +182,7 @@ read.directory.fat:
         rlca
         rlca
         ld c,a
-        ld a,(ix+25)        ; date 7/4/5
+        ld a,(ix + @dir.last_modified_date + 1) ; date yyyyyyy m|mmm ddddd
         ld b,a
         and %00000001       ; high bit month
         rlca
@@ -140,64 +210,13 @@ read.directory.fat:
 
      @next.file:
 
-        ld bc,32            ; directory entry size
+        ld bc,@directory_entry.size
         add hl,bc
         ld a,(loader.entries)
         cp 27
         ret z
 
         jp @-loop.directory.entries
-
-;-------------------------------------------------------------------------------
-fat.read.dir:
-
-    ld (save.sam.sp+1),sp   ; for quick exits
-
-    call @root.read
-
-    xor a
-    ld (text.volume.label),a
-
-    ld a,(@var.dir_entries)
-    ld hl,(@fat.data)
-    ld de,11    ; to attribute byte
-    add hl,de
-    ld de,32    ; directory entry size
-    ld b,a
-
-    @find.label:
-
-        bit 3,(hl)
-        jr nz,@found.label
-
-        add hl,de
-        djnz @-find.label
-
-    jr z,@no.label
-
- @found.label:
-
-    ld de,11    ; to attribute byte
-    xor a
-    sbc hl,de
-    ld b,11
-    ld de,text.volume.label
-
-    @loop:
-
-        ld a,(hl)
-        ld (de),a
-        inc hl
-        inc de
-        djnz @-loop
-
- @no.label:
-
-    call @path.copy
-    call @path.load
-    call c,@path.reset
-
-    ret
 
 ;-------------------------------------------------------------------------------
 @root.read:
@@ -283,7 +302,7 @@ fat.read.dir:
     ld de,fat.parafile
     push hl
     push bc
-    ld b,11
+    ld b,@dir.file_name_len
 
     @loop:
 
@@ -296,7 +315,7 @@ fat.read.dir:
 
     pop bc
     pop ix
-    bit 4,(ix+11)   ; 4 = directory, 11 = attribute
+    bit @dir.attribute.subdirectory,(ix + @dir.file_attributes)
     jr nz,lpisdir
 
     push ix
@@ -306,8 +325,8 @@ fat.read.dir:
 
  lpisdir:
 
-    ld e,(ix+26)    ;
-    ld d,(ix+27)    ; starting cluster
+    ld e,(ix + @dir.start_cluster)
+    ld d,(ix + @dir.start_cluster + 1)
 
     ld hl,(@fat.data)
     ld bc,0
@@ -360,7 +379,7 @@ fat.read.dir:
 
     pop bc
     pop hl
-    ld de,32
+    ld de,@directory_entry.size
     add hl,de
     dec bc
     ld a,b
@@ -494,7 +513,7 @@ fat.read.dir:
 @getinputfile:
 
     ld hl,fat.parafile
-    ld b,11
+    ld b,@dir.file_name_len
 
     @loop:
 
@@ -887,7 +906,7 @@ calcclusters:
     ret
 
 ;-------------------------------------------------------------------------------
-fat.findfile:
+fat.file.find:
 
  ; input
  ; - hl -> file name
@@ -895,7 +914,7 @@ fat.findfile:
     ld (save.sam.sp+1),sp
 
     ld de,@file.match
-    ld bc,11
+    ld bc,@dir.file_name_len
     ldir
 
     call @root.read
@@ -909,7 +928,7 @@ fat.findfile:
         push hl
         push bc
 
-        ld b,11
+        ld b,@dir.file_name_len
         ld de,@file.match
 
         @loop:
@@ -929,7 +948,7 @@ fat.findfile:
 
         ret z
 
-        ld de,32
+        ld de,@directory_entry.size
         add hl,de
         dec bc
         ld a,b
@@ -947,8 +966,8 @@ fat.load: ; !!! does not work yet, needs to be moved to inst.buffer
 
     push hl
     pop ix
-    ld e,(ix+26)
-    ld d,(ix+27)
+    ld e,(ix + @dir.start_cluster)
+    ld d,(ix + @dir.start_cluster + 1)
 
     ld a,(loader.ram)
     and %11100
@@ -1114,8 +1133,8 @@ fat.load: ; !!! does not work yet, needs to be moved to inst.buffer
 ;-------------------------------------------------------------------------------
 @parameter.last:    defw 0
 @parameter:         defs 255
-fat.parafile:       defs 11
-@file.match:        defs 11
+fat.parafile:       defs @dir.file_name_len
+@file.match:        defs @dir.file_name_len
 
 fat.path:           defw fat.path_a
 
@@ -1159,11 +1178,12 @@ fat.path_b:
 
    ;@bs.physical_drive_number:  equ @boot_sector + 0x024
     @bs.volume_id:              equ @boot_sector + 0x027
-    @bs.volume_label:           equ @boot_sector + 0x02b    ; 11 characters
+    @bs.volume_label:           equ @boot_sector + 0x02b
+    @bs.volume_label.len:       equ 11
 
 ;-------------------------------------------------------------------------------
 
-@var.bytes_cluster:         equ @bs.volume_label   + 11 ; calculated from the above
+@var.bytes_cluster:         equ @bs.volume_label   + @bs.volume_label.len
 @var.dir_entries:           equ @var.bytes_cluster + 2
 @fat.data:                  equ @var.dir_entries   + 2  ; points to first address after FAT
 

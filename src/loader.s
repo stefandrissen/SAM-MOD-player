@@ -433,13 +433,13 @@ loader:
     call @check.drives
 
     push de
-    call fat.read.dir
+    call fat.disk.read
     pop de
 
-    nodisc:
-        ld a,0  ; set by errnodisc
-        or a
-        jr nz,@select.file
+ nodisc:
+    ld a,0  ; set by errnodisc
+    or a
+    jr nz,@select.file
 
     push de
     ld ix,black.attributes
@@ -447,35 +447,29 @@ loader:
     call set.attributes
     pop de
 
-    msdos:
-        ld a,0
-        or a
-        push af
-        call z,read.directory.bdos
-        pop af
-        call nz,read.directory.fat
+    call @directory.read
 
-    @select.file:
+ @select.file:
 
-        call @show.screen
-        call @print.octave
-        call @print.drive.number
-        call @print.drive.label
-        call @print.files
+    call @show.screen
+    call @print.octave
+    call @print.drive.number
+    call @print.drive.label
+    call @print.files
 
-        call @still.esc ; to prevent immediate exit when escape used to exit "DEMO"
+    call @still.esc ; to prevent immediate exit when escape used to exit "DEMO"
 
-        ld b,4                  ; row
-        ld a,(loader.entries)
-        dec a                   ; max
-        call cursor.init
+    ld b,4                  ; row
+    ld a,(loader.entries)
+    dec a                   ; max
+    call cursor.init
 
-        ld a,(loader.drive)
-        dec a
-        ld c,a
-        call cursor.print
+    ld a,(loader.drive)
+    dec a
+    ld c,a
+    call cursor.print
 
-    cursor.lp:
+ cursor.lp:
 
     call get.entry.ix.from.c
     ld a,(ix + @loader.dir.type)
@@ -486,23 +480,7 @@ loader:
 
     call mod.text.de
 
-    ; push ix
-    ; push de
-    ; pop ix
-    ; ld (ix+26),"8"      ; 8 bit
-    ; bit 6,a
-    ; jr z,gm.is.8
-    ; ld (ix+26),"4"      ; 4 bit
-
- ; gm.is.8:
-   ; pop ix
     push bc             ; c = select position
-;    push de
-;    ld a,e
-;    add 14
-;    ld e,a
-;    jr nc,$+3
-;    inc d
 
     ld b,screen.width - 10
     ld hl,screen + screen.32.rows * 29
@@ -620,6 +598,16 @@ loader:
     pop bc                      ; toss bc
     ld c,1
     jp select.key
+
+;-------------------------------------------------------------------------------
+@directory.read:
+
+ msdos:
+    ld a,0
+    or a
+    jp z,bdos.directory.read
+
+    jp fat.directory.read
 
 ;-------------------------------------------------------------------------------
 @print.date:
@@ -923,7 +911,7 @@ select.key:
     ld (hl),"D"
 
     ld hl,fat.parafile
-    call fat.findfile
+    call fat.file.find
     ld a,(msdos+1)
     or a
     call nz,fat.load
