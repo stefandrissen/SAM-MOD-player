@@ -66,7 +66,7 @@ read.directory.bdos:
 
         push ix
         push de
-        ld hl,temp.spc+9
+        ld hl,screen.free + 9
         call mod.determine.type
         pop de
         pop ix
@@ -82,7 +82,7 @@ read.directory.bdos:
 
      @file.valid:
 
-        ld hl,temp.spc + 9 + mod.sample.title
+        ld hl,screen.free + 9 + mod.sample.title
         ld bc,mod.title.len
         ldir
 
@@ -138,7 +138,7 @@ read.directory.bdos:
 
     ; read first 3 sectors of file to check if it is a mod
 
-    ld hl,temp.spc
+    ld hl,screen.free
     call @read.sector
     ret z
 
@@ -391,7 +391,7 @@ bdos.read.dir:
     push hl
     push de
 
-    ld de,m.vollabel
+    ld de,text.volume.label
     ld hl,@sector + samdos.dir.diskname
     ld a,(hl)
     cp "*"
@@ -424,7 +424,7 @@ bdos.read.sector:
     ; read physical sector from disc
     ;   d = track (+128 for side 2)
     ;   e = sector
-    ;   hl= address
+    ;   hl= address (0x4000 to 0xfe00)
 
     di
 
@@ -440,7 +440,7 @@ bdos.read.sector:
     push de
     push bc
 
-    ld hl,video.memory.high + 30 * video.memory.32.rows
+    ld hl,screen + 30 * screen.32.rows
 
     ld a,"T"
     call print.chr
