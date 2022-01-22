@@ -53,7 +53,7 @@ show.samples:
         inc d
 
         ld a,l
-        add video.memory.32.rows - 30
+        add screen.32.rows - 30
         ld l,a
         jr nc,$+3
         inc h
@@ -98,7 +98,7 @@ get.samples:
     ld a,6
     call colour.scrn
 
-    ld hl,video.memory.32.rows * 1 + 0 + video.memory.high.attributes
+    ld hl,screen.attributes + screen.32.rows * 1 + 0
     ld b,31 * 6
     ld de,31
     xor a
@@ -109,7 +109,7 @@ get.samples:
         inc hl
         djnz @-loop
 
-    ld hl,video.memory.32.rows * 1 + 0 + video.memory.high
+    ld hl,screen + screen.32.rows * 1 + 0
     ld c,31
 
     @loop.rows:
@@ -133,7 +133,7 @@ get.samples:
 
     call print.title
 
-    ld hl,video.memory.32.rows * 1 + 1 + video.memory.high
+    ld hl,screen + screen.32.rows * 1 + 1
     ld de,mod.header + mod.title.len
     ld a,(demo.samples.high)
     ld c,a

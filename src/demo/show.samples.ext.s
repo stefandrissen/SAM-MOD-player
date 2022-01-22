@@ -89,7 +89,7 @@ show.samples.ext:
 
         inc de
         ld a,l
-        add video.memory.32.rows - 30 + 10
+        add screen.32.rows - 30 + 10
 
         jr @fin.loop
 
@@ -119,7 +119,7 @@ show.samples.ext:
      @pr.next.in2:
 
         ld a,l
-        add video.memory.32.rows - 30
+        add screen.32.rows - 30
 
      @fin.loop:
 

@@ -380,7 +380,7 @@ print.device.details:
     ld a,(hl)
     add "0"
     push hl
-    ld hl,video.memory.32.rows * 30 + video.memory.high
+    ld hl,screen + screen.32.rows * 30
     call print.chr
     ld de,text.bits
     ld b,7
@@ -397,13 +397,13 @@ print.device.details:
     inc hl
     ld d,(hl)
     ld b,32 - 8
-    ld hl,video.memory.32.rows * 30 + 8 + video.memory.high
+    ld hl,screen + screen.32.rows * 30 + 8
     call print.de.b
 
     pop af
     push af
 
-    ld hl,video.memory.32.rows * 30 + 26 + video.memory.high
+    ld hl,screen + screen.32.rows * 30 + 26
     ld b,6
     ld de,text.blank
 
@@ -463,7 +463,7 @@ print.speed.details:
     ld d,(hl)
 
     ld b,32
-    ld hl,video.memory.32.rows * 30 + video.memory.high
+    ld hl,screen + screen.32.rows * 30
     call print.de.b
 
     pop af

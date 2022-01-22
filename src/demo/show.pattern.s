@@ -12,7 +12,7 @@ show.pattern:
     ld a,8
     call colour.scrn
 
-    ld hl,video.memory.24.rows * 3 + 1 + video.memory.high.attributes
+    ld hl,screen.attributes + screen.24.rows * 3 + 1
     ld c,24 - 3 - 3
     ld de,29
 
@@ -43,45 +43,45 @@ show.pattern:
     call print.title
 
     ld de,@text.volume
-    ld hl,video.memory.24.rows * 1 + 0 + video.memory.high
+    ld hl,screen + screen.24.rows * 1 + 0
     ld b,32
     call print.de.b
 
     call print.amplification.factor
 
     ld de,@text.keys
-    ld hl,video.memory.24.rows * 22 + 0 + video.memory.high
+    ld hl,screen + screen.24.rows * 22 + 0
     ld b,32
     call print.de.b
 
     ld de,@text.author
-    ld hl,video.memory.24.rows * 23 + 0 + video.memory.high
+    ld hl,screen + screen.24.rows * 23 + 0
     ld b,32
     call print.de.b
 
     ld de,@text.channel
-    ld hl,video.memory.24.rows * 2 + 1 + video.memory.high
+    ld hl,screen + screen.24.rows * 2 + 1
     ld b,8
     call print.de.b
     ld a,"1"
     call print.chr
 
     ld de,@text.channel
-    ld hl,video.memory.24.rows * 2 + 22 + video.memory.high
+    ld hl,screen + screen.24.rows * 2 + 22
     ld b,8
     call print.de.b
     ld a,"2"
     call print.chr
 
     ld de,@text.channel
-    ld hl,video.memory.24.rows * 12 + 1 + video.memory.high
+    ld hl,screen + screen.24.rows * 12 + 1
     ld b,8
     call print.de.b
     ld a,"4"
     call print.chr
 
     ld de,@text.channel
-    ld hl,video.memory.24.rows * 12 + 22 + video.memory.high
+    ld hl,screen + screen.24.rows * 12 + 22
     ld b,8
     call print.de.b
     ld a,"3"
@@ -117,7 +117,7 @@ show.pattern:
 ;-------------------------------------------------------------------------------
 print.amplification.factor:
 
-    ld hl,video.memory.24.rows * 1 + 5 + video.memory.high
+    ld hl,screen + screen.24.rows * 1 + 5
     ld bc,(amplification.factor+1)
 
 print.percent:
@@ -211,7 +211,7 @@ pattern.interrupt:
 
  @print.channel.1_2:
 
-    ld hl,video.memory.24.rows * 3 + 3 + video.memory.high
+    ld hl,screen + screen.24.rows * 3 + 3
 
   @print.pos:
     ld a,0
@@ -518,5 +518,5 @@ print.loop.status:
     ld a,"Y"
     jr z,$+4
     ld a,"N"
-    ld hl,video.memory.24.rows * 22 + 31 + video.memory.high
+    ld hl,screen + screen.24.rows * 22 + 31
     jp print.chr

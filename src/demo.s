@@ -77,7 +77,7 @@ demo.samples:       defb 0  ; [15|31]
 
     ld hl,0x8000
     ld de,mod.header - 0x8000
-    ld bc,mod.header.len
+    ld bc,mod.pt.pattern
     ldir
 
     ld a,page.tracker
@@ -250,7 +250,7 @@ demo:
     ; print pattern position
 
     ld b,32                     ;for print routine
-    ld hl,video.memory.24.rows * 0 + 24 + video.memory.high
+    ld hl,screen + screen.24.rows * 0 + 24
     ld a,(song.pos)
     ld c,a
     call print.hi.nibble
@@ -279,7 +279,7 @@ demo:
 
     ; print speed and tempo
 
-    ld hl,video.memory.24.rows * 1 + 18 + video.memory.high
+    ld hl,screen + screen.24.rows * 1 + 18
     ld a,(speed)
     ld c,a
     call print.hi.nibble
@@ -296,7 +296,7 @@ demo:
     adc hl,bc
     ld b,h
     ld c,l
-    ld hl,video.memory.24.rows * 1 + 29 + video.memory.high
+    ld hl,screen + screen.24.rows * 1 + 29
     call print.percent
 
  @skip.speed:
@@ -899,7 +899,7 @@ print.screen:
     ld a,6
     call colour.scrn
 
-    ld hl,video.memory.high
+    ld hl,screen
     pop de
     ld c,32
 
@@ -922,7 +922,7 @@ print.screen:
 
         pop hl
         ld a,l
-        add video.memory.32.rows
+        add screen.32.rows
         ld l,a
         jr nc,$+3
         inc h
@@ -937,7 +937,7 @@ print.screen:
 ;-------------------------------------------------------------------------------
 print.title:
 
-    ld hl,video.memory.high
+    ld hl,screen
     ld de,mod.header
     ld b,mod.title.len
     call print.de.b
@@ -947,8 +947,8 @@ print.title:
 ;-------------------------------------------------------------------------------
 cls:
 
-    ld hl,video.memory.high
-    ld de,video.memory.high + 1
+    ld hl,screen
+    ld de,screen + 1
     ld bc,6143
     ld (hl),l
     ldir
@@ -986,7 +986,7 @@ colour.scrn:
 
     ld (@line.size+1),a
 
-    ld hl,video.memory.high.attributes
+    ld hl,screen.attributes
 
     @loop.data:
 
@@ -1090,7 +1090,7 @@ colour.scrn:
         inc ix
 
         ld a,h
-        cp ( video.memory.high.attributes + 6144 ) / 256
+        cp ( screen.attributes + 0x1800 ) / 0x100
 
         jr nz,@-loop.data
 
@@ -1204,8 +1204,8 @@ create.fast.print:
 create.line.table:
 
     ld ix,line.table
-    ld hl,video.memory.high.attributes
-    ld de,video.memory.32.rows
+    ld hl,screen.attributes
+    ld de,screen.32.rows
     ld b,32
 
     @loop:
@@ -1284,8 +1284,7 @@ create.note.table:
 length: equ $-demo.setup
 
 ;-------------------------------------------------------------------------------
-mod.header.len: equ mod.pt.pattern
-mod.header:     defs mod.header.len ; first 1084 bytes of mod containing song name + sample info
+mod.header:     defs mod.pt.pattern ; first 1084 bytes of mod containing song name + sample info
 
 ;-------------------------------------------------------------------------------
     defs align 256

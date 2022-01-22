@@ -60,7 +60,7 @@ frame.screen:           equ var + 32    ; screen page (+mode) set at start of fr
 int.routine:            equ var + 33    ; address (>32K) or interrupt routine
 int.rtn.pag:            equ var + 35    ; -1 = no interrupt else page
 
-c1.on:                  equ var + 36    ; channel 1 on/off
+c1.on:                 equ var + 36    ; channel 1 on/off
 c2.on:                  equ var + 37    ; channel 2 on/off
 c3.on:                  equ var + 38    ; channel 3 on/off
 c4.on:                  equ var + 39    ; channel 4 on/off
@@ -115,12 +115,16 @@ bp.audio_buffer.2.qss:  equ bp.audio_buffer.1 + ( bp.audio_buffer.bytes * 4 )
 
 burstplayer.start:      equ 0x8000
 
-video.memory.high:              equ 0x8000
-video.memory.high.attributes:   equ video.memory.high + 0x2000
-video.memory.bytes.per.row:     equ 0x20
+;---------------------------------------------------------------
+; page.screen:
 
-video.memory.24.rows:   equ ( 8 * video.memory.bytes.per.row )
-video.memory.32.rows:   equ ( 6 * video.memory.bytes.per.row )
+    screen:                 equ 0x8000
+    screen.free:            equ 0x8000 + 0x1800 ; 2K free memory
+    screen.attributes:      equ screen + 0x2000
+    screen.width:           equ 0x20
+
+    screen.24.rows:         equ ( 8 * screen.width )
+    screen.32.rows:         equ ( 6 * screen.width )
 
 ;---------------------------------------------------------------
 ; page.loader:

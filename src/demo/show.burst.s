@@ -26,15 +26,15 @@ show.burst:
     call colour.scrn
 
     ld de,@text.burst
-    ld hl,video.memory.24.rows * 0 + 0 + video.memory.high
+    ld hl,screen + screen.24.rows * 0 + 0
     ld b,32
     call print.de.b
 
-    ld hl,video.memory.24.rows * 1 + 0 + video.memory.high
+    ld hl,screen + screen.24.rows * 1 + 0
     ld b,23
     call print.de.b
 
-    ld hl,video.memory.24.rows * 3 + 0 + video.memory.high
+    ld hl,screen + screen.24.rows * 3 + 0
     ld b,8
     call print.de.b
 
@@ -43,7 +43,7 @@ show.burst:
     add "1"
     call print.chr
 
-    ld hl,video.memory.24.rows * 4 + 0 + video.memory.high
+    ld hl,screen + screen.24.rows * 4 + 0
     ld b,21
     call print.de.b
 
@@ -112,7 +112,7 @@ show.burst:
     ret nz
 
   @burst.print.pos:
-    ld hl,video.memory.24.rows * 5 + 2 + video.memory.high
+    ld hl,screen + screen.24.rows * 5 + 2
     ld b,32
   @bi.page:
     ld a,(0)

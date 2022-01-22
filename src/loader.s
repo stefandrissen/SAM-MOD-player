@@ -50,8 +50,8 @@ cursor.init:
 
     ld (max.select+1),a
 
-    ld hl,video.memory.high - video.memory.32.rows - video.memory.bytes.per.row
-    ld de,video.memory.32.rows
+    ld hl,screen - screen.32.rows - screen.width
+    ld de,screen.32.rows
     inc b
     @loop:
         add hl,de
@@ -336,7 +336,7 @@ loader.palette:
 @loader.init:
 
     ld hl,mes.no_disc
-    ld de,m.vollabel
+    ld de,text.volume.label
     ld bc,@mes.label.len
     ldir
 
@@ -504,11 +504,11 @@ loader:
 ;    jr nc,$+3
 ;    inc d
 
-    ld b,32 - 10
-    ld hl,video.memory.32.rows * 29 + video.memory.high
+    ld b,screen.width - 10
+    ld hl,screen + screen.32.rows * 29
     call print.de.b
 
-    ld hl,video.memory.32.rows * 29 + video.memory.high + 32 - 10
+    ld hl,screen + screen.32.rows * 29 + screen.width - 10
     call @print.date
 
     call @insert.samples
@@ -522,7 +522,7 @@ loader:
 
  @disc.mess:
 
-    ld hl,video.memory.32.rows * 29 + video.memory.high
+    ld hl,screen + screen.32.rows * 29
     ld b,32
     @loop:
         ld a," "
@@ -534,7 +534,7 @@ loader:
  @continue:
 
     ld b,32
-    ld hl,video.memory.32.rows * 30 + video.memory.high
+    ld hl,screen + screen.32.rows * 30
     call print.de.b
 
     call cursor.select
@@ -718,7 +718,7 @@ loader:
 ;-------------------------------------------------------------------------------
 @print.octave:
 
-    ld hl,video.memory.32.rows * 1 + 26 + video.memory.high
+    ld hl,screen + screen.32.rows * 1 + 26
     ld de,mes.oct
     ld b,5
     call print.de.b
@@ -741,9 +741,9 @@ loader:
 ;-------------------------------------------------------------------------------
 @set.drive.label:
 
-    ; sets drive label (from m.vollabel) or no label if empty
+    ; sets drive label (from text.volume.label) or no label if empty
 
-    ld hl,m.vollabel
+    ld hl,text.volume.label
     ld de,mes.label
     ld bc,@mes.label.len
 
@@ -751,9 +751,9 @@ loader:
     or a
     jr nz,@has.label
 
-        ld hl,mes.no_label
+    ld hl,mes.no_label
 
-    @has.label:
+ @has.label:
 
     ldir
 
@@ -764,7 +764,7 @@ loader:
 
     call @set.drive.label
 
-    ld hl,video.memory.32.rows * 3 + video.memory.high
+    ld hl,screen + screen.32.rows * 3
     ld de,mes.drive
     ld b,9 + @mes.label.len
     call print.de.b
@@ -781,7 +781,7 @@ loader:
     @max.24:
     ld c,a
     ld de,loader.dir
-    ld hl,video.memory.32.rows * 4 + 1 + video.memory.high
+    ld hl,screen + screen.32.rows * 4 + 1
 
     @loop:
         push de
@@ -796,7 +796,7 @@ loader:
 
         pop hl
 
-        ld de,video.memory.32.rows
+        ld de,screen.32.rows
         add hl,de
 
         pop de
@@ -845,14 +845,14 @@ insert.file.size:
 fc.sam:
     push de
 
-    ld de,(temp.spc + 1);length mod 16384
-    ld a,(temp.spc + 7) ;length in pages (16384)
+    ld de,(screen.free + 1);length mod 16384
+    ld a,(screen.free + 7) ;length in pages (16384)
     and %00000011
     rrca
     rrca
     add d
     ld d,a
-    ld a,(temp.spc + 7)
+    ld a,(screen.free + 7)
     jr nc,$+4
     add 4
     srl a
@@ -894,7 +894,7 @@ select.key:
 
     ld de,mes.load
     ld b,10
-    ld hl,video.memory.32.rows * 31 + video.memory.high
+    ld hl,screen + screen.32.rows * 31
     call print.de.b
     push ix
     pop de
@@ -923,79 +923,10 @@ select.key:
     ld (hl),"D"
 
     ld hl,fat.parafile
-    call findfile
+    call fat.findfile
     ld a,(msdos+1)
     or a
-    jr z,sam.load
-
-;-------------------------------------------------------------------------------
-
-msdos.load: ; !!! does not work yet, needs to be moved to inst.buffer
-
-    push hl
-    pop ix
-    ld e,(ix+26)
-    ld d,(ix+27)
-
-    ld a,(loader.ram)
-    and %11100
-    jr z,@+no.megabyte
-
-    ld a,high.memory.external
-    out (port.hmpr),a
-    ld a,page.mod.megabyte
-    out (port.xmpr.c),a
-    inc a
-    out (port.xmpr.d),a
-    ld (@external+1),a
-
-    jr @+continue
-
- @no.megabyte:
-
-    ld a,page.mod
-    out (port.hmpr),a
-
- @continue:
-
-    ld hl,load.offs
- pc.load.all:
-    call fat.read_cluster
-    bit 6,h
-    res 6,h
-    jr z,@page.ok
-
-    ld a,(loader.ram)
-    and %11100
-    jr z,@+no.megabyte
-
- @external:
-    ld a,0
-    out (port.xmpr.c),a
-    inc a
-    out (port.xmpr.d),a
-    ld (@external+1),a
-
-    jr @page.ok
-
- @no.megabyte:
-
-    in a,(port.hmpr)
-    inc a
-    out (port.hmpr),a
-
- @page.ok:
-
-    call fat.get_entry
-    ld a,d
-    cp 0x0f
-    jr nz,pc.load.all
-    ld a,e
-    cp 0xf8
-    jr c,pc.load.all
-
-    jp file.loaded
-
+    call nz,fat.load
 
 ;-------------------------------------------------------------------------------
 sam.load:
@@ -1378,7 +1309,7 @@ cursor.print:
     call @cursor.get.address
 
     xor a
-    ld de,video.memory.bytes.per.row
+    ld de,screen.width
     ld (hl),a
     add hl,de
     ld (hl),a
@@ -1399,8 +1330,8 @@ cursor.print:
 
     call @cursor.get.address
 
-    ld ix, colours + ( colour.purple * 8 )
-    ld de,video.memory.bytes.per.row
+    ld ix,colours + ( colour.purple * 8 )
+    ld de,screen.width
 
     ld (hl),%10000000
     ld a,(ix)
@@ -1448,7 +1379,7 @@ cursor.print:
  ; input
  ; - a = line
 
-    ld de,video.memory.bytes.per.row
+    ld de,screen.width
  @cursor.offset:
     ld hl,0                     ; -0x0020
     inc a
@@ -1722,7 +1653,7 @@ print.chr:
         ld (de),a
         inc hl
         ld a,e
-        add video.memory.bytes.per.row
+        add screen.width
         ld e,a
         jr nc,$+3
         inc d
@@ -1745,12 +1676,12 @@ print.screen:
 
  print.screen.no.attr:
 
-    ld hl,video.memory.high
+    ld hl,screen
     ld c,32
 
     @rows:
 
-        ld b,32
+        ld b,screen.width
         push hl
 
         @columns:
@@ -1766,7 +1697,7 @@ print.screen:
 
         pop hl
         ld a,l
-        add video.memory.32.rows
+        add screen.32.rows
         ld l,a
         jr nc,$+3
         inc h
@@ -1794,7 +1725,7 @@ print.screen:
 
     @empty.lines:
 
-        add video.memory.32.rows
+        add screen.32.rows
         ld l,a
         jr nc,$+3
         inc h
@@ -1810,14 +1741,14 @@ cls:
 
  ; clear mode 2 screen
 
-    ld hl,video.memory.high
-    ld de,video.memory.high + 1
+    ld hl,screen
+    ld de,screen + 1
     ld bc,0x1800 - 1
     ld (hl),l
     ldir
 
-    ld hl,video.memory.high.attributes
-    ld de,video.memory.high.attributes + 1
+    ld hl,screen.attributes
+    ld de,screen.attributes + 1
     ld bc,0x1800 - 1
     ld (hl),l
     ldir
@@ -1868,7 +1799,7 @@ set.attributes:
 
     ld (line.size+1),a
 
-    ld hl,video.memory.high.attributes
+    ld hl,screen.attributes
  col.loop:
     ld c,(ix)
     inc ix
@@ -1907,7 +1838,7 @@ set.attributes:
     inc ix
 
     ld a,h
-    cp ( video.memory.high.attributes + 6144 ) / 256
+    cp ( screen.attributes + 0x1800 ) / 0x100
     jr nz,col.loop
     ret
 
@@ -1956,7 +1887,7 @@ black.attributes:
 
 ;-------------------------------------------------------------------------------
 
-m.vollabel: defm "0123456789abcdef"
+text.volume.label:  defm "0123456789abcdef"
 
 ;-------------------------------------------------------------------------------
 errnodisc:
@@ -1967,46 +1898,6 @@ errnodisc:
     ld a,1
     ld (nodisc+1),a
     ret
-
-;-------------------------------------------------------------------------------
-findfile:
-
-    ld (save.sam.sp+1),sp
-
-    ld de,fat.matchfile
-    ld bc,11
-    ldir
-    call fat.readroot
-    call fat.load_path
-    call c,fat.reset_path
-    ld bc,(fat.dir_entries)
-    ld hl,(fat.data)
- fmclp:
-    push hl
-    push bc
-    ld b,11
-    ld de,fat.matchfile
- fmblp:
-    ld a,(de)
-    cp (hl)
-    inc de
-    inc hl
-    jr nz,nomatch
-    djnz fmblp
-    pop bc
-    pop hl
-    ret
- nomatch:
-    pop bc
-    pop hl
-    ld de,32
-    add hl,de
-    dec bc
-    ld a,b
-    or c
-    jr nz,fmclp
-    pop af              ; chuck return address
-    jp file.notfound
 
 ;-------------------------------------------------------------------------------
 select.drive.1:
@@ -2085,8 +1976,8 @@ loader.dir:
 
 ; in screen area
 
-; fat:            equ video.memory.high + 2 * video.memory.32.rows
-loader.directory:   equ video.memory.high + 2 * video.memory.32.rows
+; fat:            equ screen + 2 * screen.32.rows
+loader.directory:   equ screen + 2 * screen.32.rows
     loader.directory.filename:      equ 0x00        ; 10 characters
         loader.directory.filename.len:  equ 0x0a
     loader.directory.track:         equ 0x0a        ; byte
@@ -2098,8 +1989,6 @@ loader.directory:   equ video.memory.high + 2 * video.memory.32.rows
         loader.directory.date.year:     equ 0x10    ;
 
 loader.directory.len:               equ loader.directory.date + 3
-
-temp.spc:           equ video.memory.high + 32 * video.memory.32.rows
 
 ;===============================================================
 
