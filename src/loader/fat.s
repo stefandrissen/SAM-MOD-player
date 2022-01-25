@@ -196,13 +196,12 @@ fat.directory.read:
         and %11111110       ; year
         rrca
 
-        add 1980 \ 0x100
+        ld h,0
+        add 80              ; 0 = 1980
         ld l,a
-        ld h,1980 / 0x100
+        jr nc,$+3
+        inc h
 
-        ld bc,1900
-        or a
-        sbc hl,bc
         ld a,19             ; century
         ld bc,100
 
