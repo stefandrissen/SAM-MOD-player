@@ -49,9 +49,9 @@ bdos.directory.read:
 
         push de
 
-        ld e,(ix + loader.directory.size_kb)
+        ld e,(ix + loader.directory.size_kb + 0)
         ld d,(ix + loader.directory.size_kb + 1)
-        ld (file.len+1),de
+        ld (file.size_kb + 1),de
 
         ld e,(ix + loader.directory.sector)
         ld d,(ix + loader.directory.track)  ; first sector
@@ -347,10 +347,10 @@ bdos.read.dir:
     ldi         ; first track
     ldi         ; first sector
 
-    ld l,samdos.dir.length.pages
-    ld b,(hl)                           ; 0b11111111 16K pages
+    ld l,samdos.dir.length.pages        ;   b        c
+    ld b,(hl)                           ; 0b11111111            16 KB pages
     ld l,samdos.dir.length.bytes + 1
-    ld c,(hl)                           ; 0b--111111 0x0000 - 0x3fff
+    ld c,(hl)                           ;          0b--111111   0x00 - 0x3f (* 0x100 B)
                                         ; 0b11111111 --111111
 
     sla c
@@ -362,10 +362,10 @@ bdos.read.dir:
     rr c                                ; 0b00111111 11111111
 
     ld a,c
-    ld (de),a
+    ld (de),a                           ; loader.directory.size_kb + 0
     inc de
     ld a,b
-    ld (de),a
+    ld (de),a                           ; loader.directory.size_kb + 1
     inc de
 
     ld l,samdos.dir.timestamp

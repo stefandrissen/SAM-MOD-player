@@ -125,45 +125,34 @@ fat.directory.read:
         ld e,(ix + @dir.start_cluster + 0)
         ld d,(ix + @dir.start_cluster + 1)
 
-        ld hl,dos.sector
+        ld hl,screen.free
 
         @read.more:
 
             call @cluster.read
-            call @entry.get
+            call @cluster.next
+            jr z,@eof
             ld a,h
             cp ( screen.free + mod.pt.pattern ) / 256 + 1
 
             jr c,@-read.more
 
+     @eof:
+        ld l,(ix + @dir.file_size_bytes + 1)    ; 256 B = 0.25 KB
+        ld h,(ix + @dir.file_size_bytes + 2)    ; 64 KB
+
+        ld (file.size_kb + 1),hl                ; ??? why hl = 256B units
+
+        push ix
+
+        ld hl,screen.free
+        call mod.determine.type
+
+        pop ix
         pop de
 
-        ; ld a,2
-        ; call file.check
-
-        push de
-
-        ld e,(ix + @dir.file_size_bytes + 0)
-        ld d,(ix + @dir.file_size_bytes + 1)
-        ld a,(ix + @dir.file_size_bytes + 2)
-        ex de,hl
-     @pc.resub:
-        or a
-        sbc hl,de
-        sbc c
-        jr nc,@pc.got.maxmin
-        adc c
-        add hl,de
-        ex de,hl
-        ld b,a
-        ld a,c
-        ld c,b
-        jr @pc.resub
-
-     @pc.got.maxmin:        ; ahl = difference calc len & file len
-        pop de
-        or h
-        jr z,@file.ok
+        cp mod.type.invalid
+        jr nz,@file.ok
 
         pop de
         pop hl
@@ -171,11 +160,23 @@ fat.directory.read:
 
      @file.ok:
 
+        ld hl,screen.free + mod.sample.title
+        ld bc,mod.title.len
+        ldir
+
+        ld (de),a
+        inc de
+
+        call mod.get.patterns.a
+        ld (de),a
+        inc de
+
      ;get date
         ld a,(ix + @dir.last_modified_date + 0) ; date yyyyyyy m|mmm ddddd
         ld b,a
         and %00011111       ; day
         call cnv.a.to.de
+
         ld a,b
         and %11100000       ; low bits month
         rlca
@@ -190,13 +191,34 @@ fat.directory.read:
         rlca
         or c                ; month
         call cnv.a.to.de
+
         ld a,b
         and %11111110       ; year
         rrca
-        add 80
-        sub 100
-        jr nc,$-2
-        add 100             ; year
+
+        add 1980 \ 0x100
+        ld l,a
+        ld h,1980 / 0x100
+
+        ld bc,1900
+        or a
+        sbc hl,bc
+        ld a,19             ; century
+        ld bc,100
+
+        @loop:
+
+            or a
+            sbc hl,bc
+            jr c,@leave
+            inc a
+            jr @-loop
+
+     @leave:
+
+        add hl,bc
+        call cnv.a.to.de
+        ld a,l
         call cnv.a.to.de
 
         call insert.file.size
@@ -228,16 +250,15 @@ fat.directory.read:
 
     call @boot_sector.read
     call @fat.read
-    call @startcluster
-    push de
-    call @startroot
-    pop hl
+
+    call @logical_sector.data
+    ex de,hl                        ; hl = first data sector
+    call @root.logical_sector.start ; de = root sector
+
     xor a
-    sbc hl,de
+    sbc hl,de   ; -> hl = sectors used by root
     ld b,l
-    push bc
-    call @startroot
-    pop bc
+
     ld hl,(@fat.data)
 
     @loop:
@@ -338,15 +359,8 @@ fat.directory.read:
         pop bc
         inc bc
 
-        call @entry.get
-
-        ld a,d
-        cp 0x0f
+        call @cluster.next
         jr nz,@-read.more
-
-        ld a,e
-        cp 0xf8
-        jr c,@-read.more
 
     ld hl,(@var.bytes_cluster)
     srl h
@@ -591,8 +605,9 @@ fat.directory.read:
 
     pop de
 
-    ld bc,512
+    ld bc,0x200
     ldir
+    ex de,hl
 
     ret
 
@@ -601,15 +616,15 @@ fat.directory.read:
 
  ; read boot sector from disc at fixed address
 
-    ld de,0x0001                    ; track 0, sector 1
+    ld de,0x0001                            ; track 0, sector 1
     ld hl,@boot_sector
     call @sector.read
 
-    ld hl,(@bs.total_sectors)        ; 3.5" DD -> 1440
-    ld de,(@bs.sectors_per_track)    ; 3.5" DD -> 9
+    ld hl,(@bs.total_logical_sectors)       ; 3.5" DD -> 1440
+    ld de,(@bs.physical_sectors_per_track)  ; 3.5" DD -> 9
     ld a,d
     or e
-    jr z,notpcdisc  ; sectors / track > 0
+    jr z,@boot_sector.invalid               ; sectors / track > 0
 
     xor a
     ld bc,0
@@ -624,14 +639,14 @@ fat.directory.read:
     add hl,de
     ld a,h
     or l
-    jr nz,notpcdisc ; total sectors / sectors per track
+    jr nz,@boot_sector.invalid              ; total sectors / sectors per track
 
     ld h,b
     ld l,c
-    ld de,(@bs.number_of_heads)      ; 3.5" DD -> 2
+    ld de,(@bs.number_of_heads)             ; 3.5" DD -> 2
     ld a,d
     or e
-    jr z,notpcdisc
+    jr z,@boot_sector.invalid
 
     xor a
 
@@ -643,7 +658,7 @@ fat.directory.read:
     add hl,de
     ld a,h
     or l
-    jr nz,notpcdisc
+    jr nz,@boot_sector.invalid
 
     ld hl,0
     ld bc,(@bs.bytes_per_sector)    ; 3.5" DD -> 512
@@ -663,7 +678,7 @@ fat.directory.read:
     ld a,6
     jp set.attributes
 
- notpcdisc:
+ @boot_sector.invalid:
     xor a
     ld (msdos+1),a
  save.sam.sp:
@@ -678,7 +693,7 @@ fat.directory.read:
     push hl
 
     ld hl,loader.directory
-    ld a,(@bs.sectors_per_fat)
+    ld a,(@bs.logical_sectors_per_fat)
     ld b,a
     ld de,1                 ; logical sector
 
@@ -714,7 +729,7 @@ fat.directory.read:
         add hl,de
         djnz @-loop
 
-    call @startcluster
+    call @logical_sector.data
     add hl,de
     ex de,hl
     pop hl
@@ -732,10 +747,12 @@ fat.directory.read:
     ret
 
 ;-------------------------------------------------------------------------------
-@startroot:
+@root.logical_sector.start:
 
  ; calculate start sector of root directory
- ; returns de with
+
+ ; output
+ ; - de = logical sector (always < 0x100)
 
     ld de,1
     ld a,(@bs.number_of_fats)
@@ -743,7 +760,7 @@ fat.directory.read:
 
     @loop:
 
-        ld a,(@bs.sectors_per_fat)
+        ld a,(@bs.logical_sectors_per_fat)
         add a,e
         ld e,a
         djnz @-loop
@@ -751,33 +768,7 @@ fat.directory.read:
     ret
 
 ;-------------------------------------------------------------------------------
-calcclusters:
-
- ; calculate total number of clusters on disc
-
-    ld hl,(@bs.total_sectors)
-    call @startcluster
-    xor a
-    sbc hl,de
-    ld a,(@bs.sectors_per_cluster)
-
-    @loop:
-
-        srl a
-        jr z,@leave
-
-        srl h
-        rr l
-        jr @-loop
-
- @leave:
-
-    ld c,l
-    ld b,h
-    ret
-
-;-------------------------------------------------------------------------------
-@startcluster:
+@logical_sector.data:
 
  ; calculate start sector of cluster 2 (first data cluster)
 
@@ -785,6 +776,7 @@ calcclusters:
  ; - de = logical sector of first data cluster
 
     push hl
+
     ld hl,(@bs.max_root_entries)
     add hl,hl
     add hl,hl
@@ -800,41 +792,47 @@ calcclusters:
         inc e
         jr nc,@-loop
 
-    dec e
+    dec e       ; -> e = sectors needed for root
     ex de,hl
-    call @startroot
+    call @root.logical_sector.start
     add hl,de
-    ex de,hl
+    ex de,hl    ; -> de = logical sector data
+
     pop hl
 
     ret
 
 ;-------------------------------------------------------------------------------
-@entry.get:
- ; get FAT entry
- ; entries are 12 bits
+@cluster.next:
+ ; get next cluster from FAT - entries are 12 bits
 
  ; input:
- ;   de = cluster
+ ; - de = cluster
+
+ ; output:
+ ; - de = next cluster
+ ; - nz = keep reading
+ ; - z  = eof (0xff8)
 
     push hl
 
-    ld h,d
-    ld l,e
-    add hl,hl
-    add hl,de
+    ld h,d                  ;
+    ld l,e                  ;
+    add hl,hl               ; hl = de * 3
+    add hl,de               ;
 
-    ld de,loader.directory ; fat
-    srl h
-    rr l
-    jr c,@odd
+    ld de,loader.directory  ; fat
+
+    srl h                   ;
+    rr l                    ; hl = hl / 2
+    jr c,@+odd
 
     add hl,de
     ld e,(hl)
 
     inc hl
     ld a,(hl)
-    jr @set.d
+    jr @+set.d
 
  @odd:
 
@@ -866,7 +864,16 @@ calcclusters:
     ld d,a
 
     pop hl
-    ret
+
+    cp 0x0f
+    ret nz  ; nz
+
+    ld a,e
+    cp 0xf8
+    ret c   ; nz
+
+    xor a
+    ret     ; z
 
 ;-------------------------------------------------------------------------------
 @logical_sector.read:
@@ -880,7 +887,7 @@ calcclusters:
     push de
     push hl
     ex de,hl
-    ld bc,(@bs.sectors_per_track)
+    ld bc,(@bs.physical_sectors_per_track)
     ld de,0
     xor a
 
@@ -900,6 +907,7 @@ calcclusters:
     pop hl
 
     call @sector.read
+
     pop de
     pop bc
 
@@ -966,7 +974,7 @@ fat.load: ; !!! does not work yet, needs to be moved to inst.buffer
 
     push hl
     pop ix
-    ld e,(ix + @dir.start_cluster)
+    ld e,(ix + @dir.start_cluster + 0)
     ld d,(ix + @dir.start_cluster + 1)
 
     ld a,(loader.ram)
@@ -991,7 +999,7 @@ fat.load: ; !!! does not work yet, needs to be moved to inst.buffer
  @continue:
 
     ld hl,load.offs
- pc.load.all:
+ @load.all:
     call @cluster.read
     bit 6,h
     res 6,h
@@ -1018,13 +1026,8 @@ fat.load: ; !!! does not work yet, needs to be moved to inst.buffer
 
  @page.ok:
 
-    call @entry.get
-    ld a,d
-    cp 0x0f
-    jr nz,pc.load.all
-    ld a,e
-    cp 0xf8
-    jr c,pc.load.all
+    call @cluster.next
+    jr nz,@-load.all
 
     jp file.loaded
 
@@ -1096,14 +1099,6 @@ fat.load: ; !!! does not work yet, needs to be moved to inst.buffer
     ld hl,@msbadfile
     ret
 
-@filename.bad:
-    ld hl,@msbadname
-    ret
-
-@file.not_found:
-    ld hl,@msfilenot
-    ret
-
 @directory.invalid:
     ld hl,@msinvdir
     ret
@@ -1113,16 +1108,6 @@ fat.load: ; !!! does not work yet, needs to be moved to inst.buffer
 @msbadfile:
     defb 13
     defm "Bad command or file name"
-    defb 13,0
-
-@msbadname:
-    defb 13
-    defm "Invalid file name"
-    defb 13,0
-
-@msfilenot:
-    defb 13
-    defm "File not found"
     defb 13,0
 
 @msinvdir:
@@ -1157,34 +1142,37 @@ fat.path_b:
 
  ; https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system#Bootsector
 
-   ;@bs.oem_name:               equ @boot_sector + 0x003
+   @bs.jump_instruction:            defb 0,0,0          ; 0x000
+   @bs.oem_name:                    defm "01234567"     ; 0x003
 
   ; BIOS Parameter Block
 
-    @bs.bytes_per_sector:       equ @boot_sector + 0x00b
-    @bs.sectors_per_cluster:    equ @boot_sector + 0x00d
-    @bs.reserved_sectors:       equ @boot_sector + 0x00e
-    @bs.number_of_fats:         equ @boot_sector + 0x010
-    @bs.max_root_entries:       equ @boot_sector + 0x011
-    @bs.total_sectors:          equ @boot_sector + 0x013
-   ;@bs.media_descriptor:       equ @boot_sector + 0x015
-    @bs.sectors_per_fat:        equ @boot_sector + 0x016
-    @bs.sectors_per_track:      equ @boot_sector + 0x018
-    @bs.number_of_heads:        equ @boot_sector + 0x01a
-   ;@bs.hidden_sectors:         equ @boot_sector + 0x01c
-   ;@bs.big_total_sectors:      equ @boot_sector + 0x020
+    @bs.bytes_per_sector:           defw 0              ; 0x00b
+    @bs.sectors_per_cluster:        defb 0              ; 0x00d
+    @bs.reserved_sectors:           defw 0              ; 0x00e
+    @bs.number_of_fats:             defb 0              ; 0x010
+    @bs.max_root_entries:           defw 0              ; 0x011
+    @bs.total_logical_sectors:      defw 0              ; 0x013
+    @bs.media_descriptor:           defb 0              ; 0x015
+    @bs.logical_sectors_per_fat:    defw 0              ; 0x016
+    @bs.physical_sectors_per_track: defw 0              ; 0x018
+    @bs.number_of_heads:            defw 0              ; 0x01a
+    @bs.hidden_sectors:             defw 0,0            ; 0x01c
+    @bs.big_total_sectors:          defw 0,0            ; 0x020
 
   ; Extended BIOS Parameter Block
 
-   ;@bs.physical_drive_number:  equ @boot_sector + 0x024
-    @bs.volume_id:              equ @boot_sector + 0x027
-    @bs.volume_label:           equ @boot_sector + 0x02b
-    @bs.volume_label.len:       equ 11
+    @bs.physical_drive_number:      defb 0              ; 0x024
+    @bs.reserved:                   defb 0              ; 0x025
+    @bs.extended_boot_signature:    defb 0              ; 0x026
+    @bs.volume_id:                  defw 0,0            ; 0x027
+    @bs.partition_volume_label:     defm "0123456789a"  ; 0x02b
+        @bs.volume_label.len:           equ $ - @bs.partition_volume_label
 
 ;-------------------------------------------------------------------------------
 
-@var.bytes_cluster:         equ @bs.volume_label   + @bs.volume_label.len
-@var.dir_entries:           equ @var.bytes_cluster + 2
-@fat.data:                  equ @var.dir_entries   + 2  ; points to first address after FAT
+@var.bytes_cluster:         defw 0
+@var.dir_entries:           defw 0
+@fat.data:                          ; points to first address after FAT
 
-defs 512
+defs 512 - ( @fat.data - @boot_sector )

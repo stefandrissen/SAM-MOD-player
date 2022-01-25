@@ -648,11 +648,11 @@ mod.determine.type:
 
     call @get.total.sample.length.chl
 
-    ld a,(file.len+2)
+    ld a,(file.size_kb + 2)
     cp c
     jr nz,@different
 
-    ld a,(file.len+1)
+    ld a,(file.size_kb + 1)
     cp h
     jr nz,@different
 
@@ -669,11 +669,11 @@ mod.determine.type:
     pop hl
     pop bc
 
-    ld a,(file.len+2)
+    ld a,(file.size_kb + 2)
     cp c
     ret nz
 
-    ld a,(file.len+1)
+    ld a,(file.size_kb + 1)
     cp h
     ret nz
 

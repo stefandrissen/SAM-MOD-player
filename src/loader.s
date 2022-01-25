@@ -809,7 +809,7 @@ loader.quit:
 ;-------------------------------------------------------------------------------
 insert.file.size:
 
- file.len:
+ file.size_kb:
     ld hl,0     ; ch (-> in 256 bytes)
     srl h
     rr l
@@ -975,8 +975,8 @@ sam.match:
     pop af          ; chuck return address
 
     ld a,l
-    and 128
-    or 13
+    and %10000000
+    or samdos.dir.track
     ld l,a
     ld d,(hl)       ; first track
     inc l
@@ -1964,7 +1964,6 @@ loader.dir:
 
 ; in screen area
 
-; fat:            equ screen + 2 * screen.32.rows
 loader.directory:   equ screen + 2 * screen.32.rows
     loader.directory.filename:      equ 0x00        ; 10 characters
         loader.directory.filename.len:  equ 0x0a
