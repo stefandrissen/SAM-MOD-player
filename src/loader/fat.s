@@ -619,7 +619,7 @@ fat.directory.read:
 
     pop de
 
-    ld bc,0x200 ; (@bs.bytes_per_sector) - not yet populated
+    ld bc,(@bs.bytes_per_sector)
 
     bit 7,d
     jr z,@+direct
@@ -640,6 +640,9 @@ fat.directory.read:
 @boot_sector.read:
 
  ; read boot sector from disc at fixed address
+
+    ld hl,0x200
+    ld (@bs.bytes_per_sector),hl            ; boot sector always 512 bytes
 
     ld de,0x0001                            ; track 0, sector 1
     ld hl,@boot_sector
@@ -1065,6 +1068,8 @@ fat.load:
 
     call @cluster.next
     jr nz,@-load.all
+
+    pop af              ; chuck return address
 
     jp file.loaded
 
