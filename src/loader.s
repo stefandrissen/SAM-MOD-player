@@ -985,13 +985,13 @@ sam.match:
     push hl
     push de
 
-    ld hl,relocate.load.mod
-    ld bc,load.mod.len
+    ld hl,@relocate.load.mod
+    ld bc,@load.mod.len
     ld a,(loader.ram)
     and %11100
     jr z,@no.meg
-    ld hl,relocate.meg.load.mod
-    ld bc,meg.load.mod.len
+    ld hl,@relocate.meg.load.mod
+    ld bc,@meg.load.mod.len
  @no.meg:
     ld de,inst.buffer
     ldir
@@ -1000,7 +1000,7 @@ sam.match:
 
     ld a,(loader.drive)
 
-    call load.mod
+    call @load.mod
 
     jp file.loaded
 
@@ -1009,11 +1009,11 @@ sam.match:
     ret
 
 ;-------------------------------------------------------------------------------
-relocate.load.mod:
+@relocate.load.mod:
 
     org inst.buffer
 
- load.mod:
+ @load.mod:
 
     ld (@+drive+1),a
     ld hl,dos.sector
@@ -1087,16 +1087,16 @@ relocate.load.mod:
     out (port.hmpr),a
     ret
 
- load.mod.len: equ $ - load.mod
+ @load.mod.len: equ $ - @load.mod
 
-    org relocate.load.mod + load.mod.len
+    org @relocate.load.mod + @load.mod.len
 
 ;-------------------------------------------------------------------------------
-relocate.meg.load.mod:
+@relocate.meg.load.mod:
 
     org inst.buffer
 
- meg.load.mod:
+ @meg.load.mod:
 
     ld (@+drive+1),a
     ld hl,dos.sector
@@ -1181,9 +1181,9 @@ relocate.meg.load.mod:
     out (port.hmpr),a
     ret
 
- meg.load.mod.len: equ $ - meg.load.mod
+ @meg.load.mod.len: equ $ - @meg.load.mod
 
-    org relocate.meg.load.mod + meg.load.mod.len
+    org @relocate.meg.load.mod + @meg.load.mod.len
 
 ;-------------------------------------------------------------------------------
 file.loaded:

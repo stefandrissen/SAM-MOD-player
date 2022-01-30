@@ -250,9 +250,9 @@ fat.directory.read:
     call @boot_sector.read
     call @fat.read
 
-    call @logical_sector.data
-    ex de,hl                        ; hl = first data sector
-    call @root.logical_sector.start ; de = root sector
+    call @data_area.logical_sector
+    ex de,hl                        ; hl = first sector data area
+    call @root.logical_sector       ; de = first sector root directory
 
     xor a
     sbc hl,de   ; -> hl = sectors used by root
@@ -311,7 +311,7 @@ fat.directory.read:
     ld a,(@parameter)
     or a
     ret z
-    call @getinputfile
+    call @input_file.get
 
     push hl
     ld hl,(@fat.data)
@@ -411,10 +411,11 @@ fat.directory.read:
     ld de,@path.temp
     ld a,(hl)
     cp "\"
-    jr z,gipnewpath
+    jr z,@path.new
+
     ld a,(de)
     or a
-    jr z,gipnewpath
+    jr z,@path.new
 
     @find.end:
         inc de
@@ -423,11 +424,12 @@ fat.directory.read:
         jr nz,@-find.end
 
     ld a,e
-    cp ( @path.temp + 1 ) \ 256
-    jr nz,gipnewpath
+    cp ( @path.temp + 1 ) \ 0x100
+    jr nz,@path.new
+
     dec de
 
- gipnewpath:
+ @path.new:
 
     ld a,"\"
     ld (de),a
@@ -435,31 +437,40 @@ fat.directory.read:
 
     ld a,(@parameter)
     cp "\"
-    jr nz,gipns
+    jr nz,@ns
+
     ld a,(@parameter+1)
     or a
-    jr nz,gipns
+    jr nz,@ns
+
     push de
     call @parameter.get
     pop de
     ld a,(@parameter)
- gipns:
+
+ @ns:                       ; ns = not subdirectory?
+
     cp "."
-    jr nz,gipnotdot
+    jr nz,@not.dot
+
     push de
     call @parameter.get
     pop de
     ld a,(@parameter)
     cp "."
-    jr nz,gipfndlstp
+    jr nz,@fndlstp
+
     dec de
- gipfndlstp:
+
+ @fndlstp:                  ; find last path?
+
     dec de
     ld a,(de)
     cp "\"
-    jr nz,gipfndlstp
+    jr nz,@-fndlstp
+
     ld a,e
-    cp @path.temp \ 256
+    cp @path.temp \ 0x100
     jr nz,$+3
     inc de
     xor a
@@ -468,12 +479,12 @@ fat.directory.read:
     push de
     call @parameter.get
     pop de
-    jp gipdoneext
+    jp @done.ext
 
- gipnotdot:
+ @not.dot:
 
     push de
-    call @getinputfile
+    call @input_file.get
     pop de
     jp c,@directory.invalid
 
@@ -484,18 +495,18 @@ fat.directory.read:
 
         ld a,(hl)
         cp " "
-        jr z,gipdonename
+        jr z,@done.name
         ld (de),a
         inc hl
         inc de
         djnz @-loop
 
- gipdonename:
+ @done.name:
 
-    ld hl,fat.parafile+8
+    ld hl,fat.parafile + 8
     ld a,(hl)
     cp " "
-    jr z,gipdoneext
+    jr z,@done.ext
     ld a,"."
     ld (de),a
     inc de
@@ -505,25 +516,23 @@ fat.directory.read:
 
         ld a,(hl)
         cp " "
-        jr z,gipdoneext
+        jr z,@done.ext
         ld (de),a
         inc hl
         inc de
         djnz @-copy.ext
 
- gipdoneext:
+ @done.ext:
     ld a,(@parameter)
     cp "\"
-    jr z,gipnewpath
-
- gipend:
+    jr z,@-path.new
 
     xor a
     ld (de),a
     ret
 
 ;-------------------------------------------------------------------------------
-@getinputfile:
+@input_file.get:
 
     ld hl,fat.parafile
     ld b,@dir.file_name_len
@@ -597,16 +606,33 @@ fat.directory.read:
 
     push hl
 
+    bit 7,h
+    jr z,@direct
+
     ld hl,dos.sector
+
+ @direct:
+
     push hl
     call bdos.read.sector
     pop hl
 
     pop de
 
-    ld bc,0x200
+    ld bc,0x200 ; (@bs.bytes_per_sector) - not yet populated
+
+    bit 7,d
+    jr z,@+direct
+
     ldir
     ex de,hl
+
+    ret
+
+ @direct:
+
+    ex de,hl
+    add hl,bc
 
     ret
 
@@ -619,12 +645,18 @@ fat.directory.read:
     ld hl,@boot_sector
     call @sector.read
 
-    ld hl,(@bs.total_logical_sectors)       ; 3.5" DD -> 1440
-    ld de,(@bs.physical_sectors_per_track)  ; 3.5" DD -> 9
+    ld hl,(@bs.signature)
+    ld de,0xaa55
+    or a
+    sbc hl,de
+    jr nz,@boot_sector.invalid
+
+    ld de,(@bs.sectors_per_track)           ; 3.5" DD -> 9
     ld a,d
     or e
     jr z,@boot_sector.invalid               ; sectors / track > 0
 
+    ld hl,(@bs.total_sectors)               ; 3.5" DD -> 1440
     xor a
     ld bc,0
 
@@ -642,7 +674,7 @@ fat.directory.read:
 
     ld h,b
     ld l,c
-    ld de,(@bs.number_of_heads)             ; 3.5" DD -> 2
+    ld de,(@bs.heads)                       ; 3.5" DD -> 2
     ld a,d
     or e
     jr z,@boot_sector.invalid
@@ -660,8 +692,8 @@ fat.directory.read:
     jr nz,@boot_sector.invalid
 
     ld hl,0
-    ld bc,(@bs.bytes_per_sector)    ; 3.5" DD -> 512
-    ld a,(@bs.sectors_per_cluster)  ; 3.5" DD -> 2
+    ld bc,(@bs.bytes_per_sector)        ; 3.5" DD -> 512
+    ld a,(@bs.sectors_per_cluster)      ; 3.5" DD -> 2
 
     @loop:
 
@@ -669,8 +701,8 @@ fat.directory.read:
         dec a
         jr nz,@-loop
 
-    ld (@var.bytes_cluster),hl      ; 3.5" DD -> 1024
-    ld hl,(@bs.max_root_entries)    ; 3.5" DD -> 112
+    ld (@var.bytes_cluster),hl          ; 3.5" DD -> 1024
+    ld hl,(@bs.root_directory_entries)  ; 3.5" DD -> 112
     ld (@var.dir_entries),hl
 
     ld ix,black.attributes
@@ -692,7 +724,7 @@ fat.directory.read:
     push hl
 
     ld hl,loader.directory
-    ld a,(@bs.logical_sectors_per_fat)
+    ld a,(@bs.sectors_per_fat)
     ld b,a
     ld de,1                 ; logical sector
 
@@ -728,7 +760,7 @@ fat.directory.read:
         add hl,de
         djnz @-loop
 
-    call @logical_sector.data
+    call @data_area.logical_sector
     add hl,de
     ex de,hl
     pop hl
@@ -746,7 +778,7 @@ fat.directory.read:
     ret
 
 ;-------------------------------------------------------------------------------
-@root.logical_sector.start:
+@root.logical_sector:
 
  ; calculate start sector of root directory
 
@@ -754,12 +786,12 @@ fat.directory.read:
  ; - de = logical sector (always < 0x100)
 
     ld de,1
-    ld a,(@bs.number_of_fats)
+    ld a,(@bs.fat_copies)
     ld b,a
 
     @loop:
 
-        ld a,(@bs.logical_sectors_per_fat)
+        ld a,(@bs.sectors_per_fat)
         add a,e
         ld e,a
         djnz @-loop
@@ -767,21 +799,22 @@ fat.directory.read:
     ret
 
 ;-------------------------------------------------------------------------------
-@logical_sector.data:
+@data_area.logical_sector:
 
- ; calculate start sector of cluster 2 (first data cluster)
+ ; calculate start sector of data area (cluster 2)
 
  ; output:
- ; - de = logical sector of first data cluster
+ ; - de = logical sector data area
 
     push hl
 
-    ld hl,(@bs.max_root_entries)
+    ld hl,(@bs.root_directory_entries)
     add hl,hl
     add hl,hl
     add hl,hl
     add hl,hl
-    add hl,hl   ; * 32 bytes per entry
+    add hl,hl   ; * 32 -> hl = bytes needed for root directory
+
     ld de,0
     ld bc,(@bs.bytes_per_sector)
     xor a
@@ -793,7 +826,7 @@ fat.directory.read:
 
     dec e       ; -> e = sectors needed for root
     ex de,hl
-    call @root.logical_sector.start
+    call @root.logical_sector
     add hl,de
     ex de,hl    ; -> de = logical sector data
 
@@ -885,8 +918,9 @@ fat.directory.read:
     push bc
     push de
     push hl
+
     ex de,hl
-    ld bc,(@bs.physical_sectors_per_track)
+    ld bc,(@bs.sectors_per_track)
     ld de,0
     xor a
 
@@ -899,10 +933,11 @@ fat.directory.read:
     adc hl,bc
     dec d
     ld e,l
-    ld a,(@bs.number_of_heads)
+    ld a,(@bs.heads)
     cp 2
     jr nz,$+4
     rrc d
+
     pop hl
 
     call @sector.read
@@ -968,67 +1003,130 @@ fat.file.find:
     jp file.notfound
 
 ;-------------------------------------------------------------------------------
+fat.load:
 
-fat.load: ; !!! does not work yet, needs to be moved to inst.buffer
+; input:
+; - hl = directory entry
 
     push hl
     pop ix
-    ld e,(ix + @dir.start_cluster + 0)
-    ld d,(ix + @dir.start_cluster + 1)
+
+    ld hl,@relocate.to.hmpr
+    ld bc,@relocate.to.hmpr.len
 
     ld a,(loader.ram)
     and %11100
+    ld a,page.mod
+
     jr z,@+no.megabyte
 
-    ld a,high.memory.external
-    out (port.hmpr),a
     ld a,page.mod.megabyte
-    out (port.xmpr.c),a
-    inc a
-    out (port.xmpr.d),a
-    ld (@external+1),a
-
-    jr @+continue
+    ld hl,@relocate.to.xmpr
+    ld bc,@relocate.to.xmpr.len
 
  @no.megabyte:
 
-    ld a,page.mod
-    out (port.hmpr),a
+    ld (@page + 1),a
 
- @continue:
+    ld de,inst.buffer
+    ldir
+
+    ld e,(ix + @dir.start_cluster + 0)
+    ld d,(ix + @dir.start_cluster + 1)
 
     ld hl,load.offs
+
  @load.all:
+
+    push de             ; cluster
+    push hl             ; target
+
+    ld hl,dos.sector
     call @cluster.read
+
+    pop de              ; target
+
+ @page:
+    ld h,0
+    ld bc,(@var.bytes_cluster)
+    call inst.buffer
+
     bit 6,h
     res 6,h
     jr z,@page.ok
 
-    ld a,(loader.ram)
-    and %11100
-    jr z,@+no.megabyte
-
- @external:
-    ld a,0
-    out (port.xmpr.c),a
+    ld a,(@page + 1)
     inc a
-    out (port.xmpr.d),a
-    ld (@external+1),a
-
-    jr @page.ok
-
- @no.megabyte:
-
-    in a,(port.hmpr)
-    inc a
-    out (port.hmpr),a
+    ld (@page + 1),a
 
  @page.ok:
+
+    pop de              ; cluster
 
     call @cluster.next
     jr nz,@-load.all
 
     jp file.loaded
+
+;-------------------------------------------------------------------------------
+@relocate.to.hmpr:
+
+ ; input:
+ ; - h  = page
+ ; - de = destination
+ ; - bc = cluster size
+
+    org inst.buffer
+
+    in a,(port.hmpr)
+    push af
+
+    ld a,h
+    out (port.hmpr),a
+
+    ld hl,dos.sector
+    ldir
+
+    ex de,hl
+
+    pop af
+    out (port.hmpr),a
+
+    ret
+
+ @relocate.to.hmpr.len: equ $ - inst.buffer
+
+    org @relocate.to.hmpr + @relocate.to.hmpr.len
+
+;-------------------------------------------------------------------------------
+@relocate.to.xmpr:
+
+    org inst.buffer
+
+    in a,(port.hmpr)
+    push af
+
+    ld a,high.memory.external
+    out (port.hmpr),a
+
+    ld a,h
+    out (port.xmpr.c),a
+    inc a
+    out (port.xmpr.d),a
+
+    ld hl,dos.sector
+    ldir
+
+    ex de,hl
+
+    pop af
+    out (port.hmpr),a
+
+    ret
+
+ @relocate.to.xmpr.len: equ $ - inst.buffer
+
+    org @relocate.to.xmpr + @relocate.to.xmpr.len
 
 ;-------------------------------------------------------------------------------
 @directory.change:
@@ -1111,7 +1209,8 @@ fat.load: ; !!! does not work yet, needs to be moved to inst.buffer
 
 @msinvdir:
     defb 13
-    defm "Invalid subdirectory"
+    defm "inv"
+    ; defm "Invalid subdirectory"
     defb 13,0
 
 ;-------------------------------------------------------------------------------
@@ -1146,27 +1245,19 @@ fat.path_b:
 
   ; BIOS Parameter Block
 
-    @bs.bytes_per_sector:           defw 0              ; 0x00b
-    @bs.sectors_per_cluster:        defb 0              ; 0x00d
+    @bs.bytes_per_sector:           defw 0              ; 0x00b [ 512 1024 2048 4096 ]
+    @bs.sectors_per_cluster:        defb 0              ; 0x00d [ 1 2 4 8 16 32 64 128 ]
     @bs.reserved_sectors:           defw 0              ; 0x00e
-    @bs.number_of_fats:             defb 0              ; 0x010
-    @bs.max_root_entries:           defw 0              ; 0x011
-    @bs.total_logical_sectors:      defw 0              ; 0x013
+    @bs.fat_copies:                 defb 0              ; 0x010
+    @bs.root_directory_entries:     defw 0              ; 0x011
+    @bs.total_sectors:              defw 0              ; 0x013
     @bs.media_descriptor:           defb 0              ; 0x015
-    @bs.logical_sectors_per_fat:    defw 0              ; 0x016
-    @bs.physical_sectors_per_track: defw 0              ; 0x018
-    @bs.number_of_heads:            defw 0              ; 0x01a
+    @bs.sectors_per_fat:            defw 0              ; 0x016
+    @bs.sectors_per_track:          defw 0              ; 0x018
+    @bs.heads:                      defw 0              ; 0x01a
     @bs.hidden_sectors:             defw 0,0            ; 0x01c
-    @bs.big_total_sectors:          defw 0,0            ; 0x020
 
-  ; Extended BIOS Parameter Block
-
-    @bs.physical_drive_number:      defb 0              ; 0x024
-    @bs.reserved:                   defb 0              ; 0x025
-    @bs.extended_boot_signature:    defb 0              ; 0x026
-    @bs.volume_id:                  defw 0,0            ; 0x027
-    @bs.partition_volume_label:     defm "0123456789a"  ; 0x02b
-        @bs.volume_label.len:           equ $ - @bs.partition_volume_label
+    @bs.signature:                  equ @boot_sector + 510  ; 55 aa
 
 ;-------------------------------------------------------------------------------
 
