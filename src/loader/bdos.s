@@ -130,10 +130,6 @@ bdos.directory.read:
     ret
 
 ;-------------------------------------------------------------------------------
-
-    include "mod.s"
-
-;-------------------------------------------------------------------------------
 @read.first.sectors:
 
     ; read first 3 sectors of file to check if it is a mod

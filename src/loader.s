@@ -1936,6 +1936,7 @@ relocate.low:
 include "loader/bdos.s"
 include "loader/unpack.s"
 include "loader/fat.s"
+include "loader/mod.s"
 
 ;-------------------------------------------------------------------------------
 
