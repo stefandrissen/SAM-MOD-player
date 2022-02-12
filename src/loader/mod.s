@@ -1,6 +1,6 @@
 ;SAM MOD player - check mod type based on header
 
- ;(C) 2021 Stefan Drissen
+ ;(C) 2021-2022 Stefan Drissen
 
  ; https://github.com/cmatsuoka/tracker-history/blob/master/reference/amiga/soundtracker/Ultimate_Soundtracker-format.txt
  ; http://helllabs.org/tracker-history/trackers.svg
@@ -44,11 +44,23 @@
 
 ;-------------------------------------------------------------------------------
 
-    @var.mod.type:      defb 0
-    @var.mod.samples:   defb 0
-    @var.mod.patterns:  defb 0
-    @var.mod.offset:    defw 0
-    @var.mod.page:      defb 0
+    @var.mod.type:              defb 0
+    @var.mod.samples:           defb 0
+    @var.mod.patterns:          defb 0
+
+    @var.mod.offset:            defw 0
+    @var.mod.page:              defb 0
+
+ if defined ( mod.tracker )
+
+    @var.mod.song_positions:    defb 0
+    @var.mod.pattern_table:     defw 0  ; in first page
+    @var.mod.pattern.offset:    defw 0  ; in first page
+
+    @var.mod.sample.offset:     defw 0
+    @var.mod.sample.page:       defb 0
+
+ endif
 
 ;-------------------------------------------------------------------------------
 
@@ -63,6 +75,36 @@ mod.get.samples.a:
 mod.get.patterns.a:
     ld a,(@var.mod.patterns)
     ret
+
+if defined ( mod.tracker )
+
+    mod.get.max_samples.a:
+        ld a,(@var.mod.type)
+        cp mod.type.st22
+        ld a,31
+        ret nc
+        ld a,15
+        ret
+
+    mod.get.song_positions.a:
+        ld a,(@var.mod.song_positions)
+        ret
+
+    mod.get.pattern_table.hl:
+        ld hl,(@var.mod.pattern_table)
+        ret
+
+    mod.get.pattern.hl:
+        ld hl,(@var.mod.pattern.offset)
+        ret
+
+    mod.get.sample.bhl:
+        ld hl,(@var.mod.sample.offset)
+        ld a,(@var.mod.sample.page)
+        ld b,a
+        ret
+
+endif
 
 ;-------------------------------------------------------------------------------
 
@@ -114,7 +156,9 @@ include "../constants/mod.i"
     defm "FLT4"
     defb mod.type.flt
 
-@list.mod.id.names:
+if defined ( mod.tracker ) == 0
+
+ @list.mod.id.names:
 
     defb mod.type.ust.15
     defw @txt.mod.type.ust.15
@@ -137,7 +181,6 @@ include "../constants/mod.i"
     defb mod.type.invalid
     defw @txt.mod.type.invalid
 
-
  @txt.mod.type.ust.15:  defm "Ultimate Soundtracker"
                         defb 0
  @txt.mod.type.st.15:   defm "Soundtracker"
@@ -156,7 +199,7 @@ include "../constants/mod.i"
                         defb 0
  @txt.mod.type.flt:     defm "Startrekker"
                         defb 0
- @txt.mod.type.invalid: defm "Invalid"
+ @txt.mod.type.invalid: ; defm "Invalid"
                         defb 0
 
 ;-------------------------------------------------------------------------------
@@ -189,11 +232,13 @@ mod.text.de:
 
     ret
 
+endif
 ;-------------------------------------------------------------------------------
 mod.determine.type:
 
  ; input:
  ; - hl = mod start
+ ; !!! add how many patterns should be checked - loader checks 3, install can check all
 
  ; output:
  ; - a  = mod.type
@@ -215,15 +260,6 @@ mod.determine.type:
 
     cp mod.type.invalid
     call nz,@check.file.size
-
-    ; ld c,a
-    ; ld b,0
-
-    ret z
-
-    ; ld bc,404
-
-    ld a,mod.type.invalid
 
     ret
 
@@ -612,19 +648,9 @@ mod.determine.type:
  ; output
  ; - z = ok
 
-    ld a,(@var.mod.type)
 
     ld c,0
-    ld hl,mod.title.len + mod.pattern.table.len + 2
-
-    cp mod.type.st23
-    jr c,@no.id
-    inc l
-    inc l
-    inc l
-    inc l
- @no.id:
-
+    ld hl,mod.title.len
     ld de,mod.sample.len
     call @get.samples.format.b
 
@@ -632,16 +658,79 @@ mod.determine.type:
         add hl,de
         djnz @-loop
 
+ if defined ( mod.tracker )
+
+    set 7,h
+    ld a,(hl)
+    res 7,h
+    ld (@var.mod.song_positions),a
+
+ endif
+
+    inc hl
+    inc hl
+
+ if defined ( mod.tracker )
+
+    ld (@var.mod.pattern_table),hl
+
+ endif
+
+    ld de,mod.pattern.table.len
+    add hl,de
+
     call @get.highest.pattern.b
 
-    ld de,0x40 * 4 * 4    ; 64 rows, 4 channels, 4 bytes
+    ld a,(@var.mod.type)
+    cp mod.type.st23
+    jr c,@no.id
+
+    inc hl
+    inc hl
+    inc hl
+    inc hl
+
+ @no.id:
+
+ if defined ( mod.tracker )
+
+    ld (@var.mod.pattern.offset),hl
+
+ endif
+
+    ld de,mod.pattern.len
 
     @loop:
         call @add.chl.de
 
         djnz @-loop
 
+ if defined ( mod.tracker )
+
+    bit 7,h
+    res 7,h
+    jr z,$+4
+    inc c
+    inc c
+
+    bit 6,h
+    res 6,h
+    jr z,$+3
+    inc c
+
+    ld (@var.mod.sample.offset),hl
+    ld a,c
+    ld (@var.mod.sample.page),a
+
+ endif
+
     call @get.total.sample.length.chl
+
+if defined ( mod.no.check.file.size )
+
+    call @get.total.sample.length.chl
+
+else
 
     push bc
     push hl
@@ -659,12 +748,16 @@ mod.determine.type:
     pop hl
     pop bc
 
+ endif
+
     xor a       ; set z
     ld a,(@var.mod.type)
 
     ret
 
- @different: ; check if file size equals sample lengths added as bytes (4-bit)
+ if defined ( mod.no.check.file.size ) == 0
+
+  @different: ; check if file size equals sample lengths added as bytes (4-bit)
 
     pop hl
     pop bc
@@ -684,7 +777,7 @@ mod.determine.type:
 
     ret
 
-
+ endif
 
 ;-------------------------------------------------------------------------------
 @get.total.sample.length.chl:
