@@ -1,6 +1,6 @@
 ;SAM MOD player - DOS loader
 
- ;(C) 1996-2021 Stefan Drissen
+ ;(C) 1996-2022 Stefan Drissen
 
  ; to do:
  ; - handle dos errors better (doser)
@@ -452,7 +452,6 @@ loader:
  @select.file:
 
     call @show.screen
-    call @print.octave
     call @print.drive.number
     call @print.drive.label
     call @print.files
@@ -524,23 +523,6 @@ loader:
 
     call scan.keyboard.return
     jp nz,select.key
-
-    ld a,keyboard.yuiop
-    in a,(port.keyboard)
-    and %00010
-    ld a,opcode.nop
-    jr nz,@not.o
- @still.o:
-    scf
-    jr c,@not.o.nc
-    ld a,(loader.octaves+1)
-    xor %110
-    ld (loader.octaves+1),a
-    call @print.octave
-    ld a,opcode.scf
- @not.o:
-    ld (@still.o),a
- @not.o.nc:
 
     ld a,(ix + @loader.dir.type)
     cp 0x81     ; drive 2
@@ -702,20 +684,6 @@ loader:
     ld de,@mes.details.size
 
     jp @text.hl.decimal.100.right
-
-;-------------------------------------------------------------------------------
-@print.octave:
-
-    ld hl,screen + screen.32.rows * 1 + 26
-    ld de,mes.oct
-    ld b,5
-    call print.de.b
-
-    ld a,(loader.octaves+1)
-    add "0"
-    call print.chr
-
-    ret
 
 ;-------------------------------------------------------------------------------
 @print.drive.number:
@@ -1207,8 +1175,6 @@ file.loaded:
     ld a,(loader.ram)
     ld c,a
 
- loader.octaves:
-    ld a,3                  ; 3 or 5 octave
     call demo.setup         ; aBcd
 
  @store.lmpr:
@@ -1380,7 +1346,6 @@ cursor.print:
 
 ;-------------------------------------------------------------------------------
 ; messages
- mes.oct:               defm "Oct: "
  mes.drive:             defm "Drive 1: "
 
  mes.label:             defm "Solar Flare     "

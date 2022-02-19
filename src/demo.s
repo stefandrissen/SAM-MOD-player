@@ -1,6 +1,6 @@
 ;SAM MOD player - demo
 
-;(C) 1996-2021 Stefan Drissen
+;(C) 1996-2022 Stefan Drissen
 
 include "memory.i"
 include "ports/internal.i"
@@ -43,10 +43,7 @@ demo.samples:       defb 0  ; [15|31]
 @setupmod:
 
  ; input:
- ; - a = octaves [3,5]
  ; - c = RAM
-
-    ex af,af'
 
     in a,(port.hmpr)
     ld (@store.hmpr+1),a
@@ -77,7 +74,7 @@ demo.samples:       defb 0  ; [15|31]
 
     ld hl,0x8000
     ld de,mod.header - 0x8000
-    ld bc,mod.pt.pattern
+    ld bc,mod.pattern
     ldir
 
     ld a,page.tracker
@@ -88,25 +85,6 @@ demo.samples:       defb 0  ; [15|31]
     ld a,page.demo - 1  ; - 1 since demo is in D
     call @fix.page
     ld (tracker.ptr.page.demo),a
-    ex af,af'
-    ld (tracker.octaves),a
-    ld hl,tracker.display - 0x8000
-    cp 3
-    jr nz,@display.periods
-
-    ld a,opcode.nop
-    ld (hl),a
-    jr @continue
-
- @display.periods:
-
-    ld (hl),opcode.jr_n
-    ld a,display.period_values - display.notes
-
- @continue:
-
-    inc hl
-    ld (hl),a
 
     ld a,(demo.ram)
     ld (tracker.ram),a
@@ -131,6 +109,25 @@ demo.samples:       defb 0  ; [15|31]
     call tracker.install.mod
 
     ld (demo.samples),a
+
+    ld a,(tracker.octaves)
+    ld hl,tracker.display - 0x8000
+    cp 3
+    jr nz,@display.periods
+
+    ld a,opcode.nop
+    ld (hl),a
+    jr @continue
+
+ @display.periods:
+
+    ld (hl),opcode.jr_n
+    ld a,display.period_values - display.notes
+
+ @continue:
+
+    inc hl
+    ld (hl),a
 
     ld a,page.burstplayer
     call @fix.page
@@ -1284,7 +1281,7 @@ create.note.table:
 length: equ $-demo.setup
 
 ;-------------------------------------------------------------------------------
-mod.header:     defs mod.pt.pattern ; first 1084 bytes of mod containing song name + sample info
+mod.header:     defs mod.pattern    ; first 1084 bytes of mod containing song name + sample info
 
 ;-------------------------------------------------------------------------------
     defs align 256

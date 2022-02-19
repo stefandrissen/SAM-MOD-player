@@ -366,16 +366,6 @@ tracker.gap:            defb 0
 
     call set.high.memory.a
 
-    ; give gap correct value, 3 for 3 octaves, 6 for 5 octaves
-    ; !!! detect octaves by scanning periods / notes in patterns
-
-    ld a,(tracker.octaves.low)
-    cp 5
-    ld a,3
-    jr nz,$+3
-    rlca
-    ld (tracker.gap.low),a
-
     ; clear sample table
 
     ld hl,sample.table.low
@@ -399,6 +389,21 @@ tracker.gap:            defb 0
     ld de,pattern.table - 0x8000
     ld bc,mod.pattern.table.len
     ldir
+
+    ld a,(tracker.ptr.page.mod.low)
+    call mod.determine.octaves
+    ld (tracker.octaves.low),a
+
+    ; give gap correct value, 3 for 3 octaves, 6 for 5 octaves
+
+    cp 5
+    ld a,3
+    jr nz,$+3
+    rlca
+    ld (tracker.gap.low),a
+
+    ld a,(tracker.ptr.page.mod.low)
+    call set.high.memory.a
 
     call mod.get.pattern.hl
     set 7,h

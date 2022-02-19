@@ -133,7 +133,7 @@ fat.directory.read:
             call @cluster.next
             jr z,@eof
             ld a,h
-            cp ( screen.free + mod.pt.pattern ) / 256 + 1
+            cp ( screen.free + mod.pattern ) / 256 + 1
 
             jr c,@-read.more
 

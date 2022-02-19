@@ -23,23 +23,23 @@ mod.samples:                                    ; 31 samples
 
     defs ( 31 - 1 ) * mod.sample.len
 
-mod.pt.song.positions:
+mod.song.positions:
 
     defb 1
     defb 0
 
 ;-------------------------------------------------------------------------------
-mod.pt.pattern.table:
+mod.pattern.table:
 
     defb 0
     defs 127
 
-mod.pt.id:
+mod.id:
 
     defm "M.K."
 
 ;-------------------------------------------------------------------------------
-mod.pt.pattern:
+mod.pattern:
 
  ; standard protracker is 3 octaves [1-3]
  ; octave 0 and 4 are additional for 5 octave mods
@@ -166,7 +166,7 @@ mod.pt.pattern:
     defs 62 * 16
 
 
- assert ( ( $ - mod.pt.pattern ) \ 1024 == 0 )
+ assert ( ( $ - mod.pattern ) \ 1024 == 0 )
 
 ;-------------------------------------------------------------------------------
 samples:

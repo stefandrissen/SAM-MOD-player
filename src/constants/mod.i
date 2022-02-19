@@ -25,30 +25,25 @@ mod.samples:    equ mod.title + mod.title.len
 
     mod.sample.len:                 equ 30
 
-; ------------------------------------------------------------------------------
-; protracker
+mod.song.positions:         equ mod.samples + 31 * mod.sample.len               ; [0x01-0x7f]
 
-    mod.pt.song.positions:      equ mod.samples + 31 * mod.sample.len               ; [0x01-0x7f]
+mod.pattern.table:          equ mod.song.positions + 2
+    mod.pattern.table.len:  equ 128
 
-    mod.pt.pattern.table:       equ mod.pt.song.positions + 2
-        mod.pattern.table.len:  equ 128
+mod.id:                     equ mod.pattern.table + mod.pattern.table.len    ; ['M.K.','FLT4','M!K!']
+    mod.id.len:             equ 4   ; introduced in Soundtracker 2.3
 
-    mod.pt.id:                  equ mod.pt.pattern.table + mod.pattern.table.len    ; ['M.K.','FLT4','M!K!']
-        mod.pt.id.len:          equ 4
+mod.pattern:                equ mod.id + mod.id.len
+    mod.pattern.rows:       equ 0x40
+    mod.pattern.channels:   equ 4
+    mod.pattern.note:       equ 4
+        mod.note.sample.hi: equ 0   ; H  = upper sample,
+        mod.note.note.hi:   equ 0   ; L  = upper note
+        mod.note.note:      equ 1   ; HL = note
+        mod.note.sample.lo: equ 2   ; H  = lower sample,
+        mod.note.effect:    equ 2   ; L  = command
+        mod.note.command:   equ 3   ; HL = parameter
 
-    mod.pt.pattern:             equ mod.pt.id + mod.pt.id.len
-        mod.pattern.len:        equ 64 * 4 * 4
+    mod.pattern.len:        equ mod.pattern.rows * mod.pattern.channels * mod.pattern.note
 
-    ; mod.pt.sample.data:       equ mod.pt.pattern + patterns * mod.pattern.len
-
-; ------------------------------------------------------------------------------
-; noisetracker
-
-    mod.nt.song.positions:      equ mod.samples + 31 * mod.sample.len               ; [0x01-0x7f]
-    mod.nt.restart.position:    equ mod.nt.song.positions + 1                       ; [0x7f]
-
-    mod.nt.pattern.table:       equ mod.nt.song.positions + 2
-
-    mod.nt.pattern:             equ mod.nt.pattern.table + mod.pattern.table.len    ; 1024 bytes (64 * 4 * 4)
-
-    ; mod.nt.sample.data:       equ mod.nt.pattern + patterns * mod.pattern.len
+; mod.sample.data:          equ mod.pattern + patterns * mod.pattern.len

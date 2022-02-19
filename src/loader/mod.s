@@ -269,7 +269,7 @@ mod.determine.type:
  ; input:
  ;  hl = mod start
 
-    ld de,mod.pt.id
+    ld de,mod.id
     add hl,de
 
     ld de,@mod.ids
@@ -870,3 +870,77 @@ else
 
     ret
 
+if defined ( mod.tracker )
+;-------------------------------------------------------------------------------
+mod.determine.octaves:
+
+ ; scan patterns for note with period < 0x071 (higher than B-3)
+ ; if found, mod is 5 octave mod
+
+ ; input
+ ; a = mod.page
+
+ ; output
+ ; - a = octaves [3|5]
+
+;    ld a,3
+;    ret
+
+    ld (@page+1),a
+
+    ld hl,(@var.mod.pattern.offset)
+    set 7,h
+
+    ld a,(@var.mod.patterns)
+    ld c,a
+
+    @loop.patterns:
+
+        bit 6,h
+        jr z,@page.ok
+        res 6,h
+     @page:
+        ld a,0
+        inc a
+        ld (@page+1),a
+        call set.high.memory.a
+
+     @page.ok:
+
+        ld b,mod.pattern.rows * mod.pattern.channels
+
+        @loop.pattern:
+
+            ld a,(hl)
+            inc hl
+            and 0x0f        ; mod.note.note.hi
+            jr nz,@not.high
+
+            ld a,(hl)
+            or a
+            jr z,@not.high  ; 0 -> no note
+
+            cp 0x071        ; note.B_3
+            jr c,@high
+
+        @not.high:
+
+            inc hl
+            inc hl
+            inc hl
+
+            djnz @-loop.pattern
+
+        dec c
+        jr nz,@-loop.patterns
+
+        ld a,3
+
+    ret
+
+ @high:
+
+    ld a,5
+    ret
+
+endif
