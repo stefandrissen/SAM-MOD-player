@@ -707,16 +707,16 @@ mod.determine.type:
 
  if defined ( mod.tracker )
 
-    bit 7,h
-    res 7,h
-    jr z,$+4
-    inc c
-    inc c
+    ld a,h
+    and %11000000
+    or c
+    rlca
+    rlca
+    ld c,a
 
-    bit 6,h
-    res 6,h
-    jr z,$+3
-    inc c
+    ld a,h
+    and %00111111
+    ld h,a
 
     ld (@var.mod.sample.offset),hl
     ld a,c
@@ -907,7 +907,7 @@ mod.determine.octaves:
 
      @page.ok:
 
-        ld b,mod.pattern.rows * mod.pattern.channels
+        ld b,( mod.pattern.rows * mod.pattern.channels ) \ 0x100
 
         @loop.pattern:
 
