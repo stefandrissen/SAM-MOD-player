@@ -412,87 +412,94 @@ tracker.gap:            defb 0
     ld a,l
     ld (origpat.offsl + 1 - 0x8000),a
 
-    call mod.get.sample.bhl
-    set 7,h
-@page.mod.1:
-    ld a,0
-    add a,b
-    ld b,a
-
     ld ix,mod.samples + 0x8000
     ld iy,sample.table.low
+    call @create.sample.table
+
+    ; in dummy sample only start address is valid data
+
+    ld (iy + st.start + 0),l
+    ld (iy + st.start + 1),h
+    ld (iy + st.start + 2),b
+
+    call @move.samples
+    call @fix.sample.loops
+    call @fill.gap.sample.loops
+    call @update.unused.samples
+
+    in a,(port.lmpr)
+    and low.memory.page.mask
+    out (port.hmpr),a
+
+    jp fs.high
+
+;-------------------------------------------------------------------------------
+@create.sample.table:
 
     ; - put starting addresses of samples in sample table by adding the sample
     ;   length to the current sample
     ; - fill in finetune, volume, does sample exist?
     ; - fill in loop type (0=none, 1=big, 2=small)
 
+    ; input:
+    ; - ix  = sample table in module
+    ; - iy  = sample table internal
+
+    call mod.get.sample.bhl
+    set 7,h
+ @page.mod.1:
+    ld a,0
+    add a,b
+    ld b,a
+
     ld a,(tracker.samples.low)  ; [15|31]
     ld c,a
 
-@loop.c.convall:
+    @loop.c.convall:
 
-    ld (iy+st.start+0),l
-    ld (iy+st.start+1),h
-    ld (iy+st.start+2),b
+        ld (iy + st.start + 0),l
+        ld (iy + st.start + 1),h
+        ld (iy + st.start + 2),b
 
-    ld a,(ix+mod.sample.finetune)
-    and %00001111
-    ld (iy+st.finetune),a
+        ld a,(ix + mod.sample.finetune)
+        and 0x0f
+        ld (iy + st.finetune),a
 
-    ld a,(ix+mod.sample.volume)
-    cp 0x40
-    jr c,@volume.ok
-    ld a,0x3f            ; volume tables only go to 0x3f
- @volume.ok:
-    ld (iy+st.vol),a
+        ld a,(ix + mod.sample.volume)
+        cp 0x40
+        jr c,@volume.ok
+        ld a,0x3f               ; volume tables only go to 0x3f
+     @volume.ok:
+        ld (iy + st.vol),a
 
-    ld d,(ix+mod.sample.len.words+0)           ; sample length in big endian WORDS
-    ld e,(ix+mod.sample.len.words+1)
+        ld d,(ix + mod.sample.len.words + 0)
+        ld e,(ix + mod.sample.len.words + 1)
 
-    ld a,d
-    or e
-    ld a,0
-    jr z,$+3                                ; !!! length 1 word should also be no sample
-    dec a
-    ld (iy+st.sample),a                     ; -1 = no sample
+        ld a,d
+        or e
+        ld a,0
+        jr z,$+3                ; !!! length 1 word should also be no sample
+        dec a
+        ld (iy + st.sample),a   ; -1 = no sample
 
-    ; the original protracker idea is that ALL samples repeat,
-    ; the ones that "do not repeat", repeat on first sample word which is 0x000 -> silence
+        push hl
 
-    push hl
-    ld h,(ix+mod.sample.repeat.len.words+0) ; loop length in big endian WORDS
-    ld l,(ix+mod.sample.repeat.len.words+1)
-    sla l
-    rl h                                    ; -> bytes
-    ld a,1
-    jr c,@gotloop                           ; overflow = big loop
+        call @get.loop.size
+        ld (iy + st.loop),a
 
-    ld a,(tracker.gap.low)
-    dec a
-    cp h
-    ld a,1
-    jr c,@gotloop
+        pop hl
 
-    ld a,h
-    or a
-    ld a,2
-    jr nz,@gotloop      ; small loop
+        call @add.bhl.de2
 
-    ld a,l
-    cp 4                ; no looping if loop len < 4 bytes ( = 2 words = <= 1 word )
-    ld a,2
-    jr nc,@gotloop      ; no loop
+        call @next.entry.ix.iy
 
-    xor a
+        dec c
+        jr nz,@loop.c.convall
 
- @gotloop:              ; A: 0=no loop, 1=big loop, 2=small loop
+    ret
 
-    ld (iy+st.loop),a
-
-    pop hl
-
-    call add.bhl.de2
+;-------------------------------------------------------------------------------
+@next.entry.ix.iy:
 
     ld de,sample.table.len
     add iy,de
@@ -500,59 +507,55 @@ tracker.gap:            defb 0
     ld de,mod.sample.len
     add ix,de
 
-    dec c
-    jr nz,@loop.c.convall
+    ret
+;-------------------------------------------------------------------------------
 
-    ; in dummy sample only start address is valid data
+@get.loop.size:
 
-    ld (iy+st.start+0),l
-    ld (iy+st.start+1),h
-    ld (iy+st.start+2),b
+    ; the original protracker idea is that ALL samples repeat,
+    ; the ones that "do not repeat", repeat on first sample word which is 0x000 -> silence
 
-    ; calculate how much space needs to be created to accommodate the endings
-    ; and loopings of samples
+    ; output:
+    ; - a = 0 - no loop
+    ;       1 - big loop
+    ;       2 - small loop
 
-    ; 1. a sample not looped needs one gap of silence following it
-    ; 2. a sample with a loop greater than gap needs one gap with the start of
-    ;    the loop following it
-    ; 3. a sample with a loop smaller than gap needs three gaps with the whole
-    ;    loop repeated in it - see below
+    ld h,(ix + mod.sample.repeat.len.words + 0)
+    ld l,(ix + mod.sample.repeat.len.words + 1)
+    sla l
+    rl h                    ; -> bytes
+    ld a,@st.loop.big
+    ret c
 
-    ld ix,sample.table.low
-    ld bc,sample.table.len
-    ld a,(tracker.samples.low)
-    ld d,a
-    ld e,0
+    ld a,(tracker.gap.low)
+    dec a
+    cp h
+    ld a,@st.loop.big
+    ret c
 
-    @loop.d:
+    ld a,h
+    or a
+    ld a,@st.loop.small
+    ret nz
 
-        ld a,(ix+st.sample)
-        or a
-        jr z,@no.sample
+    ld a,l
+    cp 4                    ; no looping if loop len < 4 bytes ( = 2 words = <= 1 word )
+    ld a,@st.loop.small
+    ret nc
 
-        ld a,(ix+st.loop)
-        cp 2                ; small loop needs three gaps
-        jr nz,@not.small
+    xor a                   ; no loop
+    ret
 
-        inc e
-        inc e
+;-------------------------------------------------------------------------------
+@move.samples:
 
-     @not.small:
-        inc e
+    ; create the space necessary between samples by moving the samples to higher
+    ; addresses
 
-     @no.sample:
-
-        add ix,bc
-        dec d
-
-        jr nz,@-loop.d
-
-    ; create the space necessary by moving the samples to higher address
+    call @get.required.space.b
 
     ; ix = entry past last sample table entry
-    ; e  = number of bytes (gap*256) that need to be spaced out
-
-    ld b,e
+    ; b  = total number of bytes (gap*256) that need to be spaced out
 
     @shift.all:
 
@@ -560,44 +563,48 @@ tracker.gap:            defb 0
 
         push bc
 
-        ld l,(ix+st.start+0)
-        ld h,(ix+st.start+1)
-        ld b,(ix+st.start+2)    ; BHL = address last byte of sample +1
+        ld l,(ix + st.start + 0)
+        ld h,(ix + st.start + 1)
+        ld b,(ix + st.start + 2)        ; BHL = address last byte of sample +1
 
         ld a,b
         call set.high.memory.a
 
         push hl
-     @page.mod.2:
-        cp page.mod
-        jr z,@nz
 
-        set 6,h
-        dec a
-     @nz:
-        dec hl
+         @page.mod.2:
+            cp page.mod
+            jr z,@nz
 
-        ld (source.lo+1),hl
-        ld (source.hi+1),a
-        pop hl                              ; source is AHL in block D last byte of sample
+            set 6,h ; page abcD
+            dec a
+         @nz:
+            dec hl
+
+            ld (@source.lo + 1),hl
+            ld (@source.hi + 1),a
+
+        pop hl                          ; source: AHL in block D -> last byte of sample
         push hl
-        ld e,(ix-(prev.start+2))
-        ld d,(ix-(prev.start+1))
-        ld c,(ix-(prev.start+0))
-        xor a
-        sbc hl,de
-        jr nc,@nooverflow
 
-        ld de,0x4000
-        add hl,de
-        scf
+            ld e,(ix - st.prev.start + 0)
+            ld d,(ix - st.prev.start + 1)
+            ld c,(ix - st.prev.start + 2)
+            xor a
+            sbc hl,de
+            jr nc,@nc
 
-     @nooverflow:
+            ld de,0x4000
+            add hl,de
+            scf
 
-        ld a,b
-        sbc c
-        ld (result.lo+1),hl                 ; number of bytes to be
-        ld (result.hi+1),a                  ; copied put in result
+         @nc:
+
+            ld a,b
+            sbc c
+            ld (@result.lo + 1),hl  ; number of bytes to be
+            ld (@result.hi + 1),a   ; copied put in result
+
         pop hl
 
         ld a,b
@@ -607,17 +614,19 @@ tracker.gap:            defb 0
 
         ld a,(tracker.gap.low)
         ld c,a
-     im.new.start:
-        ld a,b                              ; bytes to be shifted (* 256)
-        add a,h
-        ld h,a
-        jr nc,@nopinc1
-        inc e
-        inc e
-        set 7,h
-     @nopinc1:
-        dec c
-        jr nz,im.new.start
+
+        @loop:
+            ld a,b                      ; bytes to be shifted (* 256)
+            add a,h
+            ld h,a
+            jr nc,@nc
+
+            inc e
+            inc e
+            set 7,h
+         @nc:
+            dec c
+            jr nz,@-loop
 
         bit 6,h
         res 6,h
@@ -627,29 +636,29 @@ tracker.gap:            defb 0
         ld a,e
         call set.high.memory.a
 
-        ld (ix+st.start+0),l    ; new start address of
-        ld (ix+st.start+1),h    ; sample at shifted
-        ld (ix+st.start+2),a    ; position
+        ld (ix + st.start + 0),l    ; new start address of
+        ld (ix + st.start + 1),h    ; sample at shifted
+        ld (ix + st.start + 2),a    ; position
      @page.mod.3:
         cp page.mod
         jr z,@bottom.page
 
         dec a
-        ld (@page+1),a
+        ld (@page + 1),a
         call set.high.memory.a
 
         set 6,h
      @bottom.page:
         dec hl
 
-        ld a,(ix-prev.sample)   ; st.sample-16
+        ld a,(ix - st.prev.sample)
         or a
         jr z,@noaddgap
 
         ; how much gap needed behind sample
 
-        ld a,(ix-prev.loop)     ; -16 + st.loop
-        cp 2
+        ld a,(ix - st.prev.loop)
+        cp @st.loop.small
         ld a,(tracker.gap.low)
         jr nz,@only1
         ld c,a
@@ -662,7 +671,9 @@ tracker.gap:            defb 0
         ld c,a
         xor a                   ; 0 = no volume (sample is signed 8 bit integer)
         ld b,a
+
         @clearend:
+
                 ld (hl),a
                 dec hl
                 djnz @clearend
@@ -684,102 +695,110 @@ tracker.gap:            defb 0
      @nz:
         ; now pointing to address before gap
 
-        ld (target.lo+1),hl
-        ld (target.hi+1),a
+        ld (@target.lo + 1),hl
+        ld (@target.hi + 1),a
 
         ; so lddr copy sample from old position to higher address
 
-     copy.loop:
-     result.lo:
-        ld hl,0
-     result.hi:
-        ld a,0
-        ld bc,move.size
-        or a
-        sbc hl,bc
-        jr nc,keepcopying
-        sub 1
-        jr c,nomoreadd
-        ld de,0x4000
-        add hl,de
-        jr keepcopying
-     nomoreadd:
-        add hl,bc
-        ld c,l
-        ld b,h
-     keepcopying:
-        ld (result.lo+1),hl
-        ld (result.hi+1),a
+        @copy.loop:
 
-        ld a,b
-        or c
-        jr z,nocopy
+         @result.lo:
+            ld hl,0
+         @result.hi:
+            ld a,0
+            ld bc,move.size
+            or a
+            sbc hl,bc
+            jr nc,@keepcopying
 
-     source.lo:
-        ld hl,0
-     source.hi:
-        ld a,0
-        call set.high.memory.a
+            sub 1
+            jr c,@nomoreadd
 
-        ld de,move.spc + move.size - 1
-        push bc
-        lddr                        ; copying
+            ld de,0x4000
+            add hl,de
+            jr @keepcopying
 
-     @page.mod.5:
-        cp page.mod
-        jr z,@nz
+         @nomoreadd:
+            add hl,bc
+            ld c,l
+            ld b,h
 
-        bit 6,h
-        set 6,h
-        jr nz,@nz
-        dec a
-     @nz:
-        ld (source.hi+1),a
-        ld (source.lo+1),hl
+         @keepcopying:
+            ld (@result.lo + 1),hl
+            ld (@result.hi + 1),a
 
-        ld hl,move.spc + move.size-1
-     target.lo:
-        ld de,0
-     target.hi:
-        ld a,0
-        call set.high.memory.a
+            ld a,b
+            or c
+            jr z,@nocopy
 
-        pop bc
-        lddr                        ; copying
-     @page.mod.6:
-        cp page.mod
-        jr z,@nz
+         @source.lo:
+            ld hl,0
+         @source.hi:
+            ld a,0
+            call set.high.memory.a
 
-        bit 6,d
-        set 6,d
-        jr nz,@nz
-        dec a
-     @nz:
-        ld (target.hi+1),a
-        ld (target.lo+1),de
-     nocopy:
-        ld a,(result.hi+1)
-        inc a               ;stop when A=255
+            ld de,move.spc + move.size - 1
+            push bc
 
-        jr nz,copy.loop
+            lddr                        ; copy from source to buffer
+
+         @page.mod.5:
+            cp page.mod
+            jr z,@nz
+
+            bit 6,h
+            set 6,h
+            jr nz,@nz
+            dec a
+         @nz:
+            ld (@source.hi + 1),a
+            ld (@source.lo + 1),hl
+
+            ld hl,move.spc + move.size - 1
+         @target.lo:
+            ld de,0
+         @target.hi:
+            ld a,0
+            call set.high.memory.a
+
+            pop bc
+
+            lddr                        ; copy from buffer to target
+
+         @page.mod.6:
+            cp page.mod
+            jr z,@nz
+
+            bit 6,d
+            set 6,d
+            jr nz,@nz
+            dec a
+         @nz:
+            ld (@target.hi + 1),a
+            ld (@target.lo + 1),de
+         @nocopy:
+            ld a,(@result.hi + 1)
+            inc a               ;stop when A=255
+
+            jr nz,@-copy.loop
 
         ld bc,-sample.table.len
         add ix,bc
 
-        ld a,(ix+st.sample)
+        ld a,(ix + st.sample)
         or a
         ld a,0
-        jr z,nosamplegap
+        jr z,@nosamplegap
 
         ;get number of gaps used
 
-        ld a,(ix+st.loop)
-        cp 2
+        ld a,(ix + st.loop)
+        cp @st.loop.small
         ld a,0
         jr nz,$+4
         add 2               ;for small loop
         inc a
-     nosamplegap:
+     @nosamplegap:
         ld e,a
 
         pop bc
@@ -790,7 +809,350 @@ tracker.gap:            defb 0
 
         jp nz,@shift.all
 
-; !!!
+    ret
+
+;-------------------------------------------------------------------------------
+@get.required.space.b:
+
+    ; calculate how much space needs to be created to accommodate the endings
+    ; and loopings of samples
+
+    ; 1. a sample not looped needs one gap of silence following it
+    ; 2. a sample with a loop greater than gap needs one gap with the start of
+    ;    the loop following it
+    ; 3. a sample with a loop smaller than gap needs three gaps with the whole
+    ;    loop repeated in it - see below
+
+    ld ix,sample.table.low
+    ld de,sample.table.len
+    ld a,(tracker.samples.low)
+    ld b,a
+    ld c,0
+
+    @loop:
+
+        ld a,(ix + st.sample)
+        or a
+        jr z,@no.sample
+
+        ld a,(ix + st.loop)
+        cp @st.loop.small   ; small loop needs three gaps
+        jr nz,@not.small
+
+        inc c
+        inc c
+
+     @not.small:
+        inc c
+
+     @no.sample:
+
+        add ix,de
+
+        djnz @-loop
+
+    ld b,c
+
+    ret
+
+;-------------------------------------------------------------------------------
+@fix.sample.loops:
+
+    call @get.sample.bug.a
+    ld (loop.bug+1),a
+
+    ; fill in end addresses of samples in sample table by adding sample length
+    ; bytes (*2) to start address OR if the sample is looped by adding the
+    ; offset + the sample length
+
+    ld iy,sample.table.low
+    ld ix,mod.samples + 0x8000
+
+    ld a,(tracker.samples.low)
+    ld c,a
+
+    @loop:
+
+        ld l,(iy + st.start + 0)
+        ld h,(iy + st.start + 1)
+        ld b,(iy + st.start + 2)
+
+        ld d,(ix + mod.sample.len.words + 0)
+        ld e,(ix + mod.sample.len.words + 1)
+
+        ld a,(iy + st.loop)
+        or a
+        jr z,@notloop
+
+        ld a,(loop.bug+1)
+        or a
+        jr z,@normal
+
+        dec a
+        jr nz,@soul.bug
+
+     @noise.bug:
+        ld d,(ix + mod.sample.repeat.offset.words + 0)  ; loop offset in bytes!
+        ld e,(ix + mod.sample.repeat.offset.words + 1)
+        jr @contnorm
+
+     @soul.bug: ; soul-o-matic bug
+        ld d,(ix + mod.sample.repeat.len.words + 0)
+        ld e,(ix + mod.sample.repeat.len.words + 1)
+        call @add.bhl.de2
+        jr @got.gap
+
+     @normal:
+
+        ld d,(ix + mod.sample.repeat.offset.words + 0)
+        ld e,(ix + mod.sample.repeat.offset.words + 1)
+
+        call add.bhl.de
+
+     @contnorm:
+
+        call add.bhl.de
+        ld d,(ix + mod.sample.repeat.len.words + 0)
+        ld e,(ix + mod.sample.repeat.len.words + 1)
+
+     @notloop:
+
+        call @add.bhl.de2
+
+     @got.gap:
+
+        ld (iy + st.end + 0),l
+        ld (iy + st.end + 1),h
+        ld (iy + st.end + 2),b
+
+        call @next.entry.ix.iy
+
+        dec c
+        jr nz,@-loop
+
+    ret
+
+;-------------------------------------------------------------------------------
+@fill.gap.sample.loops:
+
+    ; fill in GAP to accomodate looped samples, small and large
+
+    ld iy,sample.table.low
+    ld ix,mod.samples + 0x8000
+    ld a,(tracker.samples.low)
+    ld b,a
+
+    @loop:
+
+        push bc
+
+        ld a,(tracker.ptr.page.mod.low)
+        call set.high.memory.a
+
+        ld a,(iy + st.loop)
+        or a
+
+        call nz,@fill.gap.sample.loop
+
+     @next:
+        ld bc,sample.table.len
+        add iy,bc
+        ld bc,mod.sample.len
+        add ix,bc
+
+        pop bc
+
+        djnz @-loop
+
+    ret
+
+;-------------------------------------------------------------------------------
+@fill.gap.sample.loop:
+
+ ; input:
+ ; - ix = mod sample table
+ ; - iy = internal sample table
+
+    ld h,(ix + mod.sample.len.words + 0)
+    ld l,(ix + mod.sample.len.words + 1)
+    ld d,(ix + mod.sample.repeat.offset.words + 0)
+    ld e,(ix + mod.sample.repeat.offset.words + 1)
+
+ loop.bug:
+    ld a,0
+    or a
+    jr z,@+loop.ok
+
+    dec a
+    jr z,@noise.bug
+
+ @soul.bug: ; in SOUL-O-MATIC the loop len is given as loop end offset
+    or a
+    sbc hl,de
+    ld (ix + mod.sample.repeat.len.words + 0),h ; now loop len = loopend off -
+    ld (ix + mod.sample.repeat.len.words + 1),l ;                loopstart off
+    jr @+loop.ok
+
+ @noise.bug: ; "noisetracker" loop offset in bytes instead of words
+    srl d
+    rr e
+
+ @loop.ok:   ; DE = loop offset
+
+    ld l,(iy + st.start + 0)
+    ld h,(iy + st.start + 1)
+    ld b,(iy + st.start + 2)
+
+    call @add.bhl.de2
+
+    ld a,(iy + st.loop)
+    dec a
+
+    push af
+    call nz,@fill.gap.sample.small.loop
+    pop af
+    call z,@fill.gap.sample.big.loop
+
+    ret
+
+;-------------------------------------------------------------------------------
+@fill.gap.sample.small.loop:
+
+ ; input:
+ ; - bhl = start sample
+ ; - ix  = mod sample table
+ ; - iy  = internal sample table
+
+ ; Small loop, can be up to gap in size, it has to cover the end loop marker
+ ; meaning that three gaps are needed if the loop is gap-1 then the first
+ ; marker is after 2*(gap-1) at the next frame it is possible that the sample
+ ; will then be at position 3*(gap-3).  Then the difference between the
+ ; current position and the first repeat end after gap can be added to gap to
+ ; get new position.
+ ; - follow that?  It took me a while to think that one up... 8-)
+
+    ld a,(tracker.gap.low)
+    ld d,a
+    add a,a
+    add a,d
+    ld d,a
+    ld e,0
+    ld (@totalgap+1),de  ; DE < gap
+
+    ld a,b
+
+    ; ld de,move.spc
+    ld b,(ix + mod.sample.repeat.len.words + 0)
+    ld c,(ix + mod.sample.repeat.len.words + 1)
+    sla c
+    rl b
+
+    call set.high.memory.a
+
+    ld (@sm.lp.src+1),hl
+
+    ;  push bc
+    ;  ldir
+    ;  pop bc
+
+    ld e,(iy + st.end + 0)
+    ld d,(iy + st.end + 1)
+
+    ; ld a,(iy+st.end+2) = equal to start loop
+    ; out (port.hmpr),a
+
+    or a
+    sbc hl,de           ; if end lower than sample
+    jr c,$+4            ; then increase page positon
+    set 6,d             ; of end by setting bit 6
+
+    push af             ; make small loop pointer
+    ld hl,0             ; at least gap size
+ @loop.big:
+    add hl,bc           ; -> possibly 2 * ( gap - 1 )
+    ld a,(tracker.gap.low)
+    cp h
+    jr nc,@-loop.big
+    pop af
+
+    add hl,de
+    bit 6,h
+    res 6,h
+    jr z,$+3
+    inc a
+    ld (iy + st.loope + 0),l
+    ld (iy + st.loope + 1),h
+    ld (iy + st.loope + 2),a
+
+    ; keep copying loop until 3 * gap space is filled
+
+    @loop.copy.small.loop:
+
+     @totalgap:
+        ld hl,0
+        or a
+        sbc hl,bc
+        ret z
+        jr c,@last.partial
+
+        ld (@totalgap + 1),hl
+
+     @sm.lp.src:
+        ld hl,0
+        push bc
+        ldir
+        pop bc
+
+        jr @-loop.copy.small.loop
+
+ @last.partial:
+
+    add hl,bc
+    ld c,l
+    ld b,h
+    ld hl,(@sm.lp.src + 1)
+    ldir
+
+    ret
+
+;-------------------------------------------------------------------------------
+@fill.gap.sample.big.loop:
+
+    ld (iy + st.loops + 0),l
+    ld (iy + st.loops + 1),h
+    ld (iy + st.loops + 2),b
+
+    ; copy start of loop to gap after end loop for gap bytes
+
+    ld a,b
+    call set.high.memory.a
+
+    ld de,move.spc
+    ld c,0
+    ld a,(tracker.gap.low)
+    ld b,a
+    push bc
+    ldir
+
+    ld e,(iy + st.end + 0)
+    ld d,(iy + st.end + 1)
+    ld a,(iy + st.end + 2)
+    call set.high.memory.a
+
+    ld hl,move.spc
+    pop bc
+    ldir                    ;copy to beginloop
+
+    ret
+
+;-------------------------------------------------------------------------------
+@get.sample.bug.a:
+
+ ; output:
+ ; - a = 0 -> normal looping
+ ;       1 -> noisetracker bugged loop
+ ;       2 -> soul-o-matic bug
+
 ; check ALL samples for Noisetracker bug
 ; -> loop offset in bytes instead of in words
 ;    loopoffset * 2 + looplen * 2 > samplelen -> bugged
@@ -809,319 +1171,65 @@ tracker.gap:            defb 0
     ld a,(tracker.ptr.page.mod.low)
     call set.high.memory.a
 
-find.bug.lp:
-    push bc
-    ld a,(iy+st.loop)
-    or a
-    jr z,find.lp.ok         ;no loop -> no bug
-    ld h,(ix+mod.sample.len.words+0)
-    ld l,(ix+mod.sample.len.words+1)
-    ld d,(ix+mod.sample.repeat.len.words+0)
-    ld e,(ix+mod.sample.repeat.len.words+1)
-    or a
-    sbc hl,de               ;assuming loop len<sample len
-    jr nc,assumpt.ok
-    add hl,de
-    ld (ix+mod.sample.repeat.len.words+0),h ;set loop len to sample len
-    ld (ix+mod.sample.repeat.len.words+1),l
-    ld hl,0                 ;sample len-loop len
-assumpt.ok:
-    ld d,(ix+mod.sample.repeat.offset.words+0)  ;loop offs
-    ld e,(ix+mod.sample.repeat.offset.words+1)
-    sbc hl,de
-    jr c,found.bug          ;loop offs+len>sample len
-    jr find.lp.ok
+    @loop:
 
-found.bug:
-    add hl,de
-    srl d
-    rr e
-    or a
-    sbc hl,de
-    jr c,loop.bug.2
-    ld a,1
-    jr found.bugged
+        ld a,(iy + st.loop)
+        or a
+        jr z,@next              ; no loop -> no bug
 
-;in SOUL-O-MATIC the loop len is given as loop end offset
+        ld h,(ix + mod.sample.len.words + 0)
+        ld l,(ix + mod.sample.len.words + 1)
+        ld d,(ix + mod.sample.repeat.len.words + 0)
+        ld e,(ix + mod.sample.repeat.len.words + 1)
+        or a
+        sbc hl,de               ; assuming loop len < sample len
+        jr nc,@loop.lt.len
 
-loop.bug.2:
-    ld a,2
-    jr found.bugged
+        add hl,de
+        ld (ix + mod.sample.repeat.len.words + 0),h ;set loop len to sample len
+        ld (ix + mod.sample.repeat.len.words + 1),l
+        ld hl,0                 ; sample len - loop len
 
-find.lp.ok:
-    ld bc,sample.table.len
-    add iy,bc
-    ld bc,mod.sample.len
-    add ix,bc
-    pop bc
-    djnz find.bug.lp
+     @loop.lt.len:
+        ld d,(ix + mod.sample.repeat.offset.words + 0)  ;loop offs
+        ld e,(ix + mod.sample.repeat.offset.words + 1)
+        sbc hl,de
+
+        call c,@sample.loop.issue
+
+     @next:
+        call @next.entry.ix.iy
+
+        djnz @-loop
 
     xor a
 
-found.bugged:
+    ret
 
-    ; a = 0 -> normal looping
-    ; a = 1 -> noisetracker bugged loop
-    ; a = 2 -> soul-o-matic bug
+;-------------------------------------------------------------------------------
+@sample.loop.issue:
 
-    ld (loop.bug+1),a
+    pop af  ; chuck return address
 
-    ; fill in end addresses of samples in sample table by adding sample length
-    ; bytes (*2) to start address OR if the sample is looped by adding the
-    ; offset + the sample length
-
-    ld iy,sample.table.low
-    ld ix,mod.samples + 0x8000
-
-    ld a,(tracker.samples.low)
-    ld c,a
- @fillend:
-    ld l,(iy+st.start+0)
-    ld h,(iy+st.start+1)
-    ld b,(iy+st.start+2)
-
-    ld d,(ix+mod.sample.len.words+0)
-    ld e,(ix+mod.sample.len.words+1)
-
-    ld a,(iy+st.loop)
-    or a
-    jr z,@notloop
-
-    ld a,(loop.bug+1)
-    or a
-    jr z,@normal
-
-    dec a
-    jr z,@noisebug
-
-    ;soul-o-matic bug
-    ld d,(ix+mod.sample.repeat.len.words+0)
-    ld e,(ix+mod.sample.repeat.len.words+1)
-    call add.bhl.de2
-    jr @got.gap
-
- @normal:
-
-    ld d,(ix+mod.sample.repeat.offset.words+0)
-    ld e,(ix+mod.sample.repeat.offset.words+1)
-
-    call add.bhl.de
-    jr @contnorm
-
- @noisebug:
-    ld d,(ix+mod.sample.repeat.offset.words+0)  ; loop offs (in bytes!)
-    ld e,(ix+mod.sample.repeat.offset.words+1)
-
- @contnorm:
-    call add.bhl.de
-    ld d,(ix+mod.sample.repeat.len.words+0)     ; loop len (in words)
-    ld e,(ix+mod.sample.repeat.len.words+1)
- @notloop:
-    call add.bhl.de2
- @got.gap:
-    ld (iy+st.end+0),l
-    ld (iy+st.end+1),h
-    ld (iy+st.end+2),b
-
-    ld de,sample.table.len
-    add iy,de
-    ld de,mod.sample.len
-    add ix,de
-
-    dec c
-    jr nz,@fillend
-
-
-    ; fill in GAP to accomodate looped samples, small and large
-
-    ld iy,sample.table.low
-    ld ix,mod.samples + 0x8000
-    ld a,(tracker.samples.low)
-    ld b,a
-
-conv.looping:
-
-    push bc
-
-    ld a,(tracker.ptr.page.mod.low)
-    call set.high.memory.a
-
-    ld a,(iy+st.loop)
-    or a
-    jp z,conv.donelp
-
-    ld h,(ix+mod.sample.len.words+0)
-    ld l,(ix+mod.sample.len.words+1)
-    ld d,(ix+mod.sample.repeat.offset.words+0)
-    ld e,(ix+mod.sample.repeat.offset.words+1)
- loop.bug:
-    ld a,0
-    or a
-    jr z,loop.ok
-    dec a
-    jr z,noise.bug
-    jr soul.bug
-
-    ; bug in noisetracker code, loop offset in bytes instead of words
-
- noise.bug:
-    srl d
-    rr e
-    jr loop.ok
-
-    ; in SOUL-O-MATIC the loop len is given as loop end offset
-
- soul.bug:
-    or a
-    sbc hl,de
-    ld (ix+mod.sample.repeat.len.words+0),h ; now loop len = loopend off -
-    ld (ix+mod.sample.repeat.len.words+1),l ;                loopstart off
-
-
- loop.ok:                    ; DE = loop offset
-
-    ld l,(iy+st.start+0)
-    ld h,(iy+st.start+1)
-    ld b,(iy+st.start+2)
-
-    call add.bhl.de2
-
-    ld a,(iy+st.loop)
-    dec a
-    jr z,@big.loop
-
-    ; Small loop, can be up to gap in size, it has to cover the end loop marker
-    ; meaning that three gaps are needed if the loop is gap-1 then the first
-    ; marker is after 2*(gap-1) at the next frame it is possible that the sample
-    ; will then be at position 3*(gap-3).  Then the difference between the
-    ; current position and the first repeat end after gap can be added to gap to
-    ; get new position.
-    ; - follow that?  It took me a while to think that one up... 8-)
-
-    ld a,(tracker.gap.low)
-    ld d,a
-    add a,a
-    add a,d
-    ld d,a
-    ld e,0
-    ld (@totalgap+1),de  ; DE < gap
-
-    ld a,b
-
-    ; ld de,move.spc
-    ld b,(ix+mod.sample.repeat.len.words+0)
-    ld c,(ix+mod.sample.repeat.len.words+1)
-    sla c
-    rl b
-
-    call set.high.memory.a
-
-    ld (@sm.lp.src+1),hl
-
-    ;  push bc
-    ;  ldir
-    ;  pop bc
-
-    ld e,(iy+st.end+0)
-    ld d,(iy+st.end+1)
-
-    ; ld a,(iy+st.end+2) = equal to start loop
-    ; out (port.hmpr),a
-
-    or a
-    sbc hl,de           ; if end lower than sample
-    jr c,$+4            ; then increase page positon
-    set 6,d             ; of end by setting bit 6
-
-    push af             ; make small loop pointer
-    ld hl,0             ; at least gap size
- sm.loop.big:
-    add hl,bc           ; -> possibly 2 * ( gap - 1 )
-    ld a,(tracker.gap.low)
-    cp h
-    jr nc,sm.loop.big
-    pop af
+    ;loop offs + len > sample len
 
     add hl,de
-    bit 6,h
-    res 6,h
-    jr z,$+3
-    inc a
-    ld (iy+st.loope+0),l
-    ld (iy+st.loope+1),h
-    ld (iy+st.loope+2),a
+    srl d
+    rr e
+    or a
+    sbc hl,de
 
-    ; keep copying loop until 3 * gap space is filled
+    ld a,1
+    adc a,0      ; in SOUL-O-MATIC the loop len is given as loop end offset
 
-    @loop.copy.small.loop:
+    ret
 
-     @totalgap:
-        ld hl,0
-        or a
-        sbc hl,bc
-        ld (@totalgap+1),hl
-        jr c,im.donemost
-        jr z,im.doneall
+;-------------------------------------------------------------------------------
+@update.unused.samples:
 
-     @sm.lp.src:
-        ld hl,0
-        push bc
-        ldir
-        pop bc
+ ; create an empty sample if necessary
 
-        jr @loop.copy.small.loop
-
- im.donemost:
-    add hl,bc
-    ld c,l
-    ld b,h
-    ld hl,(@sm.lp.src+1)
-    ldir
- im.doneall:
-    jp conv.donelp
-
- @big.loop:
-
-    ld (iy+st.loops+0),l
-    ld (iy+st.loops+1),h
-    ld (iy+st.loops+2),b
-
-    ; copy start of loop to gap after end loop for gap bytes
-
-    ld a,b
-    call set.high.memory.a
-
-    ld de,move.spc
-    ld c,0
-    ld a,(tracker.gap.low)
-    ld b,a
-    push bc
-    ldir
-
-    ld e,(iy+st.end+0)
-    ld d,(iy+st.end+1)
-    ld a,(iy+st.end+2)
-    call set.high.memory.a
-
-    ld hl,move.spc
-    pop bc
-    ldir                    ;copy to beginloop
-
-
- conv.donelp:
-    ld bc,sample.table.len
-    add iy,bc
-    ld bc,mod.sample.len
-    add ix,bc
-
-    pop bc
-    dec b
-
-    jp nz,conv.looping
-
-exit.install:
-
-; create an empty sample if necessary
+    call @find.silent.sample
 
     ld b,31
     ld iy,sample.table.low
@@ -1129,19 +1237,39 @@ exit.install:
 
     @loop:
 
-        ld a,(iy+st.sample)
+        ld a,(iy + st.sample)
         or a
-        jr z,@next              ; no sample -> no gap
+        call z,@update.sample.silence
+        add iy,de
+        djnz @-loop
 
-        ld a,(iy+st.loop)
+    ret
+
+;-------------------------------------------------------------------------------
+@find.silent.sample:
+
+ ; output
+ ; - chl = silent gap
+
+    ld b,31
+    ld iy,sample.table.low
+    ld de,sample.table.len
+
+    @loop:
+
+        ld a,(iy + st.sample)
         or a
-        jr nz,@next             ; looped -> no gap
+        jr z,@+next             ; no sample -> no gap
 
-        ld l,(iy+st.end+0)
-        ld h,(iy+st.end+1)
-        ld c,(iy+st.end+2)
+        ld a,(iy + st.loop)
+        or a
+        jr nz,@+next            ; looped -> no gap
 
-        jr @ce.gotblank
+        ld l,(iy + st.end + 0)
+        ld h,(iy + st.end + 1)
+        ld c,(iy + st.end + 2)
+
+        ret
 
      @next:
 
@@ -1149,9 +1277,13 @@ exit.install:
 
         djnz @-loop
 
-    ld l,(iy+st.start+0)
-    ld h,(iy+st.start+1)
-    ld c,(iy+st.start+2)
+ @create.sample.silent:
+
+  ; create silent sample at postion after all other samples
+
+    ld l,(iy + st.start + 0)
+    ld h,(iy + st.start + 1)
+    ld c,(iy + st.start + 2)
 
     ld a,c
     call set.high.memory.a
@@ -1162,12 +1294,13 @@ exit.install:
     ld a,(tracker.gap.low)
     ld c,a
     ld b,0
+    xor a
 
     @loop:
 
-        ld (hl),0               ; create silent sample
-        inc hl                  ; at postion after all other
-        djnz @-loop             ; samples
+        ld (hl),a
+        inc hl
+        djnz @-loop
 
         dec c
         jr nz,@-loop
@@ -1175,38 +1308,20 @@ exit.install:
     ld c,e
     pop hl
 
-    ; CHL is address of silent sound gap
-    ; replace all blank samples with address for silence
+    ret
 
-@ce.gotblank:
+;-------------------------------------------------------------------------------
+@update.sample.silence:
 
-    ld b,31
-    ld iy,sample.table.low
-    ld de,sample.table.len
+    ld (iy + st.start + 0),l
+    ld (iy + st.start + 1),h
+    ld (iy + st.start + 2),c
 
-    @loop:
+    ld (iy + st.end + 0),l
+    ld (iy + st.end + 1),h
+    ld (iy + st.end + 2),c
 
-        ld a,(iy+st.sample)
-        or a
-        jr nz,@next
-
-        ld (iy+st.start+0),l
-        ld (iy+st.start+1),h
-        ld (iy+st.start+2),c
-        ld (iy+st.end+0),l
-        ld (iy+st.end+1),h
-        ld (iy+st.end+2),c
-
-     @next:
-
-        add iy,de
-        djnz @-loop
-
-    in a,(port.lmpr)
-    and low.memory.page.mask
-    out (port.hmpr),a
-
-    jp fs.high
+    ret
 
 ;-------------------------------------------------------------------------------
 
@@ -1239,7 +1354,7 @@ add.bhl.de:
     ret
 
 ;---------------------------------------------------------------
-add.bhl.de2:
+@add.bhl.de2:
 
     ; add DE * 2 to BHL, result -> same as above
 
@@ -1500,38 +1615,40 @@ pattern.table:
 
 sample.table:
 
- st.start:       equ $ - sample.table
-    defw 0x0000         ; offset
-    defb 0x00           ; page
+    org 0   ; offsets
 
- st.end:         equ $ - sample.table
-    defw 0x0000         ; offset
-    defb 0x00           ; page = start gap
+ st.start:      defw 0x0000 ; offset
+                defb 0x00   ; page
 
- st.loop:        equ $ - sample.table
-    defb 0x00           ; 0 = none, 1 = small, 2 = big
+ st.end:        defw 0x0000 ; offset
+                defb 0x00   ; page = start gap
 
- st.loope:       equ $ - sample.table    ; small -> loop end in gap
- st.loops:       equ $ - sample.table    ; big   -> loop start
-    defw 0x0000
-    defb 0x00
+ st.loop:       defb 0x00
+    @st.loop.none:  equ 0
+    @st.loop.big:   equ 1
+    @st.loop.small: equ 2
 
- st.vol:         equ $ - sample.table
-    defb 0x00           ; volume
+ st.loope:                  ; small -> loop end in gap
+ st.loops:                  ; big   -> loop start
+                defw 0x0000
+                defb 0x00
 
- st.finetune:    equ $ - sample.table
-    defb 0x00           ; fine tune value
+ st.vol:        defb 0x00   ; volume
+ st.finetune:   defb 0x00   ; fine tune value
 
- st.sample:      equ $ - sample.table  ;empty sample?
-    defb 0x00
+ st.sample:     defb 0x00   ; empty sample?
+                defb 0x00   ; \
+                defb 0x00   ;  ) unused
+                defb 0x00   ; /
 
-    defb 0x00,0x00,0x00    ; unused
+ sample.table.len:    equ $
+    assert sample.table.len == 16
 
- sample.table.len:    equ $ - sample.table    ; 16
+    org $ + sample.table
 
-prev.loop:      equ 16 - st.loop
-prev.start:     equ 16 - st.start - 2
-prev.sample:    equ 16 - st.sample
+st.prev.loop:   equ 16 - st.loop
+st.prev.start:  equ 16 - st.start
+st.prev.sample: equ 16 - st.sample
 
     defs 31 * sample.table.len
 
