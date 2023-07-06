@@ -21,9 +21,6 @@
  ; - samples: 15
  ; - sample length: bytes ?
 
- ; soundtracker 2.2:
- ; - samples: 31
-
  ; soundtracker 2.3:
  ; - id: M.K.
 
@@ -80,7 +77,7 @@ if defined ( mod.tracker )
 
     mod.get.max_samples.a:
         ld a,(@var.mod.type)
-        cp mod.type.st22
+        cp mod.type.st23
         ld a,31
         ret nc
         ld a,15
@@ -125,19 +122,16 @@ include "../constants/mod.i"
  mod.type.ust.15:   equ 3   ; ultimate soundtracker max sample length 9999 bytes
  mod.type.st.15:    equ 4   ; soundtracker
 
- ; 31 samples
- mod.type.st22:     equ 5   ; soundtracker 2.2 max sample length 0x8000 bytes
-
-                            ; id introduced
- mod.type.st23:     equ 6   ; M.K. soundtracker 2.3 / 2.4
+; 31 samples                  id introduced
+ mod.type.st23:     equ 5   ; M.K. soundtracker 2.3 / 2.4
                             ;      e00 | e01 = filter on/off
- mod.type.nt:       equ 7   ; N.T. noisetracker (based on st 2.3)
- mod.type.st25:     equ 8   ; M.K. soundtracker 2.5
+ mod.type.nt:       equ 6   ; N.T. noisetracker (based on st 2.3)
+ mod.type.st25:     equ 7   ; M.K. soundtracker 2.5
                             ;      repeat offset in words
- mod.type.pt:       equ 9   ; M.K. protracker (based on st 2.5)
+ mod.type.pt:       equ 8   ; M.K. protracker (based on st 2.5)
                             ;      exy extended effects
- mod.type.ptx:      equ 10  ; M!K! > 64 patterns (introduced in pt 2.3a)
- mod.type.flt:      equ 11  ; FLT4 startrekker (based on nt 2.0)
+ mod.type.ptx:      equ 9   ; M!K! > 64 patterns (introduced in pt 2.3a)
+ mod.type.flt:      equ 10  ; FLT4 startrekker (based on nt 2.0)
 
  @mod.ids:
 
@@ -164,8 +158,6 @@ if defined ( mod.tracker ) == 0
     defw @txt.mod.type.ust.15
     defb mod.type.st.15
     defw @txt.mod.type.st.15
-    defb mod.type.st22
-    defw @txt.mod.type.st22
     defb mod.type.st23
     defw @txt.mod.type.st23
     defb mod.type.nt
@@ -184,8 +176,6 @@ if defined ( mod.tracker ) == 0
  @txt.mod.type.ust.15:  defm "Ultimate Soundtracker"
                         defb 0
  @txt.mod.type.st.15:   defm "Soundtracker"
-                        defb 0
- @txt.mod.type.st22:    defm "Soundtracker 2.2"
                         defb 0
  @txt.mod.type.st23:    defm "Soundtracker 2.3"
                         defb 0
