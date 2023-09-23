@@ -1,12 +1,13 @@
 ;SAM MOD player - tracker
 
-;(C) 1995-2022 Stefan Drissen
+;(C) 1995-2023 Stefan Drissen
 
 ; first execute "BURST" and install "DEMO"
 
 ; https://pastebin.com/pg95YduC - 8bitbubsy
 ; https://github.com/cmatsuoka/tracker-history/blob/master/reference/amiga/soundtracker/Ultimate_Soundtracker-format.txt
 ; https://github.com/OpenMPT/openmpt/blob/master/soundlib/Load_mod.cpp
+; https://wiki.openmpt.org/Manual:_Effect_Reference
 
 include "memory.i"
 include "ports/internal.i"
@@ -370,7 +371,7 @@ tracker.gap:            defb 0
 
     ld hl,sample.table.low
     ld de,sample.table.low + 1
-    ld bc,32 * 16 - 1
+    ld bc,32 * sample.table.len - 1
     ld (hl),l
     ldir
 
@@ -1009,14 +1010,14 @@ tracker.gap:            defb 0
     dec a
 
     push af
-    call nz,@fill.gap.sample.small.loop
+    call nz,@fill.gap.sample.small_loop
     pop af
-    call z,@fill.gap.sample.big.loop
+    call z,@fill.gap.sample.big_loop
 
     ret
 
 ;-------------------------------------------------------------------------------
-@fill.gap.sample.small.loop:
+@fill.gap.sample.small_loop:
 
  ; input:
  ; - bhl = start sample
@@ -1086,7 +1087,7 @@ tracker.gap:            defb 0
 
     ; keep copying loop until 3 * gap space is filled
 
-    @loop.copy.small.loop:
+    @loop.copy.small_loop:
 
      @totalgap:
         ld hl,0
@@ -1103,7 +1104,7 @@ tracker.gap:            defb 0
         ldir
         pop bc
 
-        jr @-loop.copy.small.loop
+        jr @-loop.copy.small_loop
 
  @last.partial:
 
@@ -1116,7 +1117,7 @@ tracker.gap:            defb 0
     ret
 
 ;-------------------------------------------------------------------------------
-@fill.gap.sample.big.loop:
+@fill.gap.sample.big_loop:
 
     ld (iy + st.loops + 0),l
     ld (iy + st.loops + 1),h
@@ -1458,17 +1459,19 @@ c4.mk.pag9:
     ld (c4+smp.page+1),a
 
 
-    ld hl,31 * 16 + sample.table-1
-    ld de,32 * 16 + sample.table-1
-    ld bc,31 * 16
+    ld hl,31 * sample.table.len + sample.table - 1
+    ld de,32 * sample.table.len + sample.table - 1
+    ld bc,31 * sample.table.len
     lddr
+
     ld hl,sample.table
     ld de,sample.table + 1
     ld bc,sample.table.len - 1
     ld (hl),b
     ldir
+
     ld a,-1
-    ld (sample.table+2),a   ; page of no sample
+    ld (sample.table + 2),a   ; page of no sample
 
 ;put correct maximum & minimum periods into tracker
 
@@ -1646,9 +1649,9 @@ sample.table:
 
     org $ + sample.table
 
-st.prev.loop:   equ 16 - st.loop
-st.prev.start:  equ 16 - st.start
-st.prev.sample: equ 16 - st.sample
+st.prev.loop:   equ sample.table.len - st.loop
+st.prev.start:  equ sample.table.len - st.start
+st.prev.sample: equ sample.table.len - st.sample
 
     defs 31 * sample.table.len
 
@@ -2093,10 +2096,10 @@ routines:
 ;===============================================================================
     org 0
 
-;tables for command parsing
+;tables for effect parsing
 
- chkmore.tab:
-    ; table for commands on counter 0
+ chkmore.list:
+    ; effects on counter 0
     r0.000: defw per.nop                ; 0
     r0.001: defw per.nop                ; 1
     r0.002: defw per.nop                ; 2
@@ -2106,51 +2109,51 @@ routines:
     r0.006: defw per.nop                ; 6
     r0.007: defw per.nop                ; 7
     r0.008: defw per.nop                ; 8
-    r0.009: defw sampleoffs             ; 9
+    r0.009: defw @effect.sample_offset  ; 9
     r0.010: defw per.nop                ; A
-    r0.011: defw pos.jump               ; B
-    r0.012: defw @command.set_volume    ; C
-    r0.013: defw patbreak               ; D
-    r0.014: defw e.command              ; E
-    r0.015: defw setspeed               ; F
+    r0.011: defw @effect.position_jump  ; B
+    r0.012: defw @effect.set_volume     ; C
+    r0.013: defw @effect.pattern_break  ; D
+    r0.014: defw @effect.extended       ; E
+    r0.015: defw @effect.set_speed      ; F
 
- checkfx.tab:
-    ; table for commands not on counter 0
-    r0.016: defw arpeggio       ;0
-    r0.017: defw porta.up       ;1
-    r0.018: defw porta.dn       ;2
-    r0.019: defw tone.port      ;3
-    r0.020: defw vibrato        ;4
-    r0.021: defw tonevolsl      ;5
-    r0.022: defw vibrvolsl      ;6
-    r0.023: defw per.tremolo    ;7
-    r0.024: defw set.back       ;8
-    r0.025: defw set.back       ;9
-    r0.026: defw per.volslid    ;A
-    r0.027: defw set.back       ;B
-    r0.028: defw set.back       ;C
-    r0.029: defw set.back       ;D
-    r0.030: defw e.command      ;E
-    r0.031: defw set.back       ;F
+ checkfx.list:
+    ; effects not on counter 0
+    r0.016: defw @effect.arpeggio               ; 0
+    r0.017: defw @effect.portamento_up          ; 1
+    r0.018: defw @effect.portamento_down        ; 2
+    r0.019: defw @effect.tone_portamento        ; 3
+    r0.020: defw @effect.vibrato                ; 4
+    r0.021: defw @effect.tone_volume_slide      ; 5
+    r0.022: defw @effect.vibrato_volume_slide   ; 6
+    r0.023: defw @effect.tremolo                ; 7
+    r0.024: defw @effect.none                   ; 8
+    r0.025: defw @effect.none                   ; 9
+    r0.026: defw @effect.volume_slide           ; A
+    r0.027: defw @effect.none                   ; B
+    r0.028: defw @effect.none                   ; C
+    r0.029: defw @effect.none                   ; D
+    r0.030: defw @effect.extended               ; E
+    r0.031: defw @effect.none                   ; F
 
- ecom.tab:
-    ; table for Extended commands
-    r0.032: defw filter         ;0
-    r0.033: defw fineportup     ;1
-    r0.034: defw fineportdn     ;2
-    r0.035: defw glisscntrl     ;3
-    r0.036: defw vibracntrl     ;4
-    r0.037: defw setfinetun     ;5
-    r0.038: defw jumploop       ;6
-    r0.039: defw tremocntrl     ;7
-    r0.040: defw nothing        ;8 not a command
-    r0.041: defw retrignote     ;9
-    r0.042: defw volfineup      ;A
-    r0.043: defw volfinedn      ;B
-    r0.044: defw notecut        ;C
-    r0.045: defw notedelay      ;D
-    r0.046: defw pattdelay      ;E
-    r0.047: defw nothing        ;F funk it not supported
+ extended.effects.list:
+    ; extended effects (effect E)
+    r0.032: defw @eeffect.filter            ; 0
+    r0.033: defw @eeffect.fineportup        ; 1
+    r0.034: defw @eeffect.fineportdn        ; 2
+    r0.035: defw @eeffect.glisscntrl        ; 3
+    r0.036: defw @eeffect.vibracntrl        ; 4
+    r0.037: defw @eeffect.setfinetun        ; 5
+    r0.038: defw @eeffect.jumploop          ; 6
+    r0.039: defw @eeffect.tremocntrl        ; 7
+    r0.040: defw @effect.none               ; 8 not a command
+    r0.041: defw @eeffect.retrignote        ; 9
+    r0.042: defw @eeffect.volfineup         ; A
+    r0.043: defw @eeffect.volfinedn         ; B
+    r0.044: defw @eeffect.notecut           ; C
+    r0.045: defw @eeffect.notedelay         ; D
+    r0.046: defw @eeffect.pattdelay         ; E
+    r0.047: defw @effect.none               ; F funk it not supported
 
 ;-------------------------------------------------------------------------------
 update.bp:
@@ -2160,17 +2163,18 @@ update.bp:
     ld a,(0)
  page.len:
     sub 0
-    ret c              ;not past marker yet (page)
+    ret c               ; not past marker yet (page)
  len:
     ld de,0
  mk.off1:
     ld hl,(0)
     jr z,$+4
     set 6,h
-    sbc hl,de          ;cf not set
-    ret c              ;not past marker yet (offs)
+    sbc hl,de           ; cf not set
+    ret c               ; not past marker yet (offs)
+
  repeat:
-    jr $+2
+    jr $+2              ; can be $+2, big_loop or small_loop
     ex de,hl
  r1.001:
     ld a,(page.len+1)
@@ -2180,24 +2184,24 @@ update.bp:
     ld (0),hl
     ret
 
- big.loop:
- blp.page:
+ big_loop:
+ big_loop.page:
     ld a,0
  mk.pag3:
     ld (0),a
- blp.offs:
+ big_loop.offset:
     ld de,0
     add hl,de
  mk.off3:
     ld (0),hl
     ret
 
- small.loop:
- slp.page:
+ small_loop:
+ small_loop.page:
     ld a,0
  mk.pag4:
     ld (0),a
- slp.offs:
+ small_loop.offset:
     ld de,0
     add hl,de
  mk.off4:
@@ -2213,55 +2217,56 @@ update.bp:
     ld (page.len+1),a
     ret
 
- sml.jr: equ small.loop-repeat-2
- blp.jr: equ big.loop-repeat-2
+ small_loop.jr: equ small_loop - repeat - 2
+ big_loop.jr: equ big_loop - repeat - 2
 
 ;-------------------------------------------------------------------------------
 play.voice:
 
     ; hl = pattern row
     ;
-    ; SPPPSECC
+    ; SPppsECC
     ;
-    ; S   S     = sample
-    ;  PPP      = note period
+    ; S   s     = sample
+    ;  Ppp      = note period
     ;      E    = effect
-    ;       CC  = command
+    ;       xy  = parameter
 
  mk.cur.pat:
-    ld hl,0
+    ld hl,0             ; hl = pattern row
 
-    ld a,(hl)           ; HL = d
+    ld a,(hl)           ; a = SP
     inc l
-    and %00001111
-    ld d,a
-    ld e,(hl)
+    and 0x0f            ; a = P
+    ld d,a              ; d = P
+    ld e,(hl)           ; e = pp
     dec l
  r2.001:
-    ld (note+1),de
+    ld (note+1),de      ; -> Ppp
     or e                ; if no period given then use
  r1.004:
     call z,per.nop      ; last given period
 
-    ex de,hl            ; DE = d
+    ex de,hl            ; DE = pattern row
 
-    ld h,sample.table / 256
-    ld a,(de)
-    and 0x10
-    jr z,@sample.lt.16
+    ld h,sample.table / 0x100
+    ld a,(de)           ; SP
+    and 0x10            ; S
+    jr z,@sample.lt.16  ; 16 bytes per sample table entry
     inc h
  @sample.lt.16:
     inc e
     inc e
-    ld a,(de)
-    and 0xf0
-    ld l,a
-                        ; DE = d + 2
-    ld c,(hl)
+    ld a,(de)           ; a = sE
+    and 0xf0            ; a = s
+    ld l,a              ; l = s -> hl = sample.table entry (16 bytes per entry)
+                        ; de = pattern row + 2
+
+    ld c,(hl)           ; sample offset
     inc l
-    ld b,(hl)
+    ld b,(hl)           ; sample offset
     inc l
-    ld a,(hl)
+    ld a,(hl)           ; sample page
     inc a
 
  r1.005:
@@ -2273,32 +2278,33 @@ play.voice:
  r1.006:
     ld (smp.page+1),a
 
-    ld a,l
-    xor h
+    ld a,l              ; highest 4 bits are significant
+    xor h               ; lowest bit is significant, -> xor = unique id
+
  r1.007:
     ld (new.ins+1),a
 
-    ld c,(hl)
+    ld c,(hl)           ; sample end offset
     inc l
-    ld b,(hl)
+    ld b,(hl)           ; sample end offset
     inc l
-    ld a,(hl)
+    ld a,(hl)           ; sample end page
     inc l
  r2.003:
     ld (len+1),bc
  r1.008:
     ld (page.len+1),a
 
-    ld a,(hl)           ; repeat type
+    ld a,(hl)           ; sample loop type
     inc l
 
     dec a
     jr z,get.big
     dec a
     jr z,get.small
-    ld a,l
-    add 3
-    ld l,a
+    inc l
+    inc l
+    inc l
     xor a
     jr got.loop
 
@@ -2306,9 +2312,9 @@ play.voice:
  r1.009:
     ld a,(page.len+1)
  r1.010:
-    ld (slp.page+1),a
+    ld (small_loop.page+1),a
  r2.004:
-    ld (slp.offs+1),bc
+    ld (small_loop.offset+1),bc
     ld c,(hl)
     inc l
     ld b,(hl)
@@ -2319,7 +2325,7 @@ play.voice:
     ld (sm.en.page+1),a
  r2.005:
     ld (sm.en.offs+1),bc
-    ld a,sml.jr
+    ld a,small_loop.jr
     jr got.loop
 
  get.big:
@@ -2330,39 +2336,39 @@ play.voice:
     ld a,(hl)
     inc l              ;start of repeat
  r1.012:
-    ld (blp.page+1),a
+    ld (big_loop.page + 1),a
  r2.006:
-    ld (blp.offs+1),bc
-    ld a,blp.jr
+    ld (big_loop.offset + 1),bc
+    ld a,big_loop.jr
 
  got.loop:
  r1.013:
-    ld (repeat+1),a
+    ld (repeat + 1),a
 
     ld a,(hl)
     inc l
  r1.014:
-    ld (volume+1),a
+    ld (volume + 1),a
  r1.015:
     call bp.volume
 
     ld a,(hl)
  r1.016:
-    ld (finetune+1),a
+    ld (finetune + 1),a
 
  set.regs:
-    ex de,hl            ; HL = d + 2
+    ex de,hl            ; hl = pattern row + 2
 
-    ld a,(hl)
-    inc l               ; HL = d + 3
-    and 0x0f
+    ld a,(hl)           ; a = sE
+    inc l               ; hl = pattern row + 3
+    and 0x0f            ; a = _E
  r1.017:
-    ld (command+1),a
-    ld c,a
-    ld a,(hl)
+    ld (command + 1),a
+    ld c,a              ; c = _E
+    ld a,(hl)           ; a = xy
  r1.018:
-    ld (cmdlo+1),a
-    ld b,a
+    ld (cmdlo + 1),a
+    ld b,a              ; b = xy
 
  r2.007:
     ld de,(note+1)
@@ -2371,12 +2377,12 @@ play.voice:
  r1.019:
     jp z,chknewins
 
-    ld a,b
-    and 0xf0
-    or c                ; hi = param, lo = command
+    ld a,b              ; a = xy
+    and 0xf0            ; a = x_
+    or c                ; c = _E hi = param, lo = command
     cp 0x5e             ; E5 = fine tune
     jr z,do.fine
-    ld a,c              ; only command now
+    ld a,c              ; a = _E (only command now)
     cp 3                ; 3 = tone portamento
     jr z,chk.tone
     cp 5                ; 5 = tone port + vol slide
@@ -2385,7 +2391,7 @@ play.voice:
 
  do.fine:
  r1.020:
-    call setfinetun
+    call @eeffect.setfinetun
     jr set.per
 
  chk.tone:
@@ -2436,7 +2442,7 @@ play.voice:
     and 0xf0
     ld c,a
  r1.028:
-    ld a,(command+1)
+    ld a,(command+1)    ; a = _E
     or c
     cp 0xde             ; ED = note delay
     jr z,chkmorefx
@@ -2483,7 +2489,7 @@ play.voice:
 
  chkmorefx:
  r1.034:
-    ld hl,chkmore.tab
+    ld hl,chkmore.list
  r1.035:
     ld a,(command+1)
     add a,a
@@ -2526,7 +2532,7 @@ play.voice:
     jr z,per.nop        ;no command - use old period in case of arpeg
 
  r1.039:
-    ld hl,checkfx.tab
+    ld hl,checkfx.list
     ld a,c
     add a,a
     add a,l
@@ -2539,7 +2545,7 @@ play.voice:
     ld l,a
     jp (hl)
 
-
+;-------------------------------------------------------------------------------
  per.nop:
  r2.008:
     ld de,(period+1)
@@ -2547,7 +2553,7 @@ play.voice:
     sla e               ;convert pitch
     rl d
     ld a,d
-    add pitch.table / 256
+    add pitch.table / 0x100
     ld d,a
     ld a,(de)
  mk.slo:
@@ -2579,11 +2585,11 @@ bp.volume:
 ;---------------------------------------------------------------
 ; Effect 0 - Arpeggio
 ;---------------------------------------------------------------
-arpeggio:
-    ld a,(counter)          ;1-31
-    ld h,arpeg.table / 256 ;table on 256 boundary
+@effect.arpeggio:
+    ld a,(counter)              ; [1-31]
+    ld h,arpeg.table / 0x100    ; table on 256 boundary
     ld l,a
-    ld a,(hl)               ;counter mod 3
+    ld a,(hl)                   ; counter mod 3
     or a
     jr z,arpeggio2
     cp 2
@@ -2629,7 +2635,7 @@ arpeggio:
 ;---------------------------------------------------------------
 ; Effect 1 - Portamento Up
 ;---------------------------------------------------------------
-porta.up:
+@effect.portamento_up:
  r1.043:
     ld hl,(period+1)
  r1.044:
@@ -2660,7 +2666,7 @@ porta.up:
 ;---------------------------------------------------------------
 ; Effect 2 - Portamento Down
 ;---------------------------------------------------------------
-porta.dn:
+@effect.portamento_down:
  r1.048:
     ld hl,(period+1)
  r1.049:
@@ -2737,13 +2743,13 @@ set.tone:
 ;---------------------------------------------------------------
 ; Effect 3 - Tone Portamento
 ;---------------------------------------------------------------
-tone.port:
+@effect.tone_portamento:
  r1.058:
     ld a,(cmdlo+1)
     or a
     jr z,tonenochng
  r1.059:
-    ld (tonespeed+1),a
+    ld (tonespeed+1),a      ; TODO: needs correction when BPM not 125 - see Nearly There by Jogeir (BPM 128) use tempo
     xor a
  r1.060:
     ld (cmdlo+1),a
@@ -2823,7 +2829,7 @@ tone.port:
 ;---------------------------------------------------------------
 ; Effect 4 - Vibrato
 ;---------------------------------------------------------------
-vibrato:
+@effect.vibrato:
  r1.066:
     ld a,(cmdlo+1)
     or a
@@ -2937,7 +2943,7 @@ vibrato:
 ;---------------------------------------------------------------
 ; Effect 5 - Tone and Volume Slide
 ;---------------------------------------------------------------
-tonevolsl:
+@effect.tone_volume_slide:
  r1.077:
     call tonenochng
  r1.078:
@@ -2946,7 +2952,7 @@ tonevolsl:
 ;---------------------------------------------------------------
 ; Effect 6 - Vibrato and Volume Slide
 ;---------------------------------------------------------------
-vibrvolsl:
+@effect.vibrato_volume_slide:
  r1.079:
     call vibrato2
  r1.080:
@@ -2955,7 +2961,7 @@ vibrvolsl:
 ;---------------------------------------------------------------
 ; Effect 7 - Tremolo
 ;---------------------------------------------------------------
-per.tremolo:
+@effect.tremolo:
  r1.081:
     call per.nop
  tremolo:
@@ -3086,15 +3092,21 @@ per.tremolo:
 
 ;---------------------------------------------------------------
 ; Effect 9 - Sample Offset  if offset too large -> start of loop
+;
+; - effect 9 without offset       -> use previous sample offset
+; - note triggered without sample -> use previous sample offset
+;
+; more info - https://github.com/libxmp/libxmp/blob/master/docs/tracker_notes.txt
+;           - https://github.com/steffest/BassoonTracker/blob/7e24c34b59c9c52304a90c42ccb6e8ed542c274e/script/src/tracker.js#L1028
 ;---------------------------------------------------------------
-sampleoffs:
+@effect.sample_offset:
  r1.096:
     ld a,(cmdlo+1)
     or a
-    jr z,sononew
+    jr z,@sample_offset.zero
  r1.097:
     ld (sampoffs+1),a
- sononew:
+ @sample_offset.zero:
  sampoffs:
     ld a,0
  r1.098:
@@ -3121,28 +3133,29 @@ sampleoffs:
  r1.100:
     ld a,(page.len+1)
     sub c
-    jr nc,so.ok
+    jr nc,@+ok
  r1.101:
     ld hl,(len+1)
     or a
     sbc hl,de
-    jr nc,so.ok
-    add c     ;-> a=(page.len+1)
-    add hl,de ;-> hl=(len+1)
+    jr nc,@+ok
+    add c               ; -> a = (page.len+1)
+    add hl,de           ; -> hl = (len+1)
     jr mk.pag7
- so.ok:
+ @ok:
     ld a,c
     ex de,hl
  mk.pag7:
     ld (0),a
  mk.off7:
     ld (0),hl
+
     ret
 
 ;---------------------------------------------------------------
 ; Effect A - Volume Slide
 ;------------------------------------------------------------
-per.volslid:
+@effect.volume_slide:
  r1.102:
     call per.nop
 
@@ -3185,7 +3198,7 @@ per.volslid:
 ;---------------------------------------------------------------
 ; Effect B - Position Jump
 ;---------------------------------------------------------------
-pos.jump:
+@effect.position_jump:
     ld a,(disable.pos)
     or a
     ret nz
@@ -3201,7 +3214,7 @@ pos.jump:
     ret
 
 ;-------------------------------------------------------------------------------
-@command.set_volume:
+@effect.set_volume:
 
  ; Effect C - Set Volume
 
@@ -3225,7 +3238,7 @@ pos.jump:
 ;---------------------------------------------------------------
 ; Effect D - Pattern Break
 ;---------------------------------------------------------------
-patbreak:
+@effect.pattern_break:
  r1.115:
     ld a,(cmdlo+1)
     ld e,a
@@ -3254,7 +3267,7 @@ patbreak:
 ; Effect F - Set Speed
 ;            Sort of handles BPM alterations (not 100% accurate)
 ;---------------------------------------------------------------
-setspeed:
+@effect.set_speed:
  r1.116:
     ld a,(cmdlo+1)
     or a
@@ -3267,7 +3280,7 @@ setspeed:
     ret
 
  setbpm:
-    ld h,bpm.table / 256
+    ld h,bpm.table / 0x100
     add a,a
     jr nc,$+3
     inc h
@@ -3279,7 +3292,11 @@ setspeed:
     ret
 
 ;---------------------------------------------------------------
-e.command:
+; Effect E - Extended
+;            x = extended effect
+;            y = parameter
+;---------------------------------------------------------------
+@effect.extended:
  r1.117:
     ld a,(cmdlo+1)
     and 0xf0
@@ -3287,7 +3304,7 @@ e.command:
     rrca
     rrca
  r1.118:
-    ld hl,ecom.tab
+    ld hl,extended.effects.list
     add a,l
     ld l,a
     ; jr nc,$+3         ;within 256
@@ -3299,18 +3316,20 @@ e.command:
     jp (hl)
 
 
-nothing:    ;simply continue through to filter RET
-set.back:   ; "
+@effect.none:           ; simply continue through to filter RET
 
 ;---------------------------------------------------------------
-; Effect E
+; Extended Effects
 ;---------------------------------------------------------------
-; Effect 0 - Filter On/Off         Amiga hardware rubbish
-filter:
+; Extended Effect 0 - Filter On/Off         Amiga hardware rubbish
+
+@eeffect.filter:
     ret
 
-; Effect 1 - Fine Porta Up
-fineportup:
+;---------------------------------------------------------------
+; Extended Effect 1 - Fine Porta Up
+
+@eeffect.fineportup:
     ld a,(counter)
     or a
     ret nz
@@ -3318,10 +3337,12 @@ fineportup:
  r1.119:
     ld (upmask+1),a
  r1.120:
-    jp porta.up
+    jp @effect.portamento_up
 
-; Effect 2 - Fine Porta Down
-fineportdn:
+;---------------------------------------------------------------
+; Extended Effect 2 - Fine Porta Down
+
+@eeffect.fineportdn:
     ld a,(counter)
     or a
     ret nz
@@ -3329,10 +3350,12 @@ fineportdn:
  r1.121:
     ld (dnmask+1),a
  r1.122:
-    jp porta.dn
+    jp @effect.portamento_down
 
-; Effect 3 - Set Gliss Control
-glisscntrl:
+;---------------------------------------------------------------
+; Extended Effect 3 - Set Gliss Control
+
+@eeffect.glisscntrl:
  r1.123:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3340,8 +3363,10 @@ glisscntrl:
     ld (gliss+1),a
     ret
 
-; Effect 4 - Set Vibrato Control
-vibracntrl:
+;---------------------------------------------------------------
+; Extended Effect 4 - Set Vibrato Control
+
+@eeffect.vibracntrl:
  r1.125:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3354,8 +3379,10 @@ vibracntrl:
     ld (hl),a
     ret
 
-; Effect 5 - Set Fine Tune
-setfinetun:
+;---------------------------------------------------------------
+; Extended Effect 5 - Set Fine Tune
+
+@eeffect.setfinetun:
  r1.127:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3363,8 +3390,10 @@ setfinetun:
     ld (finetune+1),a
     ret
 
-; Effect 6 - Jump Loop
-jumploop:
+;---------------------------------------------------------------
+; Extended Effect 6 - Jump Loop
+
+@eeffect.jumploop:
     ld a,(counter)
     or a
     ret nz
@@ -3399,8 +3428,10 @@ jumploop:
     ld (pattpos+1),a
     ret
 
-; Effect 7 - Set Tremolo Control
-tremocntrl:
+;---------------------------------------------------------------
+; Extended Effect 7 - Set Tremolo Control
+
+@eeffect.tremocntrl:
  r1.133:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3417,8 +3448,10 @@ tremocntrl:
     ld (hl),a
     ret
 
-; Effect 9 - Retrig Note
-retrignote:
+;---------------------------------------------------------------
+; Extended Effect 9 - Retrig Note
+
+@eeffect.retrignote:
  r1.135:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3456,9 +3489,10 @@ retrignote:
     ld (0),hl
     ret
 
+;---------------------------------------------------------------
+; Extended Effect A - Volume Fine Up
 
-; Effect A - Volume Fine Up
-volfineup:
+@eeffect.volfineup:
     ld a,(counter)
     or a
     ret nz
@@ -3468,8 +3502,10 @@ volfineup:
  r1.141:
     jp volsli.up
 
-; Effect B - Volume Fine Down
-volfinedn:
+;---------------------------------------------------------------
+; Extended Effect B - Volume Fine Down
+
+@eeffect.volfinedn:
     ld a,(counter)
     or a
     ret nz
@@ -3479,8 +3515,10 @@ volfinedn:
  r1.143:
     jp volsli.dn
 
-; Effect C - Note Cut
-notecut:
+;---------------------------------------------------------------
+; Extended Effect C - Note Cut
+
+@eeffect.notecut:
  r1.144:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3494,8 +3532,10 @@ notecut:
  r1.146:
     jp bp.volume
 
-; Effect D - Note Delay
-notedelay:
+;---------------------------------------------------------------
+; Extended Effect D - Note Delay
+
+@eeffect.notedelay:
  r1.147:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3508,8 +3548,10 @@ notedelay:
     ret z
     jr doretrig
 
-; Effect E - Pattern Delay
-pattdelay:
+;---------------------------------------------------------------
+; Extended Effect E - Pattern Delay
+
+@eeffect.pattdelay:
     ld a,(counter)
     or a
     ret nz
@@ -3525,6 +3567,7 @@ pattdelay:
     ld (pat.delay.f+1),a
     ret
 
+;---------------------------------------------------------------
 ;tables need to fit within 32 byte boundary
 
     defs align 32
@@ -3565,6 +3608,9 @@ move.size:  equ 6 * 256     ;move size = gap size
 
 conv.list:
 
+    ; channel 1
+
+    ; sample page
     defw c1+mk.pag1+1
     defw c1+mk.pag2+1
     defw c1+mk.pag3+1
@@ -3574,6 +3620,7 @@ conv.list:
     defw c1+mk.pag7+1
     defw c1+mk.pag8+1
     defw c1.mk.pag9+1,0
+    ; sample offset
     defw c1+mk.off1+1
     defw c1+mk.off2+1
     defw c1+mk.off3+1
@@ -3583,11 +3630,16 @@ conv.list:
     defw c1+mk.off7+1
     defw c1+mk.off8+1
     defw c1.mk.off9+1,0
+    ; tab
     defw c1+mk.tab+1,0
+    ; speed low
     defw c1+mk.slo+1,0
+    ; speed high
     defw c1+mk.shi+1,0
-    defw c1+mk.spfr+1
-    defw c1+mk.spfr2+1,0
+    ; speed fraction
+    defw c1+mk.spfr+1,c1+mk.spfr2+1,0
+
+    ; channel 2
 
     defw c2+mk.pag1+1
     defw c2+mk.pag2+1
@@ -3598,6 +3650,7 @@ conv.list:
     defw c2+mk.pag7+1
     defw c2+mk.pag8+1
     defw c2.mk.pag9+1,0
+
     defw c2+mk.off1+1
     defw c2+mk.off2+1
     defw c2+mk.off3+1
@@ -3607,10 +3660,16 @@ conv.list:
     defw c2+mk.off7+1
     defw c2+mk.off8+1
     defw c2.mk.off9+1,0
+
     defw c2+mk.tab+1,0
+
     defw c2+mk.slo+1,0
+
     defw c2+mk.shi+1,0
+
     defw c2+mk.spfr+1,c2+mk.spfr2+1,0
+
+    ; channel 3
 
     defw c3+mk.pag1+1
     defw c3+mk.pag2+1
@@ -3621,6 +3680,7 @@ conv.list:
     defw c3+mk.pag7+1
     defw c3+mk.pag8+1
     defw c3.mk.pag9+1,0
+
     defw c3+mk.off1+1
     defw c3+mk.off2+1
     defw c3+mk.off3+1
@@ -3630,10 +3690,16 @@ conv.list:
     defw c3+mk.off7+1
     defw c3+mk.off8+1
     defw c3.mk.off9+1,0
+
     defw c3+mk.tab+1,0
+
     defw c3+mk.slo+1,0
+
     defw c3+mk.shi+1,0
+
     defw c3+mk.spfr+1,c3+mk.spfr2+1,0
+
+    ; channel 4
 
     defw c4+mk.pag1+1
     defw c4+mk.pag2+1
@@ -3644,6 +3710,7 @@ conv.list:
     defw c4+mk.pag7+1
     defw c4+mk.pag8+1
     defw c4.mk.pag9+1,0
+
     defw c4+mk.off1+1
     defw c4+mk.off2+1
     defw c4+mk.off3+1
@@ -3653,13 +3720,20 @@ conv.list:
     defw c4+mk.off7+1
     defw c4+mk.off8+1
     defw c4.mk.off9+1,0
+
     defw c4+mk.tab+1,0
+
     defw c4+mk.slo+1,0
+
     defw c4+mk.shi+1,0
+
     defw c4+mk.spfr+1,c4+mk.spfr2+1,0
 
 ;-------------------------------------------------------------------------------
 build.list:
+
+    ; absolute addresses that need to be relocated
+
     defw r0.000,r0.001,r0.002,r0.003,r0.004
     defw r0.005,r0.006,r0.007,r0.008,r0.009
     defw r0.010,r0.011,r0.012,r0.013,r0.014
@@ -3670,6 +3744,8 @@ build.list:
     defw r0.035,r0.036,r0.037,r0.038,r0.039
     defw r0.040,r0.041,r0.042,r0.043,r0.044
     defw r0.045,r0.046,r0.047
+
+    ; absolute addresses that need to be relocated
 
     defw r1.001+1,r1.002+1,r1.003+1,r1.004+1,r1.005+1
     defw r1.006+1,r1.007+1,r1.008+1,r1.009+1,r1.010+1
