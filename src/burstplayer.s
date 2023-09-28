@@ -2115,16 +2115,26 @@ set.silence:
 
     ld hl,bp.chan3.page
     ld de,bp.chan4.page
+    call @swap.channels
+
+    ld hl,bp.chan1.page
+    ld de,bp.chan4.page
+
+@swap.channels:
+
     ld b,12
-mk.swap.lp:
-    ld c,(hl)
-    ld a,(de)
-    ld (hl),a
-    ld a,c
-    ld (de),a
-    inc hl
-    inc de
-    djnz mk.swap.lp
+
+    @loop:
+
+        ld c,(hl)
+        ld a,(de)
+        ld (hl),a
+        ld a,c
+        ld (de),a
+        inc hl
+        inc de
+
+        djnz @-loop
 
     ret                 ;!!!!!!!!!!!!!!!!!!
 
