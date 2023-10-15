@@ -157,7 +157,10 @@ print.percent:
     add hl,bc
     add hl,hl           ; * 10
 
-    ld a,h
+    ld a,h              ; h = next digit, but unrounded
+    bit 7,l
+    jr z,$+3
+    inc a               ; round up
 
     ex de,hl
     jr @print           ; fraction (1%)

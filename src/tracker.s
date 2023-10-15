@@ -1508,11 +1508,7 @@ reset.song:
 
     ld hl,0x500
     ld (counter.fract),hl
-    ld a,h
-    inc a
-    ld (speed),a
-    ld hl,0x100
-    ld (tempo),hl
+    call reset.speed
 
     ; ld (disable.pos),a    ;no position jumping (temp)
 
@@ -1563,6 +1559,16 @@ im.lmpr:
     ld a,(tracker.samples)
 
     ; ei
+    ret
+
+;---------------------------------------------------------------
+reset.speed:
+
+    ld a,6
+    ld (speed),a
+    ld hl,0x100
+    ld (tempo),hl
+
     ret
 
 reset.list:
@@ -1802,7 +1808,9 @@ vibrato.table:
     defw 197,199,201,203,205,207,209,211 ; 96
     defw 213,216,218,220,222,224,226,228 ;104
     defw 230,232,234,236,238,240,242,244 ;112
-    defw 246,248,250,252,254,256,259,261 ;120
+    defw 246,248,250,252,254             ;120
+    defw                    256          ;125 0x0100
+    defw                         259,261 ;126
     defw 263,265,267,269,271,273,275,277 ;128
     defw 279,281,283,285,287,289,291,293 ;136
     defw 295,297,300,302,304,306,308,310 ;144
@@ -2059,11 +2067,7 @@ tracker:
 
  loop.time:
 
-    ld (hl),0
-    ld a,6            ;reset speed (new in 2.03)
-    ld (speed),a
-    ld hl,0x0100      ;and tempo
-    ld (tempo),hl
+    call reset.speed
 
  play.status:
     ld a,(disable.pos) ;0=keep repeating

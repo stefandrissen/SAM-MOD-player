@@ -285,12 +285,12 @@ demo:
 
     ld hl,(tempo)
     ld b,h
-    ld c,l
+    ld c,l              ; bc = tempo
     srl h
-    rr l
+    rr l                ; hl = tempo / 2
     srl h
-    rr l
-    adc hl,bc
+    rr l                ; hl = tempo / 4
+    adc hl,bc           ; hl = tempo + tempo / 4 (-> * 1.25)
     ld b,h
     ld c,l
     ld hl,screen + screen.24.rows * 1 + 29
