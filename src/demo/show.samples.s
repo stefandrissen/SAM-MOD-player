@@ -154,7 +154,7 @@ sample.cursors.interrupt:
 
  ; display cursors on sample name screen
 
-    ld a,(counter)
+    ld a,(tick)
     or a
     ret nz
 

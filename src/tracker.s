@@ -108,8 +108,8 @@ tracker.gap:            defb 0
 
     ;---------------------------------------------------------------------------
 
-    ld hl,c1
-    ld de,c2
+    ld hl,@c1
+    ld de,@c2
     ld bc,( 4 - 1 ) * routine.len
     ldir
 
@@ -126,7 +126,7 @@ tracker.gap:            defb 0
 
         jr z,@leave.relocate
 
-        ld bc,c1
+        ld bc,@c1
         add hl,bc
         ld a,4
 
@@ -156,7 +156,7 @@ tracker.gap:            defb 0
 
  @leave.relocate:
 
-    ld hl,c1 + mk.cur.pat + 1
+    ld hl,@c1 + mk.cur.pat + 1
     ld bc,routine.len - 1
     ld de,mod.current.row
     ld a,4
@@ -175,7 +175,7 @@ tracker.gap:            defb 0
 
         jr nz,@-mk.cur.lp
 
-    ld hl,c1+channel.on+1
+    ld hl,@c1 + channel.on + 1
     ld de,c1.on
     ld a,4
 
@@ -197,25 +197,25 @@ tracker.gap:            defb 0
     jr nz,$+5
     ld hl,@volume.saa
 
-    ld de,c1+saa.exvol
+    ld de,@c1 + saa.exvol
     ldi
     ldi
     ldi
     ldi
 
-    ld de,c2+saa.exvol
+    ld de,@c2 + saa.exvol
     ldi
     ldi
     ldi
     ldi
 
-    ld de,c3+saa.exvol
+    ld de,@c3 + saa.exvol
     ldi
     ldi
     ldi
     ldi
 
-    ld de,c4+saa.exvol
+    ld de,@c4 + saa.exvol
     ldi
     ldi
     ldi
@@ -225,9 +225,9 @@ tracker.gap:            defb 0
 
     ld l,(iy + bp.ptr.addr.tracker - bp.pointers)
     ld h,(iy + bp.ptr.addr.tracker - bp.pointers + 1)
-    ld (hl),tracker \ 256
+    ld (hl),tracker \ 0x100
     inc hl
-    ld (hl),tracker / 256
+    ld (hl),tracker / 0x100
 
     in a,(port.hmpr)
     ld l,(iy + bp.ptr.page.tracker - bp.pointers)
@@ -296,26 +296,36 @@ tracker.gap:            defb 0
     ret
 
 ;-------------------------------------------------------------------------------
- @volume.normal:
+@volume.normal:
+    ; channel 1
     and %01111111
-    add 2
+    add volume.table / 0x100
+    ; channel 2
     and %01111111
-    add 2
+    add volume.table / 0x100
+    ; channel 3
     and %01111111
-    add 2
+    add volume.table / 0x100
+    ; channel 4
     and %01111111
-    add 2
+    add volume.table / 0x100
 
 ;-------------------------------------------------------------------------------
- @volume.saa:
+@volume.saa:
+    ; SAA has different volume tables for left and right
+
+    ; channel 1
     and %01111110
-    add 2
+    add volume.table / 0x100 + 0 ; left
+    ; channel 2
     and %01111110
-    add 3
+    add volume.table / 0x100 + 1 ; right
+    ; channel 3
     and %01111110
-    add 3
+    add volume.table / 0x100 + 1 ; right
+    ; channel 4
     and %01111110
-    add 2
+    add volume.table / 0x100 + 0 ; left
 
 ;-------------------------------------------------------------------------------
 @install.mod:
@@ -1418,45 +1428,45 @@ rs.bp.page:
     ld sp,0x8000
 
     ld a,c
-c1.mk.off9:
-    ld (0),hl               ; 2e36
-c1.mk.pag9:
-    ld (0),a                ; 2e34
-    ld (c1+len+1),hl        ; 9f87
-    ld (c1+page.len+1),a    ; 9f84
+@c1.bp.offset:
+    ld (0),hl                   ; 2e36
+@c1.bp.page:
+    ld (0),a                    ; 2e34
+    ld (@c1 + len + 1),hl       ; 9f87
+    ld (@c1 + page.len + 1),a   ; 9f84
 
-    ld (c1+smp.page+1),a
-    ld (c1+smp.offs+1),hl
+    ld (@c1 + sample.page + 1),a
+    ld (@c1 + sample.offset + 1),hl
 
-c2.mk.off9:
+@c2.bp.offset:
     ld (0),hl
-c2.mk.pag9:
+@c2.bp.page:
     ld (0),a
-    ld (c2+len+1),hl
-    ld (c2+page.len+1),a
+    ld (@c2 + len + 1),hl
+    ld (@c2 + page.len + 1),a
 
-    ld (c2+smp.page+1),a
-    ld (c2+smp.offs+1),hl
+    ld (@c2 + sample.page + 1),a
+    ld (@c2 + sample.offset + 1),hl
 
-c3.mk.off9:
+@c3.bp.offset:
     ld (0),hl
-c3.mk.pag9:
+@c3.bp.page:
     ld (0),a
-    ld (c3+len+1),hl
-    ld (c3+page.len+1),a
+    ld (@c3 + len + 1),hl
+    ld (@c3 + page.len + 1),a
 
-    ld (c3+smp.page+1),a
-    ld (c3+smp.offs+1),hl
+    ld (@c3 + sample.page + 1),a
+    ld (@c3 + sample.offset + 1),hl
 
-c4.mk.off9:
+@c4.bp.offset:
     ld (0),hl
-c4.mk.pag9:
+@c4.bp.page:
     ld (0),a
-    ld (c4+len+1),hl
-    ld (c4+page.len+1),a
+    ld (@c4 + len + 1),hl
+    ld (@c4 + page.len + 1),a
 
-    ld (c4+smp.offs+1),hl
-    ld (c4+smp.page+1),a
+    ld (@c4 + sample.offset + 1),hl
+    ld (@c4 + sample.page + 1),a
 
 
     ld hl,31 * sample.table.len + sample.table - 1
@@ -1483,14 +1493,14 @@ c4.mk.pag9:
     ld hl,56
     ld de,1023              ; octave 0 not fully supported
 mm.per.3:
-    ld (c1+min.period+1),hl
-    ld (c1+max.period+1),de
-    ld (c2+min.period+1),hl
-    ld (c2+max.period+1),de
-    ld (c3+min.period+1),hl
-    ld (c3+max.period+1),de
-    ld (c4+min.period+1),hl
-    ld (c4+max.period+1),de
+    ld (@c1 + period.min + 1 ),hl
+    ld (@c1 + period.max + 1 ),de
+    ld (@c2 + period.min + 1 ),hl
+    ld (@c2 + period.max + 1 ),de
+    ld (@c3 + period.min + 1 ),hl
+    ld (@c3 + period.max + 1 ),de
+    ld (@c4 + period.min + 1 ),hl
+    ld (@c4 + period.max + 1 ),de
 
 reset.song:
     ld a,0xff
@@ -1507,7 +1517,7 @@ reset.song:
     ld (hl),a               ;update volume?
 
     ld hl,0x500
-    ld (counter.fract),hl
+    ld (tick.fraction),hl
     call reset.speed
 
     ; ld (disable.pos),a    ;no position jumping (temp)
@@ -1520,32 +1530,36 @@ reset.song:
 
     ld ix,reset.list
     ld de,routine.len
-reset.loop:
-    ld l,(ix+0)
-    ld h,(ix+1)
-    ld a,l
-    or h
-    jr z,reset.all
-    ld a,(ix+2)
-    inc ix
-    inc ix
-    inc ix
-    ld b,4
-reset.blp:
-    ld (hl),a
-    add hl,de
-    djnz reset.blp
-    jr reset.loop
-reset.all:
-    call c1+bp.volume
-    call c2+bp.volume
-    call c3+bp.volume
-    call c4+bp.volume
+    @loop:
+        ld l,(ix+0)
+        ld h,(ix+1)
+        ld a,l
+        or h
+        jr z,@leave
 
-    call c1+per.nop
-    call c2+per.nop
-    call c3+per.nop
-    call c4+per.nop
+        ld a,(ix+2)
+        inc ix
+        inc ix
+        inc ix
+
+        ld b,4
+        @channels:
+            ld (hl),a
+            add hl,de
+            djnz @-channels
+
+        jr @-loop
+
+@leave:
+    call @c1 + bp.volume
+    call @c2 + bp.volume
+    call @c3 + bp.volume
+    call @c4 + bp.volume
+
+    call @c1 + period.nop
+    call @c2 + period.nop
+    call @c3 + period.nop
+    call @c4 + period.nop
 
 ;---------------------------------------------------------------
 
@@ -1572,45 +1586,45 @@ reset.speed:
     ret
 
 reset.list:
-    defw c1+repeat+1
+    defw @c1 + @smc.repeat + 1
     defb 0
-    defw c1+volume+1
+    defw @c1 + @smc.volume + 1
     defb 0
-    defw c1+period+1
+    defw @c1 + period + 1
     defb 0
-    defw c1+period+2
+    defw @c1 + period + 2
     defb 0
-    defw c1+wanted.per+1
+    defw @c1 + wanted.per + 1
     defb 0
-    defw c1+wanted.per+2
+    defw @c1 + wanted.per + 2
     defb 0
-    defw c1+upmask+1
-    defb 255
-    defw c1+dnmask+1
-    defb 255
-    defw c1+wav.cntrl+1
+    defw @c1 + upmask + 1
+    defb 0xff
+    defw @c1 + dnmask + 1
+    defb 0xff
+    defw @c1 + wav.cntrl + 1
     defb 0
-    defw c1+tonespeed+1
+    defw @c1 + tonespeed + 1
     defb 0
-    defw c1+gliss+1
+    defw @c1 + gliss + 1
     defb 0
-    defw c1+vibr.cmnd+1
+    defw @c1 + vibr.cmnd + 1
     defb 0
-    defw c1+vibr.pos+1
+    defw @c1 + vibr.pos + 1
     defb 0
-    defw c1+trem.cmnd+1
+    defw @c1 + trem.cmnd + 1
     defb 0
-    defw c1+trem.pos+1
+    defw @c1 + trem.pos + 1
     defb 0
-    defw c1+sampoffs+1
+    defw @c1 + sampoffs + 1
     defb 0
-    defw c1+loopcount+1
+    defw @c1 + loopcount+1
     defb 0
-    defw c1+pattpos+1
+    defw @c1 + pattpos+1
     defb 0
-    defw c1+new.ins+1
+    defw @c1 + new.ins+1
     defb 0
-    defw c1+cur.ins+1
+    defw @c1 + cur.ins+1
     defb 0
     defw 0
 
@@ -1785,7 +1799,7 @@ finelist:
 
 bpm.table:  ;x / 125 * 256 (125 = standard bpm)
 
-arpeg.table:                                ;x mod 3
+arpeggio.table: ;x mod 3
     defb 0,1,2,0,1,2,0,1,2,0,1,2,0,1,2,0
     defb 1,2,0,1,2,0,1,2,0,1,2,0,1,2,0,1
 
@@ -1829,7 +1843,7 @@ vibrato.table:
     defw 508,510,512,515,517,519,521,523 ;248
 
 ;-------------------------------------------------------------------------------
-retrig.table:   ;counter / x = int ( counter / x )
+retrig.table:   ;tick / x = int ( tick / x )
     defb 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0  ;x=0
     defb 0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0
 
@@ -1881,20 +1895,20 @@ retrig.table:   ;counter / x = int ( counter / x )
 ;-------------------------------------------------------------------------------
 tracker:
 
-    call c1+update.bp       ;check for sample boundaries
-    call c2+update.bp       ;and loop the samples if
-    call c3+update.bp       ;necessary
-    call c4+update.bp
+    call @c1 + update.bp    ;check for sample boundaries
+    call @c2 + update.bp    ;and loop the samples if
+    call @c3 + update.bp    ;necessary
+    call @c4 + update.bp
 
     ld hl,vol.update        ;ensures instant response to
     ld a,(hl)               ;a channel being toggled on
     or a                    ;or off
     jr z,@no.update
 
-    call c1+bp.volume
-    call c2+bp.volume
-    call c3+bp.volume
-    call c4+bp.volume
+    call @c1 + bp.volume
+    call @c2 + bp.volume
+    call @c3 + bp.volume
+    call @c4 + bp.volume
 
     ld (hl),0
 
@@ -1917,21 +1931,21 @@ tracker:
     dec a
     ret z
 
-    ld hl,(counter.fract)
+    ld hl,(tick.fraction)
     ld a,h
     ld de,(tempo)
     add hl,de
-    ld (counter.fract),hl
-    cp h                    ;counter int not changed
+    ld (tick.fraction),hl
+    cp h                    ;tick int not changed
     ret z
 
     ld a,(speed)
     ld c,a
     ld a,h
     sub c
-    jr c,@no.new.note       ; counter <> speed
+    jr c,@no.new.note       ; tick <> speed
 
-    ld (counter),a
+    ld (tick),a
     ld a,(pat.delay.c+1)    ; for pattern delay command
     or a
     jr z,@get.new.note      ; get note data if no delay
@@ -1939,8 +1953,8 @@ tracker:
     call @no.new.all        ; else just do fx
     jp dskip
 
- @no.new.note:              ; counter <> speed
-    call @no.new.all         ; do fx
+ @no.new.note:              ; tick <> speed
+    call @no.new.all        ; do fx
     jp nonewposyet          ; check position change
 
 ;-------------------------------------------------------------------------------
@@ -1948,10 +1962,10 @@ tracker:
 
     ;no new note data for all channels - fx only
 
-    call c1+check.fx
-    call c2+check.fx
-    call c3+check.fx
-    jp c4+check.fx
+    call @c1 + check.fx
+    call @c2 + check.fx
+    call @c3 + check.fx
+    jp @c4 + check.fx
 
 ;-------------------------------------------------------------------------------
 @get.new.note:
@@ -1962,7 +1976,7 @@ tracker:
     ld a,(hl)               ;get pattern
     ld (pattern.num),a
     ld d,a
-    and %11110000
+    and 0xf0
     rlca
     rlca
     rlca
@@ -1973,7 +1987,7 @@ tracker:
     ld c,a
 
     ld a,d
-    and %00001111
+    and 0x0f
     add a,a
     add a,a
  origpat.offsh:
@@ -1998,10 +2012,10 @@ tracker:
 
     call get.pattern        ;in lower memory
 
-    call c1+play.voice
-    call c2+play.voice
-    call c3+play.voice
-    call c4+play.voice
+    call @c1 + play.voice
+    call @c2 + play.voice
+    call @c3 + play.voice
+    call @c4 + play.voice
 
  dskip:
     ld hl,pattern.pos
@@ -2103,18 +2117,18 @@ routines:
 ;tables for effect parsing
 
  chkmore.list:
-    ; effects on counter 0
-    r0.000: defw per.nop                ; 0
-    r0.001: defw per.nop                ; 1
-    r0.002: defw per.nop                ; 2
-    r0.003: defw per.nop                ; 3 check earlier (tone porta)
-    r0.004: defw per.nop                ; 4
-    r0.005: defw per.nop                ; 5 check earlier (tone porta)
-    r0.006: defw per.nop                ; 6
-    r0.007: defw per.nop                ; 7
-    r0.008: defw per.nop                ; 8
+    ; effects on tick 0
+    r0.000: defw period.nop             ; 0
+    r0.001: defw period.nop             ; 1
+    r0.002: defw period.nop             ; 2
+    r0.003: defw period.nop             ; 3 check earlier (tone porta)
+    r0.004: defw period.nop             ; 4
+    r0.005: defw period.nop             ; 5 check earlier (tone porta)
+    r0.006: defw period.nop             ; 6
+    r0.007: defw period.nop             ; 7
+    r0.008: defw period.nop             ; 8
     r0.009: defw @effect.sample_offset  ; 9
-    r0.010: defw per.nop                ; A
+    r0.010: defw period.nop             ; A
     r0.011: defw @effect.position_jump  ; B
     r0.012: defw @effect.set_volume     ; C
     r0.013: defw @effect.pattern_break  ; D
@@ -2122,7 +2136,7 @@ routines:
     r0.015: defw @effect.set_speed      ; F
 
  checkfx.list:
-    ; effects not on counter 0
+    ; effects not on tick 0
     r0.016: defw @effect.arpeggio               ; 0
     r0.017: defw @effect.portamento_up          ; 1
     r0.018: defw @effect.portamento_down        ; 2
@@ -2163,52 +2177,52 @@ routines:
 update.bp:
     ; update sample addresses in burstplayer
 
- mk.pag1:
+ @bp.page.1:
     ld a,(0)
  page.len:
     sub 0
     ret c               ; not past marker yet (page)
  len:
     ld de,0
- mk.off1:
+ @bp.offset.1:
     ld hl,(0)
     jr z,$+4
     set 6,h
     sbc hl,de           ; cf not set
     ret c               ; not past marker yet (offs)
 
- repeat:
+ @smc.repeat:
     jr $+2              ; can be $+2, big_loop or small_loop
     ex de,hl
  r1.001:
     ld a,(page.len+1)
- mk.pag2:
+ @bp.page.2:
     ld (0),a
- mk.off2:
+ @bp.offset.2:
     ld (0),hl
     ret
 
  big_loop:
  big_loop.page:
     ld a,0
- mk.pag3:
+ @bp.page.3:
     ld (0),a
  big_loop.offset:
     ld de,0
     add hl,de
- mk.off3:
+ @bp.offset.3:
     ld (0),hl
     ret
 
  small_loop:
  small_loop.page:
     ld a,0
- mk.pag4:
+ @bp.page.4:
     ld (0),a
  small_loop.offset:
     ld de,0
     add hl,de
- mk.off4:
+ @bp.offset.4:
     ld (0),hl
 
  sm.en.page:
@@ -2221,8 +2235,8 @@ update.bp:
     ld (page.len+1),a
     ret
 
- small_loop.jr: equ small_loop - repeat - 2
- big_loop.jr: equ big_loop - repeat - 2
+ small_loop.jr: equ small_loop - @smc.repeat - 2
+ big_loop.jr: equ big_loop - @smc.repeat - 2
 
 ;-------------------------------------------------------------------------------
 play.voice:
@@ -2249,7 +2263,7 @@ play.voice:
     ld (note+1),de      ; -> Ppp
     or e                ; if no period given then use
  r1.004:
-    call z,per.nop      ; last given period
+    call z,period.nop   ; last given period
 
     ex de,hl            ; DE = pattern row
 
@@ -2278,9 +2292,9 @@ play.voice:
     dec a
     inc l
  r2.002:
-    ld (smp.offs+1),bc
+    ld (sample.offset+1),bc
  r1.006:
-    ld (smp.page+1),a
+    ld (sample.page+1),a
 
     ld a,l              ; highest 4 bits are significant
     xor h               ; lowest bit is significant, -> xor = unique id
@@ -2347,12 +2361,12 @@ play.voice:
 
  got.loop:
  r1.013:
-    ld (repeat + 1),a
+    ld (@smc.repeat + 1),a
 
     ld a,(hl)
     inc l
  r1.014:
-    ld (volume + 1),a
+    ld (@smc.volume + 1),a
  r1.015:
     call bp.volume
 
@@ -2466,22 +2480,23 @@ play.voice:
  r1.030:
     ld (trem.pos+1),a
  trenoc:
- smp.offs:
+
+ sample.offset:
     ld hl,0
- smp.page:
+ sample.page:
     ld a,0
- mk.pag5:
+ @bp.page.5:
     ld (0),a
- mk.off5:
+ @bp.offset.5:
     ld (0),hl
     xor a
- mk.spfr:
+ @bp.speed.fraction.1:
     ld (0),a
 
  period:
     ld de,0
  r1.031:
-    call per.nop2
+    call period.nop.de
 
  r1.032:
     ld a,(new.ins+1)
@@ -2515,15 +2530,15 @@ play.voice:
  r1.036:
     ld (cur.ins+1),a
  r1.037:
-    ld hl,(smp.offs+1)
+    ld hl,(sample.offset+1)
  r1.038:
-    ld a,(smp.page+1)
- mk.pag6:
+    ld a,(sample.page+1)
+ @bp.page.6:
     ld (0),a
- mk.off6:
+ @bp.offset.6:
     ld (0),hl
     xor a
- mk.spfr2:
+ @bp.speed.fraction.2:
     ld (0),a
     jr chkmorefx
 
@@ -2533,7 +2548,7 @@ play.voice:
  cmdlo:
     ld a,0
     or c
-    jr z,per.nop        ;no command - use old period in case of arpeg
+    jr z,period.nop     ; no command - use old period in case of arpeg
 
  r1.039:
     ld hl,checkfx.list
@@ -2550,21 +2565,22 @@ play.voice:
     jp (hl)
 
 ;-------------------------------------------------------------------------------
- per.nop:
+ period.nop:
  r2.008:
     ld de,(period+1)
- per.nop2:
+
+ period.nop.de:
     sla e               ;convert pitch
     rl d
     ld a,d
     add pitch.table / 0x100
     ld d,a
     ld a,(de)
- mk.slo:
+ @bp.speed.low:
     ld (0),a
     inc e
     ld a,(de)
- mk.shi:
+ @bp.speed.high:
     ld (0),a
 
     ret
@@ -2572,69 +2588,80 @@ play.voice:
 ;-------------------------------------------------------------------------------
 bp.volume:
  channel.on:
-    ld a,(0)            ;fill in variable
+    ld a,(0)                    ; fill in variable
     or a
-    jr z,chan.off
- volume:
+    jr z,@chan.off
+
+ @smc.volume:
     ld a,0
     rra
  saa.exvol:
-    and %01111111
- chan.off:
-    add 2
- mk.tab:
+    and %01111111               ; %01111110 when SAA
+ @chan.off:
+    add volume.table \ 0x100    ; 3 when SAA channel 2/3
+ @bp.volume_table:
     ld (0),a
+
     ret
 
 ;---------------------------------------------------------------
 ; Effect 0 - Arpeggio
 ;---------------------------------------------------------------
 @effect.arpeggio:
-    ld a,(counter)              ; [1-31]
-    ld h,arpeg.table / 0x100    ; table on 256 boundary
+    ld a,(tick)                 ; [1-31]
+    ld h,arpeggio.table / 0x100 ; table on 256 boundary
     ld l,a
-    ld a,(hl)                   ; counter mod 3
+    ld a,(hl)                   ; -> a = tick mod 3
     or a
-    jr z,arpeggio2
+    jr z,@arpeggio.0
+
     cp 2
-    jr z,arpeggio1
+    jr z,@arpeggio.2
+
  r1.040:
     ld a,(cmdlo+1)
-    and 0xf0
+    and 0xf0                    ; 1
     rrca
     rrca
     rrca
     rrca
-    jr arpeggio3
- arpeggio1:
+    jr @arpeggio.calc.period
+
+ @arpeggio.2:
  r1.041:
     ld a,(cmdlo+1)
-    and 0x0f
-    jr arpeggio3
- arpeggio2:
+    and 0x0f                    ; 2
+    jr @arpeggio.calc.period
+
+ @arpeggio.0:
  r2.009:
-    ld de,(period+1)
-    jr arpeggio4
- arpeggio3:
+    ld de,(period+1)            ; 0
+    jr @arpeggio.got.period
+
+ @arpeggio.calc.period:
     add a,a
  note.num:
     add 0
     ret c               ;note number unknown
+
     cp 2*36
     ret nc              ;new note too high
+
     ld l,a
  r1.042:
     ld a,(finetune+1)
     srl a
     jr nc,$+4
     set 7,l
-    add finelist / 256
+    add a,finelist / 0x100
     ld h,a
     ld e,(hl)
     inc l
     ld d,(hl)
- arpeggio4:
-    jr per.nop2
+
+ @arpeggio.got.period:
+
+    jr period.nop.de
 
 ;---------------------------------------------------------------
 ; Effect 1 - Portamento Up
@@ -2652,7 +2679,7 @@ bp.volume:
  r1.045:
     ld (upmask+1),a
     sbc hl,bc
- min.period:
+ period.min:
     ld bc,113           ;minimum Amiga period
     jr c,porttoofar
     sbc hl,bc
@@ -2665,7 +2692,7 @@ bp.volume:
     ld (period+1),hl
     ex de,hl
  r1.047:
-    jp per.nop2
+    jp period.nop.de
 
 ;---------------------------------------------------------------
 ; Effect 2 - Portamento Down
@@ -2684,7 +2711,7 @@ bp.volume:
     ld a,0xff
  r1.050:
     ld (dnmask+1),a
- max.period:
+ period.max:
     ld bc,856           ;maximum Amiga period
     or a
     sbc hl,bc
@@ -2696,7 +2723,7 @@ bp.volume:
     ld (period+1),hl
     ex de,hl
  r1.052:
-    jp per.nop2
+    jp period.nop.de
 
 ;---------------------------------------------------------------
 set.tone:
@@ -2828,7 +2855,7 @@ set.tone:
     ld (period+1),hl
     ex de,hl
  r1.065:
-    jp per.nop2
+    jp period.nop.de
 
 ;---------------------------------------------------------------
 ; Effect 4 - Vibrato
@@ -2932,7 +2959,7 @@ set.tone:
  vibrato3:
     ex de,hl
  r1.074:
-    call per.nop2
+    call period.nop.de
  r1.075:
     ld a,(vibr.cmnd+1)
     rrca
@@ -2967,7 +2994,7 @@ set.tone:
 ;---------------------------------------------------------------
 @effect.tremolo:
  r1.081:
-    call per.nop
+    call period.nop
  tremolo:
  r1.082:
     ld a,(cmdlo+1)
@@ -3053,7 +3080,7 @@ set.tone:
     ld a,(trem.pos+1)
     bit 7,a
  r1.089:
-    ld a,(volume+1)
+    ld a,(@smc.volume + 1)
     jr nz,trem.neg
     add h
     jr nc,$+4
@@ -3069,19 +3096,19 @@ set.tone:
  tremolo3:
     ld c,a
  r1.090:
-    ld a,(volume+1)
+    ld a,(@smc.volume + 1)
     ld b,a
     ld a,c
 
  r1.091:
-    ld (volume+1),a
+    ld (@smc.volume + 1),a
 
  r1.092:
     call bp.volume
 
     ld a,b
  r1.093:
-    ld (volume+1),a
+    ld (@smc.volume + 1),a
 
  r1.094:
     ld a,(trem.cmnd+1)
@@ -3114,7 +3141,7 @@ set.tone:
  sampoffs:
     ld a,0
  r1.098:
-    ld hl,(smp.offs+1)
+    ld hl,(sample.offset+1)
     ld b,a
     and %11000000       ; %01000000 = 0x40 -> 0x4000 = 16384 = 1 page
     rlca
@@ -3125,7 +3152,7 @@ set.tone:
     add a,h
     ld h,a
  r1.099:
-    ld a,(smp.page+1)
+    ld a,(sample.page+1)
     add c
     bit 6,h             ; if pointer in bank D, move pointer down to bank C
     res 6,h
@@ -3145,13 +3172,13 @@ set.tone:
     jr nc,@+ok
     add c               ; -> a = (page.len+1)
     add hl,de           ; -> hl = (len+1)
-    jr mk.pag7
+    jr @bp.page.7
  @ok:
     ld a,c
     ex de,hl
- mk.pag7:
+ @bp.page.7:
     ld (0),a
- mk.off7:
+ @bp.offset.7:
     ld (0),hl
 
     ret
@@ -3161,13 +3188,14 @@ set.tone:
 ;------------------------------------------------------------
 @effect.volume_slide:
  r1.102:
-    call per.nop
+    call period.nop
 
  volslide:
  r1.103:
     ld a,(cmdlo+1)
     and 0xf0
     jr z,volsli.dn
+
     rrca
     rrca
     rrca
@@ -3175,27 +3203,28 @@ set.tone:
  volsli.up:
     ld b,a
  r1.104:
-    ld a,(volume+1)
+    ld a,(@smc.volume + 1)
     add b
-    cp 64
+    cp 0x40
     jr c,$+4
-    ld a,63
+    ld a,0x3f
  r1.105:
-    ld (volume+1),a
+    ld (@smc.volume + 1),a
  r1.106:
     jp bp.volume
+
  volsli.dn:
  r1.107:
     ld a,(cmdlo+1)
     and 0x0f
     ld b,a
  r1.108:
-    ld a,(volume+1)
+    ld a,(@smc.volume + 1)
     sub b
     jr nc,$+3
     xor a
  r1.109:
-    ld (volume+1),a
+    ld (@smc.volume + 1),a
  r1.110:
     jp bp.volume
 
@@ -3235,7 +3264,7 @@ set.tone:
     jr c,$+4
     ld a,0x3f
  r1.113:
-    ld (volume+1),a
+    ld (@smc.volume + 1),a
  r1.114:
     jp bp.volume
 
@@ -3280,7 +3309,7 @@ set.tone:
     jr nc,setbpm            ;so this is BPM
     ld (speed),a
     ; xor a
-    ; ld (counter),a
+    ; ld (tick),a
     ret
 
  setbpm:
@@ -3334,7 +3363,7 @@ set.tone:
 ; Extended Effect 1 - Fine Porta Up
 
 @eeffect.fineportup:
-    ld a,(counter)
+    ld a,(tick)
     or a
     ret nz
     ld a,0x0f
@@ -3347,7 +3376,7 @@ set.tone:
 ; Extended Effect 2 - Fine Porta Down
 
 @eeffect.fineportdn:
-    ld a,(counter)
+    ld a,(tick)
     or a
     ret nz
     ld a,0x0f
@@ -3398,7 +3427,7 @@ set.tone:
 ; Extended Effect 6 - Jump Loop
 
 @eeffect.jumploop:
-    ld a,(counter)
+    ld a,(tick)
     or a
     ret nz
  r1.129:
@@ -3472,7 +3501,7 @@ set.tone:
     ld l,a
     jr nc,$+3
     inc h
-    ld a,(counter)
+    ld a,(tick)
     add a,l
     ld l,a            ;can't overflow
     ld a,(hl)
@@ -3484,12 +3513,12 @@ set.tone:
  r1.137:
     ld (cur.ins+1),a
  r1.138:
-    ld hl,(smp.offs+1)
+    ld hl,(sample.offset+1)
  r1.139:
-    ld a,(smp.page+1)
- mk.pag8:
+    ld a,(sample.page+1)
+ @bp.page.8:
     ld (0),a
- mk.off8:
+ @bp.offset.8:
     ld (0),hl
     ret
 
@@ -3497,7 +3526,7 @@ set.tone:
 ; Extended Effect A - Volume Fine Up
 
 @eeffect.volfineup:
-    ld a,(counter)
+    ld a,(tick)
     or a
     ret nz
  r1.140:
@@ -3510,7 +3539,7 @@ set.tone:
 ; Extended Effect B - Volume Fine Down
 
 @eeffect.volfinedn:
-    ld a,(counter)
+    ld a,(tick)
     or a
     ret nz
  r1.142:
@@ -3527,12 +3556,12 @@ set.tone:
     ld a,(cmdlo+1)
     and 0x0f
     ld b,a
-    ld a,(counter)
+    ld a,(tick)
     cp b
     ret nz
     xor a
  r1.145:
-    ld (volume+1),a
+    ld (@smc.volume + 1),a
  r1.146:
     jp bp.volume
 
@@ -3544,7 +3573,7 @@ set.tone:
     ld a,(cmdlo+1)
     and 0x0f
     ld b,a
-    ld a,(counter)
+    ld a,(tick)
     cp b
     ret nz
 
@@ -3556,7 +3585,7 @@ set.tone:
 ; Extended Effect E - Pattern Delay
 
 @eeffect.pattdelay:
-    ld a,(counter)
+    ld a,(tick)
     or a
     ret nz
  r1.148:
@@ -3565,10 +3594,12 @@ set.tone:
     ld b,a
     ld a,(pat.delay.c+1)
     or a
-    ret nz             ;still delaying pattern
-    ld a,b            ;so don't reset counter
+    ret nz              ; still delaying pattern
+
+    ld a,b              ; so do not reset tick
     inc b
     ld (pat.delay.f+1),a
+
     ret
 
 ;---------------------------------------------------------------
@@ -3581,10 +3612,10 @@ routine.len:    ;routine start ORGs at 0 -> routine.len = length
 ;===============================================================
 length: equ routine.len + routines - 0x8000
 
-c1:     equ 0 * routine.len + routines
-c2:     equ 1 * routine.len + routines
-c3:     equ 2 * routine.len + routines
-c4:     equ 3 * routine.len + routines
+@c1:    equ 0 * routine.len + routines
+@c2:    equ 1 * routine.len + routines
+@c3:    equ 2 * routine.len + routines
+@c4:    equ 3 * routine.len + routines
 
     defs ( 4 - 1 ) * routine.len
 
@@ -3612,126 +3643,130 @@ move.size:  equ 6 * 256     ;move size = gap size
 
 conv.list:
 
-    ; channel 1
+   ; channel 1
 
     ; sample page
-    defw c1+mk.pag1+1
-    defw c1+mk.pag2+1
-    defw c1+mk.pag3+1
-    defw c1+mk.pag4+1
-    defw c1+mk.pag5+1
-    defw c1+mk.pag6+1
-    defw c1+mk.pag7+1
-    defw c1+mk.pag8+1
-    defw c1.mk.pag9+1,0
+    defw @c1 + @bp.page.1 + 1
+    defw @c1 + @bp.page.2 + 1
+    defw @c1 + @bp.page.3 + 1
+    defw @c1 + @bp.page.4 + 1
+    defw @c1 + @bp.page.5 + 1
+    defw @c1 + @bp.page.6 + 1
+    defw @c1 + @bp.page.7 + 1
+    defw @c1 + @bp.page.8 + 1
+    defw @c1.bp.page + 1, 0
     ; sample offset
-    defw c1+mk.off1+1
-    defw c1+mk.off2+1
-    defw c1+mk.off3+1
-    defw c1+mk.off4+1
-    defw c1+mk.off5+1
-    defw c1+mk.off6+1
-    defw c1+mk.off7+1
-    defw c1+mk.off8+1
-    defw c1.mk.off9+1,0
-    ; tab
-    defw c1+mk.tab+1,0
+    defw @c1 + @bp.offset.1 + 1
+    defw @c1 + @bp.offset.2 + 1
+    defw @c1 + @bp.offset.3 + 1
+    defw @c1 + @bp.offset.4 + 1
+    defw @c1 + @bp.offset.5 + 1
+    defw @c1 + @bp.offset.6 + 1
+    defw @c1 + @bp.offset.7 + 1
+    defw @c1 + @bp.offset.8 + 1
+    defw @c1.bp.offset + 1, 0
+    ; volume table
+    defw @c1 + @bp.volume_table + 1, 0
     ; speed low
-    defw c1+mk.slo+1,0
+    defw @c1 + @bp.speed.low + 1, 0
     ; speed high
-    defw c1+mk.shi+1,0
+    defw @c1 + @bp.speed.high + 1, 0
     ; speed fraction
-    defw c1+mk.spfr+1,c1+mk.spfr2+1,0
+    defw @c1 + @bp.speed.fraction.1 + 1
+    defw @c1 + @bp.speed.fraction.2 + 1, 0
 
-    ; channel 2
+   ; channel 2
 
-    defw c2+mk.pag1+1
-    defw c2+mk.pag2+1
-    defw c2+mk.pag3+1
-    defw c2+mk.pag4+1
-    defw c2+mk.pag5+1
-    defw c2+mk.pag6+1
-    defw c2+mk.pag7+1
-    defw c2+mk.pag8+1
-    defw c2.mk.pag9+1,0
+    defw @c2 + @bp.page.1 + 1
+    defw @c2 + @bp.page.2 + 1
+    defw @c2 + @bp.page.3 + 1
+    defw @c2 + @bp.page.4 + 1
+    defw @c2 + @bp.page.5 + 1
+    defw @c2 + @bp.page.6 + 1
+    defw @c2 + @bp.page.7 + 1
+    defw @c2 + @bp.page.8 + 1
+    defw @c2.bp.page + 1, 0
 
-    defw c2+mk.off1+1
-    defw c2+mk.off2+1
-    defw c2+mk.off3+1
-    defw c2+mk.off4+1
-    defw c2+mk.off5+1
-    defw c2+mk.off6+1
-    defw c2+mk.off7+1
-    defw c2+mk.off8+1
-    defw c2.mk.off9+1,0
+    defw @c2 + @bp.offset.1 + 1
+    defw @c2 + @bp.offset.2 + 1
+    defw @c2 + @bp.offset.3 + 1
+    defw @c2 + @bp.offset.4 + 1
+    defw @c2 + @bp.offset.5 + 1
+    defw @c2 + @bp.offset.6 + 1
+    defw @c2 + @bp.offset.7 + 1
+    defw @c2 + @bp.offset.8 + 1
+    defw @c2.bp.offset + 1, 0
 
-    defw c2+mk.tab+1,0
+    defw @c2 + @bp.volume_table + 1, 0
 
-    defw c2+mk.slo+1,0
+    defw @c2 + @bp.speed.low + 1, 0
 
-    defw c2+mk.shi+1,0
+    defw @c2 + @bp.speed.high + 1, 0
 
-    defw c2+mk.spfr+1,c2+mk.spfr2+1,0
+    defw @c2 + @bp.speed.fraction.1 + 1
+    defw @c2 + @bp.speed.fraction.2 + 1, 0
 
-    ; channel 3
+   ; channel 3
 
-    defw c3+mk.pag1+1
-    defw c3+mk.pag2+1
-    defw c3+mk.pag3+1
-    defw c3+mk.pag4+1
-    defw c3+mk.pag5+1
-    defw c3+mk.pag6+1
-    defw c3+mk.pag7+1
-    defw c3+mk.pag8+1
-    defw c3.mk.pag9+1,0
+    defw @c3 + @bp.page.1 + 1
+    defw @c3 + @bp.page.2 + 1
+    defw @c3 + @bp.page.3 + 1
+    defw @c3 + @bp.page.4 + 1
+    defw @c3 + @bp.page.5 + 1
+    defw @c3 + @bp.page.6 + 1
+    defw @c3 + @bp.page.7 + 1
+    defw @c3 + @bp.page.8 + 1
+    defw @c3.bp.page + 1, 0
 
-    defw c3+mk.off1+1
-    defw c3+mk.off2+1
-    defw c3+mk.off3+1
-    defw c3+mk.off4+1
-    defw c3+mk.off5+1
-    defw c3+mk.off6+1
-    defw c3+mk.off7+1
-    defw c3+mk.off8+1
-    defw c3.mk.off9+1,0
+    defw @c3 + @bp.offset.1 + 1
+    defw @c3 + @bp.offset.2 + 1
+    defw @c3 + @bp.offset.3 + 1
+    defw @c3 + @bp.offset.4 + 1
+    defw @c3 + @bp.offset.5 + 1
+    defw @c3 + @bp.offset.6 + 1
+    defw @c3 + @bp.offset.7 + 1
+    defw @c3 + @bp.offset.8 + 1
+    defw @c3.bp.offset + 1, 0
 
-    defw c3+mk.tab+1,0
+    defw @c3 + @bp.volume_table + 1, 0
 
-    defw c3+mk.slo+1,0
+    defw @c3 + @bp.speed.low + 1, 0
 
-    defw c3+mk.shi+1,0
+    defw @c3 + @bp.speed.high + 1, 0
 
-    defw c3+mk.spfr+1,c3+mk.spfr2+1,0
+    defw @c3 + @bp.speed.fraction.1 + 1
+    defw @c3 + @bp.speed.fraction.2 + 1, 0
 
-    ; channel 4
+   ; channel 4
 
-    defw c4+mk.pag1+1
-    defw c4+mk.pag2+1
-    defw c4+mk.pag3+1
-    defw c4+mk.pag4+1
-    defw c4+mk.pag5+1
-    defw c4+mk.pag6+1
-    defw c4+mk.pag7+1
-    defw c4+mk.pag8+1
-    defw c4.mk.pag9+1,0
+    defw @c4 + @bp.page.1 + 1
+    defw @c4 + @bp.page.2 + 1
+    defw @c4 + @bp.page.3 + 1
+    defw @c4 + @bp.page.4 + 1
+    defw @c4 + @bp.page.5 + 1
+    defw @c4 + @bp.page.6 + 1
+    defw @c4 + @bp.page.7 + 1
+    defw @c4 + @bp.page.8 + 1
+    defw @c4.bp.page + 1, 0
 
-    defw c4+mk.off1+1
-    defw c4+mk.off2+1
-    defw c4+mk.off3+1
-    defw c4+mk.off4+1
-    defw c4+mk.off5+1
-    defw c4+mk.off6+1
-    defw c4+mk.off7+1
-    defw c4+mk.off8+1
-    defw c4.mk.off9+1,0
+    defw @c4 + @bp.offset.1 + 1
+    defw @c4 + @bp.offset.2 + 1
+    defw @c4 + @bp.offset.3 + 1
+    defw @c4 + @bp.offset.4 + 1
+    defw @c4 + @bp.offset.5 + 1
+    defw @c4 + @bp.offset.6 + 1
+    defw @c4 + @bp.offset.7 + 1
+    defw @c4 + @bp.offset.8 + 1
+    defw @c4.bp.offset + 1, 0
 
-    defw c4+mk.tab+1,0
+    defw @c4 + @bp.volume_table + 1, 0
 
-    defw c4+mk.slo+1,0
+    defw @c4 + @bp.speed.low + 1, 0
 
-    defw c4+mk.shi+1,0
+    defw @c4 + @bp.speed.high + 1, 0
 
-    defw c4+mk.spfr+1,c4+mk.spfr2+1,0
+    defw @c4 + @bp.speed.fraction.1 + 1
+    defw @c4 + @bp.speed.fraction.2 + 1, 0
 
 ;-------------------------------------------------------------------------------
 build.list:

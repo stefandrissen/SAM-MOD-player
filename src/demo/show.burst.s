@@ -107,7 +107,7 @@ show.burst:
 ;-------------------------------------------------------------------------------
 @burst.interrupt:
 
-    ld a,(counter)
+    ld a,(tick)
     or a
     ret nz
 

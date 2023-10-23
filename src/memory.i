@@ -60,7 +60,7 @@ frame.screen:           equ var + 32    ; screen page (+mode) set at start of fr
 int.routine:            equ var + 33    ; address (>32K) or interrupt routine
 int.rtn.pag:            equ var + 35    ; -1 = no interrupt else page
 
-c1.on:                 equ var + 36    ; channel 1 on/off
+c1.on:                  equ var + 36    ; channel 1 on/off
 c2.on:                  equ var + 37    ; channel 2 on/off
 c3.on:                  equ var + 38    ; channel 3 on/off
 c4.on:                  equ var + 39    ; channel 4 on/off
@@ -68,8 +68,8 @@ vol.update:             equ var + 40    ; when set do extra burst volume update 
                                         ; burstplayer acts on changed value of c?.on.
 
 countint:               equ var + 41    ; user frame counter
-counter.fract:          equ var + 42    ; 1/256 frame counter for tracker
-counter:                equ var + 43    ; frame counter for tracker
+tick.fraction:          equ var + 42    ; 1/256 frame counter for tracker
+tick:                   equ var + 43    ; frame counter for tracker
 speed:                  equ var + 44    ; song speed in frames
 tempo:                  equ var + 45    ; bpm speed (relative to 125)
 song.pos:               equ var + 47    ; position in songtable (0-127)

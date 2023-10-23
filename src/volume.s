@@ -16,7 +16,7 @@ populate.volume.table:
     ld c,16             ; volume tables
 
     ld a,1
-    ld (@skip.table+2),a
+    ld (@smc.skip.table + 2),a
 
     call @calculate.volumes
     call @populate.flipped.volumes
@@ -28,7 +28,7 @@ populate.volume.table:
     ld c,32             ; volume tables
 
     xor a
-    ld (@skip.table+2),a
+    ld (@smc.skip.table + 2),a
 
 ;-------------------------------------------------------------------------------
 @calculate.volumes:
@@ -167,8 +167,8 @@ populate.volume.table:
             dec ix
             djnz @-loop
 
-     @skip.table:
-        ld bc,129           ; B=1 if SAA
+     @smc.skip.table:
+        ld bc,0x0081            ; b = 1 when SAA
         add ix,bc
 
         ld a,(@volume+1)
@@ -197,10 +197,10 @@ populate.volume.table:
         ld (hl),a
         inc hl
 
-        add a,a
-        add a,a
-        add a,a
-        add a,a
+        rlca
+        rlca
+        rlca
+        rlca
         ld (de),a
         inc de
 

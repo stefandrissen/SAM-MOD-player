@@ -326,7 +326,7 @@ demo:
   @wait.left:
 
     ei              ;just in case we're pausing
-    ld a,(counter)
+    ld a,(tick)
     or a
     jr nz,@wait.left
 
@@ -335,7 +335,7 @@ demo:
     bit 4,c
     jr nz,@not.right
     ld a,(speed)
-    ld hl,counter
+    ld hl,tick
     ld (hl),a
 
   @wait.right:

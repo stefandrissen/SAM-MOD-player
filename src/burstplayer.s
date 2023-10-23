@@ -872,7 +872,7 @@ mk.sto24:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.chan1.page),hl  ; c1.page:
+    ld (bp.channel_1.page),hl
     inc hl
 
     cp 3
@@ -880,7 +880,7 @@ mk.sto24:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.chan1.offs),hl
+    ld (bp.channel_1.offset),hl
     inc hl
     ld (hl),0x80            ; read from xmem if not yet set
     inc hl
@@ -900,7 +900,8 @@ mk.sto24:
     sub 2
     ld (hl),opcode.ld_d_n           ; d -> volume.table
     inc hl
-    ld (bp.chan1.vol),hl ; c1.tab:
+    ld (bp.channel_1.volume),hl
+
     inc hl
 
     cp 2
@@ -908,7 +909,7 @@ mk.sto24:
     sub 2
     ld (hl),opcode.ld_c_n
     inc hl
-    ld (bp.chan1.speedlo),hl
+    ld (bp.channel_1.speed.low),hl
     inc hl
 
     cp 3
@@ -916,7 +917,7 @@ mk.sto24:
     sub 3
     ld (hl),opcode.ld_sp_nn
     inc hl
-    ld (bp.chan1.speedhi),hl ; c1.speedhi:
+    ld (bp.channel_1.speed.high),hl
     inc hl
     inc hl
 
@@ -925,7 +926,7 @@ mk.sto24:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.chan1.sp.frct),hl ; c1.sp.frct:
+    ld (bp.channel_1.speed.fraction),hl
     inc hl
 
     cp 2
@@ -993,7 +994,7 @@ mk.sto25:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.chan4.page),hl  ; c4.pag:
+    ld (bp.channel_4.page),hl
     inc hl
 
     cp 3
@@ -1001,7 +1002,7 @@ mk.sto25:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.chan4.offs),hl
+    ld (bp.channel_4.offset),hl
     inc hl
     ld (hl),0x80            ; read from xmem if not yet set
     inc hl
@@ -1021,7 +1022,7 @@ mk.sto25:
     sub 2
     ld (hl),opcode.ld_d_n
     inc hl
-    ld (bp.chan4.vol),hl   ; c4.tab:
+    ld (bp.channel_4.volume),hl
     inc hl
 
     cp 2
@@ -1029,7 +1030,7 @@ mk.sto25:
     sub 2
     ld (hl),opcode.ld_c_n
     inc hl
-    ld (bp.chan4.speedlo),hl   ; c4.speedlo:
+    ld (bp.channel_4.speed.low),hl
     inc hl
 
     cp 3
@@ -1037,7 +1038,7 @@ mk.sto25:
     sub 3
     ld (hl),opcode.ld_sp_nn
     inc hl
-    ld (bp.chan4.speedhi),hl   ; c4.speedhi:
+    ld (bp.channel_4.speed.high),hl
     inc hl
     inc hl
 
@@ -1046,7 +1047,7 @@ mk.sto25:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.chan4.sp.frct),hl   ; c4.sp.frct:
+    ld (bp.channel_4.speed.fraction),hl
     inc hl
 
     cp 2
@@ -1259,7 +1260,7 @@ mk.sto26:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.chan2.page),hl  ; c2.pag:
+    ld (bp.channel_2.page),hl
     inc hl
 
     cp 3
@@ -1267,7 +1268,7 @@ mk.sto26:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.chan2.offs),hl
+    ld (bp.channel_2.offset),hl
     inc hl
     ld (hl),0x80            ; read from xmem if not yet set
     inc hl
@@ -1287,7 +1288,7 @@ mk.sto26:
     sub 2
     ld (hl),opcode.ld_d_n
     inc hl
-    ld (bp.chan2.vol),hl   ; c2.tab:
+    ld (bp.channel_2.volume),hl
     inc hl
 
     cp 2
@@ -1295,7 +1296,7 @@ mk.sto26:
     sub 2
     ld (hl),opcode.ld_c_n
     inc hl
-    ld (bp.chan2.speedlo),hl ; c2.speedlo:
+    ld (bp.channel_2.speed.low),hl
     inc hl
 
     cp 3
@@ -1303,7 +1304,7 @@ mk.sto26:
     sub 3
     ld (hl),opcode.ld_sp_nn
     inc hl
-    ld (bp.chan2.speedhi),hl   ; c2.speedhi:
+    ld (bp.channel_2.speed.high),hl
     inc hl
     inc hl
 
@@ -1312,7 +1313,7 @@ mk.sto26:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.chan2.sp.frct),hl   ; c2.sp.frct:
+    ld (bp.channel_2.speed.fraction),hl
     inc hl
 
     cp 2
@@ -1380,7 +1381,7 @@ mk.sto27:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.chan3.page),hl  ; c3.pag:
+    ld (bp.channel_3.page),hl
     inc hl
 
     cp 3
@@ -1388,7 +1389,7 @@ mk.sto27:
     sub 3
     ld (hl),opcode.ld_hl_nn
     inc hl
-    ld (bp.chan3.offs),hl
+    ld (bp.channel_3.offset),hl
     inc hl
     ld (hl),0x80            ; read from xmem if not yet set
     inc hl
@@ -1408,7 +1409,7 @@ mk.sto27:
     sub 2
     ld (hl),opcode.ld_d_n
     inc hl
-    ld (bp.chan3.vol),hl   ; c3.tab:
+    ld (bp.channel_3.volume),hl
     inc hl
 
     cp 2
@@ -1416,7 +1417,7 @@ mk.sto27:
     sub 2
     ld (hl),opcode.ld_c_n
     inc hl
-    ld (bp.chan3.speedlo),hl   ; c3.speedlo:
+    ld (bp.channel_3.speed.low),hl
     inc hl
 
     cp 3
@@ -1424,7 +1425,7 @@ mk.sto27:
     sub 3
     ld (hl),opcode.ld_sp_nn
     inc hl
-    ld (bp.chan3.speedhi),hl   ; c3.speedhi:
+    ld (bp.channel_3.speed.high),hl
     inc hl
     inc hl
 
@@ -1433,7 +1434,7 @@ mk.sto27:
     sub 2
     ld (hl),opcode.ld_a_n
     inc hl
-    ld (bp.chan3.sp.frct),hl   ; c3.sp.frct:
+    ld (bp.channel_3.speed.fraction),hl
     inc hl
 
     cp 2
@@ -2113,12 +2114,12 @@ set.silence:
     cp device.saa
     ret nz
 
-    ld hl,bp.chan3.page
-    ld de,bp.chan4.page
+    ld hl,bp.channel_3.page
+    ld de,bp.channel_4.page
     call @swap.channels
 
-    ld hl,bp.chan1.page
-    ld de,bp.chan4.page
+    ld hl,bp.channel_1.page
+    ld de,bp.channel_4.page
 
 @swap.channels:
 
@@ -2448,13 +2449,13 @@ mk.bp1.chan1:
     ld de,bp.audio_buffer.2
     ld (mk.audio_buffer),de
 
-    ld de,(bp.chan1.sp.frct)
+    ld de,(bp.channel_1.speed.fraction)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.chan1.page)
+    ld de,(bp.channel_1.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.chan1.offs)
+    ld de,(bp.channel_1.offset)
     ld (mk.gd.offs),de
 
     push af
@@ -2470,13 +2471,13 @@ mk.bp1.chan1:
 ;make channel 4 for burstplayer 1
 
 mk.bp1.chan4:
-    ld de,(bp.chan4.sp.frct)
+    ld de,(bp.channel_4.speed.fraction)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.chan4.page)
+    ld de,(bp.channel_4.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.chan4.offs)
+    ld de,(bp.channel_4.offset)
     ld (mk.gd.offs),de
 
     push af
@@ -2495,13 +2496,13 @@ mk.bp1.chan2:
     ld de,bp.audio_buffer.2 + 1
     ld (mk.audio_buffer),de
 
-    ld de,(bp.chan2.sp.frct)
+    ld de,(bp.channel_2.speed.fraction)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.chan2.page)
+    ld de,(bp.channel_2.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.chan2.offs)
+    ld de,(bp.channel_2.offset)
     ld (mk.gd.offs),de
 
     push af
@@ -2517,13 +2518,13 @@ mk.bp1.chan2:
 ;make channel 3 for burstplayer 1
 
 mk.bp1.chan3:
-    ld de,(bp.chan3.sp.frct)
+    ld de,(bp.channel_3.speed.fraction)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.chan3.page)
+    ld de,(bp.channel_3.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.chan3.offs)
+    ld de,(bp.channel_3.offset)
     ld (mk.gd.offs),de
 
     push af
@@ -2542,13 +2543,13 @@ mk.bp2.chan1:
     ld de,bp.audio_buffer.1 + 0
     ld (mk.audio_buffer),de
 
-    ld de,(bp.chan1.sp.frct)
+    ld de,(bp.channel_1.speed.fraction)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.chan1.page)
+    ld de,(bp.channel_1.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.chan1.offs)
+    ld de,(bp.channel_1.offset)
     ld (mk.gd.offs),de
 
     push af
@@ -2564,13 +2565,13 @@ mk.bp2.chan1:
 ;make channel 4 for burstplayer 2
 
 mk.bp2.chan4:
-    ld de,(bp.chan4.sp.frct)
+    ld de,(bp.channel_4.speed.fraction)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.chan4.page)
+    ld de,(bp.channel_4.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.chan4.offs)
+    ld de,(bp.channel_4.offset)
     ld (mk.gd.offs),de
 
     push af
@@ -2589,13 +2590,13 @@ mk.bp2.chan2:
     ld de,bp.audio_buffer.1 + 1
     ld (mk.audio_buffer),de
 
-    ld de,(bp.chan2.sp.frct)
+    ld de,(bp.channel_2.speed.fraction)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.chan2.page)
+    ld de,(bp.channel_2.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.chan2.offs)
+    ld de,(bp.channel_2.offset)
     ld (mk.gd.offs),de
 
     push af
@@ -2611,13 +2612,13 @@ mk.bp2.chan2:
 ;make channel 3 for burstplayer 2
 
 mk.bp2.chan3:
-    ld de,(bp.chan3.sp.frct)
+    ld de,(bp.channel_3.speed.fraction)
     ld (mk.gd.spfr),de
 
-    ld de,(bp.chan3.page)
+    ld de,(bp.channel_3.page)
     ld (mk.gd.page),de
 
-    ld de,(bp.chan3.offs)
+    ld de,(bp.channel_3.offset)
     ld (mk.gd.offs),de
 
     push af
@@ -3514,45 +3515,45 @@ bp.device:          defb 0
 
 bp.pointers:
 
-    bp.ptr.addr.tracker:        defw 0
-    bp.ptr.page.tracker:        defw 0
-    bp.ptr.addr.demo:           defw 0
-    bp.ptr.page.demo:           defw 0
+    bp.ptr.addr.tracker:            defw 0
+    bp.ptr.page.tracker:            defw 0
+    bp.ptr.addr.demo:               defw 0
+    bp.ptr.page.demo:               defw 0
 
-    bp.ptr.addr.enable:         defw 0
-    bp.ptr.addr.exit:           defw bp.exit
+    bp.ptr.addr.enable:             defw 0
+    bp.ptr.addr.exit:               defw bp.exit
 
 bp.pointers.sample:
 
-    bp.chan1.page:              defw 0
-    bp.chan1.offs:              defw 0
-    bp.chan1.vol:               defw 0
-    bp.chan1.speedlo:           defw 0
-    bp.chan1.speedhi:           defw 0
-    bp.chan1.sp.frct:           defw 0
+    bp.channel_1.page:              defw 0
+    bp.channel_1.offset:            defw 0
+    bp.channel_1.volume:            defw 0
+    bp.channel_1.speed.low:         defw 0
+    bp.channel_1.speed.high:        defw 0
+    bp.channel_1.speed.fraction:    defw 0
 
 ;bp.pointers.length: equ $ - bp.pointers.sample
 
-    bp.chan2.page:              defw 0
-    bp.chan2.offs:              defw 0
-    bp.chan2.vol:               defw 0
-    bp.chan2.speedlo:           defw 0
-    bp.chan2.speedhi:           defw 0
-    bp.chan2.sp.frct:           defw 0
+    bp.channel_2.page:              defw 0
+    bp.channel_2.offset:            defw 0
+    bp.channel_2.volume:            defw 0
+    bp.channel_2.speed.low:         defw 0
+    bp.channel_2.speed.high:        defw 0
+    bp.channel_2.speed.fraction:    defw 0
 
-    bp.chan3.page:              defw 0
-    bp.chan3.offs:              defw 0
-    bp.chan3.vol:               defw 0
-    bp.chan3.speedlo:           defw 0
-    bp.chan3.speedhi:           defw 0
-    bp.chan3.sp.frct:           defw 0
+    bp.channel_3.page:              defw 0
+    bp.channel_3.offset:            defw 0
+    bp.channel_3.volume:            defw 0
+    bp.channel_3.speed.low:         defw 0
+    bp.channel_3.speed.high:        defw 0
+    bp.channel_3.speed.fraction:    defw 0
 
-    bp.chan4.page:              defw 0
-    bp.chan4.offs:              defw 0
-    bp.chan4.vol:               defw 0
-    bp.chan4.speedlo:           defw 0
-    bp.chan4.speedhi:           defw 0
-    bp.chan4.sp.frct:           defw 0
+    bp.channel_4.page:              defw 0
+    bp.channel_4.offset:            defw 0
+    bp.channel_4.volume:            defw 0
+    bp.channel_4.speed.low:         defw 0
+    bp.channel_4.speed.high:        defw 0
+    bp.channel_4.speed.fraction:    defw 0
 
 if 0 > 1
 ; set saa for samples
@@ -3761,39 +3762,39 @@ if defined( testing )
 
         ; set sample pointers to 0x8000
 
-        ld hl,(bp.chan1.offs)
+        ld hl,(bp.channel_1.offset)
         ld (hl),0x00
         inc hl
         ld (hl),0x80
 
-        ld hl,(bp.chan1.speedhi)
+        ld hl,(bp.channel_1.speed.high)
         ld (hl),0x01                ; increase sample pointer by one byte
 
-        ld hl,(bp.chan1.vol)
+        ld hl,(bp.channel_1.volume)
         ld (hl),volume.table / 0x100 + 0x1f ; [0x00-0x1f]
 
-        ld hl,(bp.chan2.offs)
+        ld hl,(bp.channel_2.offset)
         ld (hl),0x00
         inc hl
         ld (hl),0x80
 
-        ld hl,(bp.chan2.vol)
+        ld hl,(bp.channel_2.volume)
         ld (hl),volume.table / 0x100 + 0x00 ; [0x00-0x1f]
 
-        ld hl,(bp.chan3.offs)
+        ld hl,(bp.channel_3.offset)
         ld (hl),0x00
         inc hl
         ld (hl),0x80
 
-        ld hl,(bp.chan3.vol)
+        ld hl,(bp.channel_3.volume)
         ld (hl),volume.table / 0x100 + 0x00 ; [0x00-0x1f]
 
-        ld hl,(bp.chan4.offs)
+        ld hl,(bp.channel_4.offset)
         ld (hl),0x00
         inc hl
         ld (hl),0x80
 
-        ld hl,(bp.chan4.vol)
+        ld hl,(bp.channel_4.volume)
         ld (hl),volume.table / 0x100 + 0x00 ; [0x00-0x1f]
 
         ret
