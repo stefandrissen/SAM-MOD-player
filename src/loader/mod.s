@@ -529,6 +529,16 @@ mod.determine.type:
 
     ld d,(ix+mod.sample.repeat.len.words+0)
     ld e,(ix+mod.sample.repeat.len.words+1)
+
+    ld a,d
+    or a
+    jr nz,@repeat.len.gt.1
+    ld a,e
+    cp 2
+    jr c,@ok    ; loop length < 2 is not a real loop
+
+ @repeat.len.gt.1:
+
     add hl,de
 
     inc bc
