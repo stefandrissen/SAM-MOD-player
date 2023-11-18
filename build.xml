@@ -79,7 +79,7 @@ defm "${version}"
 				<arg value="-I" /><arg file="obj/loader" />
 				<arg value="-I" /><arg file="obj/demo" />
 
-				<arg value="-I" /><arg file="res/mods/way_too_sample.mod" />
+				<arg value="-I" /><arg file="res/test.m" />
 
 				<arg line="-o obj/SAM.MOD.player.${version}.mgt" />
 				<arg value="--nozip" />
