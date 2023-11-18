@@ -3,11 +3,6 @@
 
 	<property file=".properties" />
 
-	<property name="python" value="python" />
-	<property name="pyz80" value="../pyz80/pyz80.py" />
-	<property name="simcoupe" location="C:\Program Files\SimCoupe\SimCoupe.exe" />
-	<property name="mapfile" value="true" />
-
 	<!-- assemble -->
 
 	<macrodef name="assemble">
@@ -43,9 +38,7 @@
 	<!-- create-disk -->
 
 	<target name="create-disk">
-
-		<create-disk b-dos="true" />
-
+		<create-disk b-dos="true" launch="false" />
 	</target>
 
 	<macrodef name="create-disk">
@@ -54,6 +47,7 @@
 		<attribute name="b-dos" default="false" />
 		<attribute name="b-dos-atom-lite" default="false" />
 		<attribute name="b-dos-trinity" default="false" />
+		<attribute name="launch" default="true" />
 
 		<sequential>
 
@@ -72,25 +66,20 @@ defm "${version}"
 			<exec executable="${python}" failonerror="true">
 				<arg file="${pyz80}" />
 
-				<arg line="-I res/dos/samdos2" if:true="@{samdos}" />
-				<arg line="-I res/dos/MDOS23" if:true="@{masterdos}" />
-				<arg line="-I res/dos/B-DOS15a" if:true="@{b-dos}" />
-				<arg line="-I res/dos/AL-BDOS15a" if:true="@{b-dos-atom-lite}" />
-				<arg line="-I res/dos/bdos15t-6" if:true="@{b-dos-trinity}" />
+				<arg value="-I" />
+				<arg file="res/dos/samdos2" if:true="@{samdos}" />
+				<arg file="res/dos/MDOS23" if:true="@{masterdos}" />
+				<arg file="res/dos/B-DOS15a" if:true="@{b-dos}" />
+				<arg file="res/dos/AL-BDOS15a" if:true="@{b-dos-atom-lite}" />
+				<arg file="res/dos/bdos15t-6" if:true="@{b-dos-trinity}" />
 
-				<arg line="-I res/loading.$" />
-				<arg line="-I obj/tracker" />
-				<arg line="-I obj/burstplayer" />
-				<arg line="-I obj/loader" />
-				<arg line="-I obj/demo" />
-				<arg line="-I res/test.m" />
-				<!-- <arg line="-I res/mods/odeprotr.m" /> -->
-				<!-- <arg line="-I res/mods/face_day.m" /> -->
-				<!-- <arg line="-I res/mods/think_tw.m" /> -->
-				<!-- <arg line="-I res/mods/keysimag.m" /> -->
-				<!-- <arg line="-I res/mods/mixified.m" /> -->
-				<!-- <arg line="-I res/mods/oroincen.m" /> -->
-				<!-- <arg line="-I res/mods/wander_2.m" /> -->
+				<arg value="-I" /><arg file="res/loading.$" />
+				<arg value="-I" /><arg file="obj/tracker" />
+				<arg value="-I" /><arg file="obj/burstplayer" />
+				<arg value="-I" /><arg file="obj/loader" />
+				<arg value="-I" /><arg file="obj/demo" />
+
+				<arg value="-I" /><arg file="res/mods/way_too_sample.mod" />
 
 				<arg line="-o obj/SAM.MOD.player.${version}.mgt" />
 				<arg value="--nozip" />
@@ -98,8 +87,9 @@ defm "${version}"
 				<arg value="src/boot.s" />
 			</exec>
 
-			<!-- adjust to what needs debugging -->
-			<copy file="obj/demo.map" tofile="obj/SAM.MOD.player.${version}.map" if:true="${mapfile}" />
+			<copy file="obj/${debug}.map" tofile="obj/SAM.MOD.player.${version}.map" if:true="${mapfile}" />
+
+			<simcoupe disk="SAM.MOD.player.${version}.mgt" if:true="@{launch}"/>
 
 		</sequential>
 
@@ -120,22 +110,26 @@ defm "${version}"
 
 	</macrodef>
 
-	<!-- all -->
+	<!-- all - compile all, create disk and launch -->
 
-	<target name="all-samdos" description="compile all, create disk and launch">
-
+	<target name="all-samdos" description="">
 		<create-disk samdos="true" />
-
-		<simcoupe disk="SAM.MOD.player.${version}.mgt" />
-
 	</target>
 
-	<target name="all-b-dos" description="compile all, create disk and launch">
+	<target name="all-b-dos-trinity" description="">
+		<create-disk b-dos-trinity="true" />
+	</target>
 
+	<target name="all-b-dos-atom-lite" description="">
+		<create-disk b-dos-atom-lite="true" />
+	</target>
+
+	<target name="all-b-dos" description="">
 		<create-disk b-dos="true" />
+	</target>
 
-		<simcoupe disk="SAM.MOD.player.${version}.mgt" />
-
+	<target name="all-masterdos" description="">
+		<create-disk masterdos="true" />
 	</target>
 
 	<!-- assemble-test-mod -->
@@ -159,28 +153,12 @@ defm "${version}"
 
 		<exec executable="${python}" failonerror="true">
 			<arg file="${pyz80}" />
-			<arg line="-I res/mods/think_tw.m" />
+			<arg line="-I res/mods/think_tw.mod" />
 			<arg line="-I obj/burstplayer" />
 			<arg line="-I obj/tracker" />
 			<arg line="-o obj/example.mgt" />
 			<arg value="src/example.s" />
 		</exec>
-
-	</target>
-
-	<!-- test bustplayer -->
-
-	<target name="test-burstplayer" description="test burstplayer">
-
-		<exec executable="${python}" failonerror="true">
-			<arg file="${pyz80}" />
-			<arg line="-D testing" />
-			<arg value="--mapfile=obj/burstplayer.map" />
-			<arg line="-o obj/burstplayer.mgt" />
-			<arg value="src/burstplayer.s" />
-		</exec>
-
-		<simcoupe disk="burstplayer.dsk" />
 
 	</target>
 
