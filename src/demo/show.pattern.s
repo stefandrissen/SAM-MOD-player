@@ -233,7 +233,7 @@ pattern.interrupt:
     ld d,(hl)
     inc l
     ld e,(hl)
-    ld a,(@print.pos+1)
+    ld a,(@print.pos + 1)
     add 128
     ld l,1   ;width offset
     ld c,3   ;height offset
@@ -245,6 +245,8 @@ pattern.interrupt:
     ld a,d
     or a
     jr z,@skip.left
+
+    ; print cursor left
 
     ld (hl),%10000000
     ld a,l
@@ -270,6 +272,8 @@ pattern.interrupt:
     or a
     jr z,@skip.right
 
+    ; print cursor right
+
     ld l,30
     ld (hl),%00000001
     ld a,l
@@ -290,6 +294,8 @@ pattern.interrupt:
     ld (hl),%00000001
 
   @skip.right:
+
+    ; clear previous cursor right
 
     ld a,h
     sub c
@@ -318,6 +324,8 @@ pattern.interrupt:
     ld l,a
     ld (hl),c
 
+    ; clear previous cursor left
+
     ld l,1
     ld (hl),c
     ld a,l
@@ -342,33 +350,33 @@ pattern.interrupt:
  @print.channel.4_3:
 
     inc a
-    ld (@pr.set+1),a
-    ld a,(@print.pos+1)
+    ld (@pr.set + 1),a
+    ld a,(@print.pos + 1)
     add 13+128
     ld h,a
     ld l,18
 
     ld b,32
 
-    ld ix,mod.current.row+8
+    ld ix,mod.current.row + 8
     call @print.channel
 
     ld l,3
-    ld ix,mod.current.row+12
+    ld ix,mod.current.row + 12
     call @print.channel
 
     ld hl,c4.on
     ld d,(hl)
     dec l
     ld e,(hl)
-    ld a,(@print.pos+1)
+    ld a,(@print.pos + 1)
     ld c,13
     add c
     add 128
     ld h,a
     ld l,1
     call @print.cursor
-    ld hl,@print.pos+1
+    ld hl,@print.pos + 1
     ld a,(hl)
     inc a
     and %10000111

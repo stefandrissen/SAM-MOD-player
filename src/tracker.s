@@ -80,8 +80,8 @@ tracker.gap:            defb 0
     ;---------------------------------------------------------------------------
     ;set up the finetune tables
 
-    ld hl,finet.tab
-    ld de,finet.tab+1
+    ld hl,finetune.table
+    ld de,finetune.table + 1
     ld bc,0x0400 - 1
     ld (hl),0xff
     ldir
@@ -89,9 +89,9 @@ tracker.gap:            defb 0
     ld de,finelist
     ld bc,4 * 12 * 256
 
-    @loop.finetune:
+    @loop:
 
-        ld h,finet.tab / 256
+        ld h,finetune.table / 0x100
         ld a,(de)
         inc de
         ld l,a
@@ -104,7 +104,7 @@ tracker.gap:            defb 0
         inc c
         inc c
 
-        djnz @-loop.finetune
+        djnz @-loop
 
     ;---------------------------------------------------------------------------
 
@@ -130,7 +130,7 @@ tracker.gap:            defb 0
         add hl,bc
         ld a,4
 
-        @loop.reloc.4chan:
+        @loop.relocate.4chan:
 
             ld e,(hl)
             inc hl
@@ -150,7 +150,7 @@ tracker.gap:            defb 0
             add hl,de
             dec a
 
-            jr nz,@-loop.reloc.4chan
+            jr nz,@-loop.relocate.4chan
 
         jr @-loop.relocate
 
@@ -1435,8 +1435,8 @@ rs.bp.page:
     ld (@c1 + len + 1),hl       ; 9f87
     ld (@c1 + page.len + 1),a   ; 9f84
 
-    ld (@c1 + sample.page + 1),a
-    ld (@c1 + sample.offset + 1),hl
+    ld (@c1 + @cx.sample.page + 1),a
+    ld (@c1 + @cx.sample.offset + 1),hl
 
 @c2.bp.offset:
     ld (0),hl
@@ -1445,8 +1445,8 @@ rs.bp.page:
     ld (@c2 + len + 1),hl
     ld (@c2 + page.len + 1),a
 
-    ld (@c2 + sample.page + 1),a
-    ld (@c2 + sample.offset + 1),hl
+    ld (@c2 + @cx.sample.page + 1),a
+    ld (@c2 + @cx.sample.offset + 1),hl
 
 @c3.bp.offset:
     ld (0),hl
@@ -1455,8 +1455,8 @@ rs.bp.page:
     ld (@c3 + len + 1),hl
     ld (@c3 + page.len + 1),a
 
-    ld (@c3 + sample.page + 1),a
-    ld (@c3 + sample.offset + 1),hl
+    ld (@c3 + @cx.sample.page + 1),a
+    ld (@c3 + @cx.sample.offset + 1),hl
 
 @c4.bp.offset:
     ld (0),hl
@@ -1465,8 +1465,8 @@ rs.bp.page:
     ld (@c4 + len + 1),hl
     ld (@c4 + page.len + 1),a
 
-    ld (@c4 + sample.offset + 1),hl
-    ld (@c4 + sample.page + 1),a
+    ld (@c4 + @cx.sample.offset + 1),hl
+    ld (@c4 + @cx.sample.page + 1),a
 
 
     ld hl,31 * sample.table.len + sample.table - 1
@@ -1616,7 +1616,7 @@ reset.list:
     defb 0
     defw @c1 + trem.pos + 1
     defb 0
-    defw @c1 + sampoffs + 1
+    defw @c1 + @cx.effect.sample.offset + 1
     defb 0
     defw @c1 + loopcount+1
     defb 0
@@ -1676,7 +1676,7 @@ st.prev.sample: equ sample.table.len - st.sample
     defs 31 * sample.table.len
 
 
-finet.tab:  defs 1024
+finetune.table:  defs 1024
 
 ;-------------------------------------------------------------------------------
 finelist:
@@ -2156,22 +2156,22 @@ routines:
 
  extended.effects.list:
     ; extended effects (effect E)
-    r0.032: defw @eeffect.filter            ; 0
-    r0.033: defw @eeffect.fineportup        ; 1
-    r0.034: defw @eeffect.fineportdn        ; 2
-    r0.035: defw @eeffect.glisscntrl        ; 3
-    r0.036: defw @eeffect.vibracntrl        ; 4
-    r0.037: defw @eeffect.setfinetun        ; 5
-    r0.038: defw @eeffect.jumploop          ; 6
-    r0.039: defw @eeffect.tremocntrl        ; 7
-    r0.040: defw @effect.none               ; 8 not a command
-    r0.041: defw @eeffect.retrignote        ; 9
-    r0.042: defw @eeffect.volfineup         ; A
-    r0.043: defw @eeffect.volfinedn         ; B
-    r0.044: defw @eeffect.notecut           ; C
-    r0.045: defw @eeffect.notedelay         ; D
-    r0.046: defw @eeffect.pattdelay         ; E
-    r0.047: defw @effect.none               ; F funk it not supported
+    r0.032: defw @eeffect.filter                ; 0
+    r0.033: defw @eeffect.fine_porta_up         ; 1
+    r0.034: defw @eeffect.fine_porta_down       ; 2
+    r0.035: defw @eeffect.set_gliss_control     ; 3
+    r0.036: defw @eeffect.set_vibrato_control   ; 4
+    r0.037: defw @eeffect.set_fine_tune         ; 5
+    r0.038: defw @eeffect.jump_loop             ; 6
+    r0.039: defw @eeffect.set_tremolo_control   ; 7
+    r0.040: defw @effect.none                   ; 8 not a command
+    r0.041: defw @eeffect.retrig_note           ; 9
+    r0.042: defw @eeffect.volume_fine_up        ; A
+    r0.043: defw @eeffect.volume_fine_down      ; B
+    r0.044: defw @eeffect.note_cut              ; C
+    r0.045: defw @eeffect.note_delay            ; D
+    r0.046: defw @eeffect.pattern_delay         ; E
+    r0.047: defw @effect.none                   ; F funk it not supported
 
 ;-------------------------------------------------------------------------------
 update.bp:
@@ -2280,21 +2280,24 @@ play.voice:
     ld l,a              ; l = s -> hl = sample.table entry (16 bytes per entry)
                         ; de = pattern row + 2
 
-    ld c,(hl)           ; sample offset
+    ; TODO: should (re)apply effect.sample.offset
+
+    ld c,(hl)           ; \
+    inc l               ;  > sample start offset
+    ld b,(hl)           ; /
     inc l
-    ld b,(hl)           ; sample offset
-    inc l
-    ld a,(hl)           ; sample page
+    ld a,(hl)           ; sample start page
     inc a
 
  r1.005:
     jp z,set.regs       ; page -1 -> no sample
+
     dec a
     inc l
  r2.002:
-    ld (sample.offset+1),bc
+    ld (@cx.sample.offset + 1),bc
  r1.006:
-    ld (sample.page+1),a
+    ld (@cx.sample.page + 1),a
 
     ld a,l              ; highest 4 bits are significant
     xor h               ; lowest bit is significant, -> xor = unique id
@@ -2302,9 +2305,9 @@ play.voice:
  r1.007:
     ld (new.ins+1),a
 
-    ld c,(hl)           ; sample end offset
-    inc l
-    ld b,(hl)           ; sample end offset
+    ld c,(hl)           ; \
+    inc l               ;  > sample end offset
+    ld b,(hl)           ; /
     inc l
     ld a,(hl)           ; sample end page
     inc l
@@ -2409,7 +2412,7 @@ play.voice:
 
  do.fine:
  r1.020:
-    call @eeffect.setfinetun
+    call @eeffect.set_fine_tune
     jr set.per
 
  chk.tone:
@@ -2422,7 +2425,7 @@ play.voice:
  r1.023:
     ld hl,(note+1)
     ld a,h
-    add finet.tab / 256
+    add finetune.table / 0x100
     ld h,a
 
     ld l,(hl)           ; get note number (*2)
@@ -2469,21 +2472,23 @@ play.voice:
     ld c,0
     xor a
     bit 2,c             ;-> retrigger vibrato
-    jr z,vibnoc
+    jr z,@vibrato.unchanged
 
  r1.029:
     ld (vibr.pos+1),a
- vibnoc:
+
+ @vibrato.unchanged:
     bit 6,c             ;-> retrigger tremolo
-    jr z,trenoc
+    jr z,@tremolo.unchanged
 
  r1.030:
     ld (trem.pos+1),a
- trenoc:
 
- sample.offset:
+ @tremolo.unchanged:
+
+ @cx.sample.offset:
     ld hl,0
- sample.page:
+ @cx.sample.page:
     ld a,0
  @bp.page.5:
     ld (0),a
@@ -2530,9 +2535,9 @@ play.voice:
  r1.036:
     ld (cur.ins+1),a
  r1.037:
-    ld hl,(sample.offset+1)
+    ld hl,(@cx.sample.offset + 1)
  r1.038:
-    ld a,(sample.page+1)
+    ld a,(@cx.sample.page + 1)
  @bp.page.6:
     ld (0),a
  @bp.offset.6:
@@ -2604,10 +2609,11 @@ bp.volume:
 
     ret
 
-;---------------------------------------------------------------
-; Effect 0 - Arpeggio
-;---------------------------------------------------------------
-@effect.arpeggio:
+
+@effect.arpeggio:               ; 0
+ ;---------------------------------------------------------------
+ ; Effect 0 - Arpeggio
+ ;---------------------------------------------------------------
     ld a,(tick)                 ; [1-31]
     ld h,arpeggio.table / 0x100 ; table on 256 boundary
     ld l,a
@@ -2663,10 +2669,11 @@ bp.volume:
 
     jr period.nop.de
 
-;---------------------------------------------------------------
-; Effect 1 - Portamento Up
-;---------------------------------------------------------------
-@effect.portamento_up:
+
+@effect.portamento_up:          ; 1
+ ;---------------------------------------------------------------
+ ; Effect 1 - Portamento Up
+ ;---------------------------------------------------------------
  r1.043:
     ld hl,(period+1)
  r1.044:
@@ -2694,10 +2701,11 @@ bp.volume:
  r1.047:
     jp period.nop.de
 
-;---------------------------------------------------------------
-; Effect 2 - Portamento Down
-;---------------------------------------------------------------
-@effect.portamento_down:
+
+@effect.portamento_down:        ; 2
+ ;---------------------------------------------------------------
+ ; Effect 2 - Portamento Down
+ ;---------------------------------------------------------------
  r1.048:
     ld hl,(period+1)
  r1.049:
@@ -2725,21 +2733,24 @@ bp.volume:
  r1.052:
     jp period.nop.de
 
-;---------------------------------------------------------------
+
 set.tone:
+ ;---------------------------------------------------------------
  note:
-    ld hl,0
+    ld hl,0             ; Ppp
     ld a,h
-    add finet.tab / 256
+    add finetune.table / 0x100
     ld h,a
 
     ld l,(hl)           ;get note number (*2)
     ld b,l
     inc l               ;255 = note not found
     jr nz,foundfine2
+
  r1.053:
     ld hl,(note+1)
     jr notune2
+
  foundfine2:
     dec l
  r1.054:
@@ -2754,6 +2765,7 @@ set.tone:
     inc l
     ld h,(hl)
     ld l,a
+
  notune2:
  r1.055:
     ld (wanted.per+1),hl
@@ -2765,16 +2777,19 @@ set.tone:
     adc a,0
  r1.056:
     ld (tonedirec+1),a      ;0=porta dn, 1=porta up
+
     ret
+
  cleartone:
  r1.057:
     ld (wanted.per+1),hl
+
     ret
 
-;---------------------------------------------------------------
-; Effect 3 - Tone Portamento
-;---------------------------------------------------------------
-@effect.tone_portamento:
+@effect.tone_portamento:        ; 3
+ ;---------------------------------------------------------------
+ ; Effect 3 - Tone Portamento
+ ;---------------------------------------------------------------
  r1.058:
     ld a,(cmdlo+1)
     or a
@@ -2857,10 +2872,11 @@ set.tone:
  r1.065:
     jp period.nop.de
 
-;---------------------------------------------------------------
-; Effect 4 - Vibrato
-;---------------------------------------------------------------
-@effect.vibrato:
+@effect.vibrato:                ; 4
+ ;---------------------------------------------------------------
+ ; Effect 4 - Vibrato
+ ;---------------------------------------------------------------
+
  r1.066:
     ld a,(cmdlo+1)
     or a
@@ -2971,28 +2987,29 @@ set.tone:
     ld (hl),a
     ret
 
-;---------------------------------------------------------------
-; Effect 5 - Tone and Volume Slide
-;---------------------------------------------------------------
-@effect.tone_volume_slide:
+@effect.tone_volume_slide:      ; 5
+ ;---------------------------------------------------------------
+ ; Effect 5 - Tone and Volume Slide
+ ;---------------------------------------------------------------
+
  r1.077:
     call tonenochng
  r1.078:
     jp volslide
 
-;---------------------------------------------------------------
-; Effect 6 - Vibrato and Volume Slide
-;---------------------------------------------------------------
-@effect.vibrato_volume_slide:
+@effect.vibrato_volume_slide:   ; 6
+ ;---------------------------------------------------------------
+ ; Effect 6 - Vibrato and Volume Slide
+ ;---------------------------------------------------------------
  r1.079:
     call vibrato2
  r1.080:
     jp volslide
 
-;---------------------------------------------------------------
-; Effect 7 - Tremolo
-;---------------------------------------------------------------
-@effect.tremolo:
+@effect.tremolo:                ; 7
+ ;---------------------------------------------------------------
+ ; Effect 7 - Tremolo
+ ;---------------------------------------------------------------
  r1.081:
     call period.nop
  tremolo:
@@ -3121,27 +3138,29 @@ set.tone:
     ld (hl),a
     ret
 
-;---------------------------------------------------------------
-; Effect 9 - Sample Offset  if offset too large -> start of loop
-;
-; - effect 9 without offset       -> use previous sample offset
-; - note triggered without sample -> use previous sample offset
-;
-; more info - https://github.com/libxmp/libxmp/blob/master/docs/tracker_notes.txt
-;           - https://github.com/steffest/BassoonTracker/blob/7e24c34b59c9c52304a90c42ccb6e8ed542c274e/script/src/tracker.js#L1028
-;---------------------------------------------------------------
-@effect.sample_offset:
+@effect.sample_offset:          ; 9
+ ;---------------------------------------------------------------
+ ; Effect 9 - Sample Offset  if offset too large -> start of loop
+ ;
+ ; - effect 9 without offset       -> use previous sample offset
+ ; - note triggered without sample -> use previous sample offset
+ ;
+ ; more info - https://github.com/libxmp/libxmp/blob/master/docs/tracker_notes.txt
+ ;           - https://github.com/steffest/BassoonTracker/blob/7e24c34b59c9c52304a90c42ccb6e8ed542c274e/script/src/tracker.js#L1028
+ ;---------------------------------------------------------------
  r1.096:
     ld a,(cmdlo+1)
     or a
     jr z,@sample_offset.zero
+
  r1.097:
-    ld (sampoffs+1),a
+    ld (@cx.effect.sample.offset + 1),a
+
  @sample_offset.zero:
- sampoffs:
+ @cx.effect.sample.offset:
     ld a,0
  r1.098:
-    ld hl,(sample.offset+1)
+    ld hl,(@cx.sample.offset + 1)
     ld b,a
     and %11000000       ; %01000000 = 0x40 -> 0x4000 = 16384 = 1 page
     rlca
@@ -3152,7 +3171,7 @@ set.tone:
     add a,h
     ld h,a
  r1.099:
-    ld a,(sample.page+1)
+    ld a,(@cx.sample.page + 1)
     add c
     bit 6,h             ; if pointer in bank D, move pointer down to bank C
     res 6,h
@@ -3183,10 +3202,10 @@ set.tone:
 
     ret
 
-;---------------------------------------------------------------
-; Effect A - Volume Slide
-;------------------------------------------------------------
-@effect.volume_slide:
+@effect.volume_slide:           ; A
+ ;---------------------------------------------------------------
+ ; Effect A - Volume Slide
+ ;------------------------------------------------------------
  r1.102:
     call period.nop
 
@@ -3228,10 +3247,10 @@ set.tone:
  r1.110:
     jp bp.volume
 
-;---------------------------------------------------------------
-; Effect B - Position Jump
-;---------------------------------------------------------------
-@effect.position_jump:
+@effect.position_jump:          ; B
+ ;---------------------------------------------------------------
+ ; Effect B - Position Jump
+ ;---------------------------------------------------------------
     ld a,(disable.pos)
     or a
     ret nz
@@ -3246,10 +3265,10 @@ set.tone:
     ld (posjump.flag+1),a
     ret
 
-;-------------------------------------------------------------------------------
-@effect.set_volume:
-
+@effect.set_volume:             ; C
+ ;---------------------------------------------------------------
  ; Effect C - Set Volume
+ ;---------------------------------------------------------------
 
  ; https://www.un4seen.com/forum/?topic=14471.msg101020#msg101020
  ; SoundTracker sends volume directly to Paula, which means:
@@ -3268,10 +3287,10 @@ set.tone:
  r1.114:
     jp bp.volume
 
-;---------------------------------------------------------------
-; Effect D - Pattern Break
-;---------------------------------------------------------------
-@effect.pattern_break:
+@effect.pattern_break:          ; D
+  ;---------------------------------------------------------------
+  ; Effect D - Pattern Break
+  ;---------------------------------------------------------------
  r1.115:
     ld a,(cmdlo+1)
     ld e,a
@@ -3296,40 +3315,13 @@ set.tone:
     ld (posjump.flag+1),a
     ret
 
-;---------------------------------------------------------------
-; Effect F - Set Speed
-;            Sort of handles BPM alterations (not 100% accurate)
-;---------------------------------------------------------------
-@effect.set_speed:
- r1.116:
-    ld a,(cmdlo+1)
-    or a
-    ret z
-    cp 32                   ;speed <32
-    jr nc,setbpm            ;so this is BPM
-    ld (speed),a
-    ; xor a
-    ; ld (tick),a
-    ret
 
- setbpm:
-    ld h,bpm.table / 0x100
-    add a,a
-    jr nc,$+3
-    inc h
-    ld l,a
-    ld e,(hl)
-    inc l
-    ld d,(hl)
-    ld (tempo),de
-    ret
-
-;---------------------------------------------------------------
-; Effect E - Extended
-;            x = extended effect
-;            y = parameter
-;---------------------------------------------------------------
-@effect.extended:
+@effect.extended:               ; E
+ ;---------------------------------------------------------------
+ ; Effect E - Extended
+ ;            x = extended effect
+ ;            y = parameter
+ ;---------------------------------------------------------------
  r1.117:
     ld a,(cmdlo+1)
     and 0xf0
@@ -3349,20 +3341,52 @@ set.tone:
     jp (hl)
 
 
+@effect.set_speed:              ; F
+ ;---------------------------------------------------------------
+ ; Effect F - Set Speed
+ ;            Sort of handles BPM alterations (not 100% accurate)
+ ;---------------------------------------------------------------
+ r1.116:
+    ld a,(cmdlo+1)
+    or a
+    ret z
+    cp 32                   ; speed <32
+    jr nc,@setbpm           ; so this is BPM
+    ld (speed),a
+    ; xor a
+    ; ld (tick),a
+    ret
+
+  @setbpm:
+    ld h,bpm.table / 0x100
+    add a,a
+    jr nc,$+3
+    inc h
+    ld l,a
+    ld e,(hl)
+    inc l
+    ld d,(hl)
+    ld (tempo),de
+    ret
+
+
 @effect.none:           ; simply continue through to filter RET
 
 ;---------------------------------------------------------------
 ; Extended Effects
-;---------------------------------------------------------------
-; Extended Effect 0 - Filter On/Off         Amiga hardware rubbish
 
-@eeffect.filter:
+
+@eeffect.filter:                ; E0
+ ;---------------------------------------------------------------
+ ; Extended Effect 0 - Filter On/Off         Amiga hardware rubbish
+
     ret
 
-;---------------------------------------------------------------
-; Extended Effect 1 - Fine Porta Up
 
-@eeffect.fineportup:
+@eeffect.fine_porta_up:         ; E1
+ ;---------------------------------------------------------------
+ ; Extended Effect 1 - Fine Porta Up
+
     ld a,(tick)
     or a
     ret nz
@@ -3372,10 +3396,11 @@ set.tone:
  r1.120:
     jp @effect.portamento_up
 
-;---------------------------------------------------------------
-; Extended Effect 2 - Fine Porta Down
 
-@eeffect.fineportdn:
+@eeffect.fine_porta_down:       ; E2
+ ;---------------------------------------------------------------
+ ; Extended Effect 2 - Fine Porta Down
+
     ld a,(tick)
     or a
     ret nz
@@ -3385,10 +3410,11 @@ set.tone:
  r1.122:
     jp @effect.portamento_down
 
-;---------------------------------------------------------------
-; Extended Effect 3 - Set Gliss Control
 
-@eeffect.glisscntrl:
+@eeffect.set_gliss_control:     ; E3
+ ;---------------------------------------------------------------
+ ; Extended Effect 3 - Set Gliss Control
+
  r1.123:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3396,10 +3422,11 @@ set.tone:
     ld (gliss+1),a
     ret
 
-;---------------------------------------------------------------
-; Extended Effect 4 - Set Vibrato Control
 
-@eeffect.vibracntrl:
+@eeffect.set_vibrato_control:   ; E4
+ ;---------------------------------------------------------------
+ ; Extended Effect 4 - Set Vibrato Control
+
  r1.125:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3412,10 +3439,11 @@ set.tone:
     ld (hl),a
     ret
 
-;---------------------------------------------------------------
-; Extended Effect 5 - Set Fine Tune
 
-@eeffect.setfinetun:
+@eeffect.set_fine_tune:         ; E5
+ ;---------------------------------------------------------------
+ ; Extended Effect 5 - Set Fine Tune
+
  r1.127:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3423,10 +3451,11 @@ set.tone:
     ld (finetune+1),a
     ret
 
-;---------------------------------------------------------------
-; Extended Effect 6 - Jump Loop
 
-@eeffect.jumploop:
+@eeffect.jump_loop:             ; E6
+ ;---------------------------------------------------------------
+ ; Extended Effect 6 - Jump Loop
+
     ld a,(tick)
     or a
     ret nz
@@ -3461,10 +3490,11 @@ set.tone:
     ld (pattpos+1),a
     ret
 
-;---------------------------------------------------------------
-; Extended Effect 7 - Set Tremolo Control
 
-@eeffect.tremocntrl:
+@eeffect.set_tremolo_control:   ; E7
+ ;---------------------------------------------------------------
+ ; Extended Effect 7 - Set Tremolo Control
+
  r1.133:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3481,10 +3511,11 @@ set.tone:
     ld (hl),a
     ret
 
-;---------------------------------------------------------------
-; Extended Effect 9 - Retrig Note
 
-@eeffect.retrignote:
+@eeffect.retrig_note:           ; E9
+ ;---------------------------------------------------------------
+ ; Extended Effect 9 - Retrig Note
+
  r1.135:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3513,19 +3544,20 @@ set.tone:
  r1.137:
     ld (cur.ins+1),a
  r1.138:
-    ld hl,(sample.offset+1)
+    ld hl,(@cx.sample.offset + 1)
  r1.139:
-    ld a,(sample.page+1)
+    ld a,(@cx.sample.page + 1)
  @bp.page.8:
     ld (0),a
  @bp.offset.8:
     ld (0),hl
     ret
 
-;---------------------------------------------------------------
-; Extended Effect A - Volume Fine Up
 
-@eeffect.volfineup:
+@eeffect.volume_fine_up:        ; EA
+ ;---------------------------------------------------------------
+ ; Extended Effect A - Volume Fine Up
+
     ld a,(tick)
     or a
     ret nz
@@ -3535,10 +3567,11 @@ set.tone:
  r1.141:
     jp volsli.up
 
-;---------------------------------------------------------------
-; Extended Effect B - Volume Fine Down
 
-@eeffect.volfinedn:
+@eeffect.volume_fine_down:      ; EB
+ ;---------------------------------------------------------------
+ ; Extended Effect B - Volume Fine Down
+
     ld a,(tick)
     or a
     ret nz
@@ -3548,10 +3581,11 @@ set.tone:
  r1.143:
     jp volsli.dn
 
-;---------------------------------------------------------------
-; Extended Effect C - Note Cut
 
-@eeffect.notecut:
+@eeffect.note_cut:              ; EC
+ ;---------------------------------------------------------------
+ ; Extended Effect C - Note Cut
+
  r1.144:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3565,10 +3599,11 @@ set.tone:
  r1.146:
     jp bp.volume
 
-;---------------------------------------------------------------
-; Extended Effect D - Note Delay
 
-@eeffect.notedelay:
+@eeffect.note_delay:            ; ED
+ ;---------------------------------------------------------------
+ ; Extended Effect D - Note Delay
+
  r1.147:
     ld a,(cmdlo+1)
     and 0x0f
@@ -3581,10 +3616,10 @@ set.tone:
     ret z
     jr doretrig
 
-;---------------------------------------------------------------
-; Extended Effect E - Pattern Delay
+@eeffect.pattern_delay:         ; EE
+ ;---------------------------------------------------------------
+ ; Extended Effect E - Pattern Delay
 
-@eeffect.pattdelay:
     ld a,(tick)
     or a
     ret nz
