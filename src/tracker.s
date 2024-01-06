@@ -2081,6 +2081,7 @@ tracker:
 
  loop.time:
 
+    ld (hl),0
     call reset.speed
 
  play.status:
