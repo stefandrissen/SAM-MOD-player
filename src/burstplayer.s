@@ -1,6 +1,6 @@
 ; SAM MOD player - MAKE burstplayer
 
-; (C) 1995-2021 Stefan Drissen
+; (C) 1995-2024 Stefan Drissen
 
 ; 384 t-states per line, 312 lines = 119808 t-states per frame
 ; 6MHz / 119808 = 50.08 Hz
@@ -46,8 +46,8 @@ burstplayer.device: defb 0  ; [0-7]
 
 burstplayer.amiga:  defb 0  ; [0-1]
 
-    pal:                equ 0       ; use which Amiga to calculate sample
-    ntsc:               equ 1       ; speeds
+    amiga.pal:          equ 0       ; use which Amiga to calculate sample
+    amiga.ntsc:         equ 1       ; speeds
 
 burstplayer.ram:    defb 0  ; %XXXRR (RAM / 256K)
 
@@ -2114,12 +2114,12 @@ set.silence:
     cp device.saa
     ret nz
 
-    ld hl,bp.channel_3.page
-    ld de,bp.channel_4.page
+    ld hl,bp.channel_3
+    ld de,bp.channel_4
     call @swap.channels
 
-    ld hl,bp.channel_1.page
-    ld de,bp.channel_4.page
+    ld hl,bp.channel_1
+    ld de,bp.channel_4
 
 @swap.channels:
 
@@ -2248,84 +2248,7 @@ select.page:
 ;---------------------------------------------------------------
 
 include "volume.s"
-
-
-;---------------------------------------------------------------
-populate.pitch.table:
-
-; populate pitch table for Amiga -> SAM sample rate
-;---------------------------------------------------------------
-    ld ix,pitch.table+4
-
-    ; ld b,4
-    ; pitch.clp:    ; ld (ix),0         ;for nocalc on lowest two div
-    ; inc ix
-    ; djnz pitch.clp
-
-    ld hl,43544       ;PAL  -> chl = 7093789.2
-    ld a,(burstplayer.amiga)
-    cp pal
-    jr z,not.ntsc
-    ld hl,45152       ;NTSC -> chl = 7159090.5
-not.ntsc:
-    ld (lo.amiga+1),hl
-
-    ld de,2
-    ld c,0
-
-; divide cde by cde'
-; put result in (ix+0), (ix+1)
-
-pitch.loop:
-    exx
-
-lo.amiga:
-    ld de,43544     ; chl = 7093789.2 * 128 / 10400
-    ld c,2          ; value in table = hl / offs * 2 for rounding at end
-    ld b,24
-    exx
-; divide:
-    ld b,0
-    ld hl,0
-    exx
-mp.divlp1:
-    rl e
-    rl d
-    rl c
-    exx
-    adc hl,hl
-    ld a,b
-    adc a,a
-    ld b,a
-    sbc hl,de
-    ld a,b
-    sbc a,c
-    ld b,a
-    jr nc,mp.divskip1
-    add hl,de
-    ld a,b
-    adc a,c
-    ld b,a
-mp.divskip1:
-    ccf
-    exx
-    djnz mp.divlp1
-
-    ld hl,0
-    adc hl,de
-
-    ld (ix),l
-    ld (ix+1),h
-    inc ix
-    inc ix
-    exx
-
-    inc de
-
-    ld a,d
-    cp 0x400 / 0x100
-    jr nz,pitch.loop
-    ret
+include "pitch.s"
 
 ;---------------------------------------------------------------
 insert.outs:
@@ -3525,6 +3448,7 @@ bp.pointers:
 
 bp.pointers.sample:
 
+  bp.channel_1:
     bp.channel_1.page:              defw 0
     bp.channel_1.offset:            defw 0
     bp.channel_1.volume:            defw 0
@@ -3534,6 +3458,7 @@ bp.pointers.sample:
 
 ;bp.pointers.length: equ $ - bp.pointers.sample
 
+  bp.channel_2:
     bp.channel_2.page:              defw 0
     bp.channel_2.offset:            defw 0
     bp.channel_2.volume:            defw 0
@@ -3541,6 +3466,7 @@ bp.pointers.sample:
     bp.channel_2.speed.high:        defw 0
     bp.channel_2.speed.fraction:    defw 0
 
+  bp.channel_3:
     bp.channel_3.page:              defw 0
     bp.channel_3.offset:            defw 0
     bp.channel_3.volume:            defw 0
@@ -3548,6 +3474,7 @@ bp.pointers.sample:
     bp.channel_3.speed.high:        defw 0
     bp.channel_3.speed.fraction:    defw 0
 
+  bp.channel_4:
     bp.channel_4.page:              defw 0
     bp.channel_4.offset:            defw 0
     bp.channel_4.volume:            defw 0

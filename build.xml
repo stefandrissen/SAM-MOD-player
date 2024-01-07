@@ -13,7 +13,7 @@
 
 		<sequential>
 
-			<echo message="compiling: @{source} mapfile:@{mapfile}" />
+			<echo message="assembling: @{source} mapfile:@{mapfile}" />
 
 			<mkdir dir="obj" />
 
@@ -89,7 +89,7 @@ defm "${version}"
 
 			<copy file="obj/${debug}.map" tofile="obj/SAM.MOD.player.${version}.map" if:true="${mapfile}" />
 
-			<simcoupe disk="SAM.MOD.player.${version}.mgt" if:true="@{launch}"/>
+			<simcoupe disk="SAM.MOD.player.${version}.mgt" if:true="@{launch}" />
 
 		</sequential>
 
@@ -110,7 +110,7 @@ defm "${version}"
 
 	</macrodef>
 
-	<!-- all - compile all, create disk and launch -->
+	<!-- all - assemble all, create disk and launch -->
 
 	<target name="all-samdos" description="">
 		<create-disk samdos="true" />
@@ -159,6 +159,21 @@ defm "${version}"
 			<arg line="-o obj/example.mgt" />
 			<arg value="src/example.s" />
 		</exec>
+
+	</target>
+
+	<!-- test populate pitch table -->
+
+	<target name="test-populate-pitch-table">
+
+		<exec executable="${python}" failonerror="true">
+			<arg file="${pyz80}" />
+			<arg line="-D test-populate.pitch.table" />
+			<arg line="-o obj/test-pitch.mgt" />
+			<arg value="src/pitch.s" />
+		</exec>
+
+		<simcoupe disk="test-pitch.mgt" />
 
 	</target>
 

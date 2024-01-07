@@ -1,6 +1,6 @@
 ; device selection screen
 ;
-; (C) 2021 Stefan Drissen
+; (C) 2021-2024 Stefan Drissen
 ;
 ; after selection, memory can be reclaimed
 
@@ -472,9 +472,9 @@ print.speed.details:
 
 text.speed:         defw text.speed.pal,text.speed.ntsc
 
-text.speed.pal:     defm "7.0937892 MHz"
+text.speed.pal:     defm "7.093790 MHz"
                     defb 0
-text.speed.ntsc:    defm "7.1590905 MHz"
+text.speed.ntsc:    defm "7.159090 MHz"
                     defb 0
 
 
