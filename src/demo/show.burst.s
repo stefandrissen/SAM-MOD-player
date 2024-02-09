@@ -35,8 +35,9 @@ show.burst:
     call print.de.b
 
     ld hl,screen + screen.24.rows * 3 + 0
-    ld b,8
+    ld b,7
     call print.de.b
+    inc l
 
  @burst.channel:
     ld a,0
@@ -44,7 +45,7 @@ show.burst:
     call print.chr
 
     ld hl,screen + screen.24.rows * 4 + 0
-    ld b,21
+    ld b,19
     call print.de.b
 
     ld hl,bp.pointers.sample - bp.pointers.length
@@ -98,8 +99,8 @@ show.burst:
     defm "SAM MOD player             "
     include "../constants/text.version.i"
     include "../constants/text.copyright.i"
-    defm "CHANNEL "
-    defm "Page Offs Vol SLo SHi"
+    defm "CHANNEL"
+    defm "Page Offs Vol Speed"
 
 @text.burst.colour:
     defb 3,2,1,4,1,5,19,1
@@ -133,13 +134,11 @@ show.burst:
     inc l
     inc l
 
- @bi.slo:
+ @bi.shi:
     ld a,(0)
     call print.hex
-    inc l
-    inc l
 
- @bi.shi:
+ @bi.slo:
     ld a,(0)
     call print.hex
 
