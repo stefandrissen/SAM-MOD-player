@@ -451,11 +451,11 @@ output.bits:
     call populate.pitch.table
 
 ;---------------------------------------------------------------
-; get pattern data routine
+; get pattern row routine
 
-; copies pattern from mod (AHL) to mod.current.row
+; copies pattern row from mod (AHL) to mod.current.row
 
-    ld hl,get.pattern
+    ld hl,get.pattern.row
 
     ld a,(burstplayer.ram)
     and %11100
@@ -536,7 +536,7 @@ output.bits:
 
     add hl,de
 
-get.pattern.size:   equ 49
+get.pattern.row.size:   equ 49
 
 ;---------------------------------------------------------------
 ; call far routine, C=page, HL=address

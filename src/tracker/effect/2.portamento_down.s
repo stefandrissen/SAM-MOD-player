@@ -18,12 +18,14 @@
     ld bc,856           ; C-1 maximum Amiga period
     or a
     sbc hl,bc
-    jr c,portadskip
+    jr c,@skip
+
     ld hl,0
- portadskip:
+ @skip:
     add hl,bc
  r1.051:
     ld (period),hl
     ex de,hl
+
  r1.052:
     jp period.nop.de

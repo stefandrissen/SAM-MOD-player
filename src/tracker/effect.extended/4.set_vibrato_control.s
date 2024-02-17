@@ -6,9 +6,10 @@
     and 0x0f
     ld b,a
  r1.126:
-    ld hl,wav.cntrl+1
+    ld hl,wav.cntrl
     ld a,(hl)
     and 0xf0
     or b
     ld (hl),a
+
     ret

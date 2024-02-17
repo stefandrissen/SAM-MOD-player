@@ -10,9 +10,10 @@
     rlca
     ld b,a
  r1.134:
-    ld hl,wav.cntrl+1
+    ld hl,wav.cntrl
     ld a,(hl)
     and 0x0f
     or b
     ld (hl),a
+
     ret

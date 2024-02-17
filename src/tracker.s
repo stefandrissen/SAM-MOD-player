@@ -157,11 +157,11 @@ tracker:
     ld c,a
     ld a,h
     sub c
-    jr c,@on.same.row        ; tick <> speed
+    jr c,@on.same.row       ; tick <> speed
 
     ld (tick),a
 
-    ld a,(pattern_delay.c) ; for pattern delay command
+    ld a,(pattern_delay.c)  ; for pattern delay command
     or a
     jr z,@get.new.note      ; get note data if no delay
 
@@ -225,7 +225,7 @@ tracker:
     add hl,de
     ld a,c
 
-    call get.pattern        ;in lower memory
+    call get.pattern.row    ; in lower memory
 
     call c1 + play.voice
     call c2 + play.voice
@@ -259,18 +259,18 @@ tracker:
     dec (hl)                ; if pattern delay -> undo inc (hl)
 
  no.pat.delay:
- pbreak.flag:
+ pbreak.flag: equ $+1
     ld a,0
     or a
     jr z,nnpysk
 
     xor a
-    ld (pbreak.flag+1),a
- pbreak.pos:
+    ld (pbreak.flag),a
+ pbreak.pos: equ $+1
     ld a,0
     ld (hl),a
     xor a
-    ld (pbreak.pos+1),a
+    ld (pbreak.pos),a
 
  nnpysk:
 
@@ -279,11 +279,11 @@ tracker:
     jr c,nonewposyet
 
  next.position:
-    ld a,(pbreak.pos+1)
+    ld a,(pbreak.pos)
     ld (pattern.pos),a
     xor a
-    ld (pbreak.pos+1),a
-    ld (posjump.flag+1),a
+    ld (pbreak.pos),a
+    ld (posjump.flag),a
     ld hl,song.pos
     inc (hl)
     ld a,(hl)
@@ -310,7 +310,7 @@ tracker:
     ret
 
  nonewposyet:
- posjump.flag:
+ posjump.flag: equ $+1
     ld a,0
     ;init=0, "B"=1, "D"=1
 
@@ -319,77 +319,18 @@ tracker:
 
     ret
 
-    defs align 32
-
 ;-------------------------------------------------------------------------------
+   defs align 0x20  ; needed to align @list.effects.on_tick_0 in copied routines
+
 routines:
 
-; these routines are copied four times so that there is one for each channel the
+; these routines are copied three times so that there is one for each channel the
 ; burst player addresses are put in by conv.list
 
 ;===============================================================================
     org 0
 
-;tables for effect parsing
 
- @list.effects.on_tick_0:
-    ; effects on tick 0
-    r0.000: defw period.nop             ; 0
-    r0.001: defw period.nop             ; 1
-    r0.002: defw period.nop             ; 2
-    r0.003: defw period.nop             ; 3 check earlier (tone portamento)
-    r0.004: defw period.nop             ; 4
-    r0.005: defw period.nop             ; 5 check earlier (tone portamento + volume slide)
-    r0.006: defw period.nop             ; 6
-    r0.007: defw period.nop             ; 7
-    r0.008: defw period.nop             ; 8
-    r0.009: defw @effect.sample_offset  ; 9
-    r0.010: defw period.nop             ; A
-    r0.011: defw @effect.position_jump  ; B
-    r0.012: defw @effect.set_volume     ; C
-    r0.013: defw @effect.pattern_break  ; D
-    r0.014: defw @effect.extended       ; E
-    r0.015: defw @effect.set_speed      ; F
-
- @list.effects.after_tick_0:
-    ; effects not on tick 0
-    r0.016: defw @effect.arpeggio               ; 0
-    r0.017: defw effect.portamento_up           ; 1
-    r0.018: defw effect.portamento_down         ; 2
-    r0.019: defw @effect.tone_portamento        ; 3
-    r0.020: defw @effect.vibrato                ; 4
-    r0.021: defw @effect.tone_volume_slide      ; 5
-    r0.022: defw @effect.vibrato_volume_slide   ; 6
-    r0.023: defw @effect.tremolo                ; 7
-    r0.024: defw @effect.none                   ; 8
-    r0.025: defw @effect.none                   ; 9
-    r0.026: defw @effect.volume_slide           ; A
-    r0.027: defw @effect.none                   ; B
-    r0.028: defw @effect.none                   ; C
-    r0.029: defw @effect.none                   ; D
-    r0.030: defw @effect.extended               ; E
-    r0.031: defw @effect.none                   ; F
-
- list.effects.extended:
-    ; extended effects (effect E)
-    r0.032: defw @eeffect.filter                ; 0
-    r0.033: defw @eeffect.fine_porta_up         ; 1
-    r0.034: defw @eeffect.fine_porta_down       ; 2
-    r0.035: defw @eeffect.set_gliss_control     ; 3
-    r0.036: defw @eeffect.set_vibrato_control   ; 4
-    r0.037: defw @eeffect.set_fine_tune         ; 5
-    r0.038: defw @eeffect.jump_loop             ; 6
-    r0.039: defw @eeffect.set_tremolo_control   ; 7
-    r0.040: defw @effect.none                   ; 8 not a command
-    r0.041: defw @eeffect.retrig_note           ; 9
-    r0.042: defw @eeffect.volume_fine_up        ; A
-    r0.043: defw @eeffect.volume_fine_down      ; B
-    r0.044: defw @eeffect.note_cut              ; C
-    r0.045: defw @eeffect.note_delay            ; D
-    r0.046: defw @eeffect.pattern_delay         ; E
-    r0.047: defw @effect.none                   ; F funk it not supported
-
-;-------------------------------------------------------------------------------
 update.bp:
     ; update burstplayer sample pointers
 
@@ -648,6 +589,7 @@ play.voice:
     call @eeffect.set_fine_tune
     jr @set.period
 
+ ;-------------------------------------------------------------------------------
  @check.tone:
 
  r1.021:
@@ -655,6 +597,7 @@ play.voice:
  r1.022:
     jp @effects.on_tick_0
 
+ ;-------------------------------------------------------------------------------
  @set.period:
  r1.023:
     ld hl,(@note_period)
@@ -685,6 +628,7 @@ play.voice:
     inc l
     ld h,(hl)
     ld l,a
+
  @no.tune:
  r1.025:
     ld (period),hl
@@ -702,21 +646,21 @@ play.voice:
     cp 0xde             ; ED = note delay
     jr z,@effects.on_tick_0
 
- wav.cntrl:
+ wav.cntrl: equ $+1
     ld c,0
     xor a
     bit 2,c             ;-> retrigger vibrato
     jr z,@vibrato.unchanged
 
  r1.029:
-    ld (vibr.pos+1),a
+    ld (vibr.pos),a
 
  @vibrato.unchanged:
     bit 6,c             ;-> retrigger tremolo
     jr z,@tremolo.unchanged
 
  r1.030:
-    ld (trem.pos+1),a
+    ld (trem.pos),a
 
  @tremolo.unchanged:
 
@@ -791,16 +735,14 @@ play.voice:
     or c
     jr z,period.nop     ; no command - use old period in case of arpeg
 
- r1.039:
-    ld hl,@list.effects.after_tick_0
+     r1.039:
+    ld hl,@list.effects.after_tick_0    ; align 32
     ld a,c
     add a,a
     add a,l
     ld l,a
-    ; jr nc,$+4         ;within boundary
-    ; inc h
     ld a,(hl)
-    inc l               ;within boundary
+    inc l
     ld h,(hl)
     ld l,a
 
@@ -847,6 +789,7 @@ bp.volume:
 
     ret
 
+;---------------------------------------------------------------
 
 @effect.arpeggio:               include "tracker/effect/0.arpeggio.s"
 effect.portamento_up:           include "tracker/effect/1.portamento_up.s"
@@ -886,7 +829,7 @@ effect.portamento_down:         include "tracker/effect/2.portamento_down.s"
 
  @no.tune:
  r1.055:
-    ld (wanted.per+1),hl
+    ld (wanted.per),hl
  r2.010:
     ld de,(period)
     xor a
@@ -901,7 +844,7 @@ effect.portamento_down:         include "tracker/effect/2.portamento_down.s"
 
  @clear.tone:
  r1.057:
-    ld (wanted.per+1),hl
+    ld (wanted.per),hl
 
     ret
 
@@ -941,9 +884,71 @@ effect.portamento_down:         include "tracker/effect/2.portamento_down.s"
 @eeffect.pattern_delay:         include "tracker/effect.extended/E.pattern_delay.s"
 
 ;---------------------------------------------------------------
-;tables need to fit within 32 byte boundary
 
-    defs align 32
+    defs align 0x20
+
+ ;tables for effect parsing
+
+ @list.effects.on_tick_0:
+    ; effects on tick 0
+    r0.000: defw period.nop             ; 0
+    r0.001: defw period.nop             ; 1
+    r0.002: defw period.nop             ; 2
+    r0.003: defw period.nop             ; 3 check earlier (tone portamento)
+    r0.004: defw period.nop             ; 4
+    r0.005: defw period.nop             ; 5 check earlier (tone portamento + volume slide)
+    r0.006: defw period.nop             ; 6
+    r0.007: defw period.nop             ; 7
+    r0.008: defw period.nop             ; 8
+    r0.009: defw @effect.sample_offset  ; 9
+    r0.010: defw period.nop             ; A
+    r0.011: defw @effect.position_jump  ; B
+    r0.012: defw @effect.set_volume     ; C
+    r0.013: defw @effect.pattern_break  ; D
+    r0.014: defw @effect.extended       ; E
+    r0.015: defw @effect.set_speed      ; F
+
+ @list.effects.after_tick_0:
+    ; effects not on tick 0
+    r0.016: defw @effect.arpeggio               ; 0
+    r0.017: defw effect.portamento_up           ; 1
+    r0.018: defw effect.portamento_down         ; 2
+    r0.019: defw @effect.tone_portamento        ; 3
+    r0.020: defw @effect.vibrato                ; 4
+    r0.021: defw @effect.tone_volume_slide      ; 5
+    r0.022: defw @effect.vibrato_volume_slide   ; 6
+    r0.023: defw @effect.tremolo                ; 7
+    r0.024: defw @effect.none                   ; 8
+    r0.025: defw @effect.none                   ; 9
+    r0.026: defw @effect.volume_slide           ; A
+    r0.027: defw @effect.none                   ; B
+    r0.028: defw @effect.none                   ; C
+    r0.029: defw @effect.none                   ; D
+    r0.030: defw @effect.extended               ; E
+    r0.031: defw @effect.none                   ; F
+
+ list.effects.extended:
+    ; extended effects (effect E)
+    r0.032: defw @eeffect.filter                ; 0
+    r0.033: defw @eeffect.fine_porta_up         ; 1
+    r0.034: defw @eeffect.fine_porta_down       ; 2
+    r0.035: defw @eeffect.set_gliss_control     ; 3
+    r0.036: defw @eeffect.set_vibrato_control   ; 4
+    r0.037: defw @eeffect.set_fine_tune         ; 5
+    r0.038: defw @eeffect.jump_loop             ; 6
+    r0.039: defw @eeffect.set_tremolo_control   ; 7
+    r0.040: defw @effect.none                   ; 8 not a command
+    r0.041: defw @eeffect.retrig_note           ; 9
+    r0.042: defw @eeffect.volume_fine_up        ; A
+    r0.043: defw @eeffect.volume_fine_down      ; B
+    r0.044: defw @eeffect.note_cut              ; C
+    r0.045: defw @eeffect.note_delay            ; D
+    r0.046: defw @eeffect.pattern_delay         ; E
+    r0.047: defw @effect.none                   ; F funk it not supported
+
+;-------------------------------------------------------------------------------
+
+    assert ( $ \ 0x20 == 0 )
 
 routine.len:    ;routine start ORGs at 0 -> routine.len = length
 

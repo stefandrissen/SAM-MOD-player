@@ -9,7 +9,7 @@
     or a
     jr z,tremolo2
 
- trem.cmnd:
+ trem.cmnd: equ $+1
     ld b,0
     and 0x0f
     jr z,treskip
@@ -33,74 +33,74 @@
  treskip2:
     ld a,b
  r1.084:
-    ld (trem.cmnd+1),a
+    ld (trem.cmnd),a
  tremolo2:
- trem.pos:
+ trem.pos: equ $+1
     ld a,0
     rrca
     rrca
     and 0x1f
     ld b,a
  r1.085:
-    ld a,(wav.cntrl+1)
+    ld a,(wav.cntrl)
     rrca
     rrca
     rrca
     rrca
     and 0x03
-    jr z,tre.sine
+    jr z,@sine
 
     sla b
     sla b
     sla b
     dec a
-    jr z,tre.ramp
+    jr z,@ramp
 
     ld e,255
-    jr tre.set
+    jr @set
 
- tre.ramp:
+ @ramp:
  r1.086:
-    ld a,(trem.pos+1)
+    ld a,(trem.pos)
     bit 7,a
-    jr nz,tre.ramp2
+    jr nz,@ramp2
 
     ld a,255
     sub b
     ld e,a
-    jr tre.set
+    jr @set
 
- tre.ramp2:
+ @ramp2:
     ld e,b
-    jr tre.set
+    jr @set
 
- tre.sine:
+ @sine:
     ld h,table.vibrato / 0x100
     ld l,b
     set 5,l                 ;table offset 32
     ld e,(hl)
- tre.set:
+ @set:
     ld hl,0
  r1.087:
-    ld a,(trem.cmnd+1)
+    ld a,(trem.cmnd)
     and 0x0f
-    jr z,skiptremul
+    jr z,@skip
 
     ld b,a
     ld d,0
- tre.mul:
+ @multiply:
     add hl,de
-    djnz tre.mul
+    djnz @-multiply
 
- skiptremul:
+ @skip:
     sla l
     rl h
  r1.088:
-    ld a,(trem.pos+1)
+    ld a,(trem.pos)
     bit 7,a
  r1.089:
     ld a,(volume)
-    jr nz,trem.neg
+    jr nz,@negative
     add h
     jr nc,$+4
     ld a,63
@@ -111,7 +111,7 @@
 
     jr tremolo3
 
- trem.neg:
+ @negative:
     sub h
     jr nc,$+3
     xor a
@@ -133,12 +133,13 @@
     ld (volume),a
 
  r1.094:
-    ld a,(trem.cmnd+1)
+    ld a,(trem.cmnd)
     rrca
     rrca
     and %00111100
  r1.095:
-    ld hl,trem.pos+1
+    ld hl,trem.pos
     add (hl)
     ld (hl),a
+
     ret

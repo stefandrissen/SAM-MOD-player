@@ -1,5 +1,7 @@
   ;---------------------------------------------------------------
   ; Effect D - Pattern Break
+  ;
+  ; parameter is decimal -> consider fixing when installing mod
   ;---------------------------------------------------------------
  r1.115:
     ld a,(parameter)
@@ -21,7 +23,8 @@
     cp 0x40
     jr nc,pj2
 
-    ld (pbreak.pos+1),a
+    ld (pbreak.pos),a
     ld a,1
-    ld (posjump.flag+1),a
+    ld (posjump.flag),a
+
     ret

@@ -93,10 +93,10 @@ assert volume.table == 0x200
 pitch.table:            equ volume.table + @volume.table.size   ; 1024 pitches * 2 bytes = 2K
 @pitch.table.size:      equ 2 * 0x400
 
-get.pattern:            equ pitch.table + @pitch.table.size     ; copies AHL -> mod.current.row, 16 bytes
-@get.pattern.size:      equ 49
+get.pattern.row:        equ pitch.table + @pitch.table.size     ; copies AHL -> mod.current.row, 16 bytes
+@get.pattern.row.size:  equ 49
 
-far.call:               equ get.pattern + @get.pattern.size     ; call CHL, C=set with return page!
+far.call:               equ get.pattern.row + @get.pattern.row.size ; call CHL, C=set with return page!
 @far.call.size:         equ 19
 
 ldir.from.far:          equ far.call + @far.call.size           ; copy BHL to buffer, C bytes (max 128)

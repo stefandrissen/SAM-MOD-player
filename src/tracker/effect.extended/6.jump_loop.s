@@ -8,34 +8,35 @@
  r1.129:
     ld a,(parameter)
     and 0x0f
-    jr z,setloop
+    jr z,@setloop
     ld b,a
- loopcount:
+ loopcount: equ $+1
     ld a,0
     or a
-    jr z,jump.cnt
+    jr z,@continue
 
     dec a
  r1.130:
-    ld (loopcount+1),a
+    ld (loopcount),a
     ret z
 
  jmploop:
- pattpos:
+ pattpos: equ $+1
     ld a,0
-    ld (pbreak.pos+1),a
+    ld (pbreak.pos),a
     ld a,1
-    ld (pbreak.flag+1),a
+    ld (pbreak.flag),a
     ret
 
- jump.cnt:
+ @continue:
     ld a,b
  r1.131:
-    ld (loopcount+1),a
+    ld (loopcount),a
     jr jmploop
 
- setloop:
+ @setloop:
     ld a,(pattern.pos)
  r1.132:
-    ld (pattpos+1),a
+    ld (pattpos),a
+
     ret

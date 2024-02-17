@@ -4,5 +4,6 @@
 
  r1.077:
     call tonenochng
+
  r1.078:
-    jp volslide
+    jp volume_slide

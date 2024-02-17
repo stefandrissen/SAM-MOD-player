@@ -15,15 +15,20 @@
     sbc hl,bc
  period.min: equ $+1
     ld bc,113           ; B-3 minimum Amiga period
-    jr c,porttoofar
+    jr c,@toofar
+
     sbc hl,bc
-    jr nc,portauskip
- porttoofar:
+    jr nc,@skip
+
+ @toofar:
     ld hl,0
- portauskip:
+
+ @skip:
     add hl,bc
+
  r1.046:
     ld (period),hl
     ex de,hl
+
  r1.047:
     jp period.nop.de

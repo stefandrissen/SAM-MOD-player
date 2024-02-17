@@ -4,17 +4,18 @@
  r1.102:
     call period.nop
 
- volslide:
+ volume_slide:
  r1.103:
     ld a,(parameter)
     and 0xf0
-    jr z,volsli.dn
+    jr z,volume_slide.down
 
     rrca
     rrca
     rrca
     rrca
- volsli.up:
+
+ volume_slide.up:
     ld b,a
  r1.104:
     ld a,(volume)
@@ -27,7 +28,7 @@
  r1.106:
     jp bp.volume
 
- volsli.dn:
+ volume_slide.down:
  r1.107:
     ld a,(parameter)
     and 0x0f
@@ -39,5 +40,6 @@
     xor a
  r1.109:
     ld (volume),a
+
  r1.110:
     jp bp.volume

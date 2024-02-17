@@ -1267,33 +1267,33 @@ reset.list:
     defb 0
     defw c1 + period + 1
     defb 0
-    defw c1 + wanted.per + 1
+    defw c1 + wanted.per + 0
     defb 0
-    defw c1 + wanted.per + 2
+    defw c1 + wanted.per + 1
     defb 0
     defw c1 + porta_up.mask
     defb 0xff
     defw c1 + porta_down.mask
     defb 0xff
-    defw c1 + wav.cntrl + 1
+    defw c1 + wav.cntrl
     defb 0
-    defw c1 + tonespeed + 1
+    defw c1 + tonespeed
     defb 0
-    defw c1 + gliss + 1
+    defw c1 + gliss
     defb 0
-    defw c1 + vibr.cmnd + 1
+    defw c1 + vibr.cmnd
     defb 0
-    defw c1 + vibr.pos + 1
+    defw c1 + vibr.pos
     defb 0
-    defw c1 + trem.cmnd + 1
+    defw c1 + trem.cmnd
     defb 0
-    defw c1 + trem.pos + 1
+    defw c1 + trem.pos
     defb 0
-    defw c1 + cx.effect.sample.offset + 1
+    defw c1 + cx.effect.sample.offset
     defb 0
-    defw c1 + loopcount+1
+    defw c1 + loopcount
     defb 0
-    defw c1 + pattpos+1
+    defw c1 + pattpos
     defb 0
     defw c1 + instrument.new
     defb 0

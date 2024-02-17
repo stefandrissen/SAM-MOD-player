@@ -9,4 +9,4 @@
     ld a,(parameter)
     and 0x0f
  r1.141:
-    jp volsli.up
+    jp volume_slide.up

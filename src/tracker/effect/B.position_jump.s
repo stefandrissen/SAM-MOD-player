@@ -10,7 +10,8 @@
     ld (song.pos),a
  pj2:
     xor a
-    ld (pbreak.pos+1),a
+    ld (pbreak.pos),a
     inc a
-    ld (posjump.flag+1),a
+    ld (posjump.flag),a
+
     ret
