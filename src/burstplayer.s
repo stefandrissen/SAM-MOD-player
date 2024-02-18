@@ -147,19 +147,19 @@ not.qss.pt:
     inc hl
     ld d,(hl)
     inc hl
-    ld (@sound.driver.reset     + 1),de
+    ld (@sound.driver.reset),de
     ld a,(hl)
     inc hl
-    ld (@sound.driver.reset.len + 1),a
+    ld (@sound.driver.reset.len),a
 
     ld e,(hl)
     inc hl
     ld d,(hl)
     inc hl
-    ld (@sound.driver     + 1),de
+    ld (@sound.driver),de
     ld a,(hl)
     inc hl
-    ld (@sound.driver.len + 1),a
+    ld (@sound.driver.len),a
 
     ld e,(hl)
     inc hl
@@ -332,9 +332,9 @@ mk.cp.line.interrupt:
 ; reset output device
 
     ld de,sound.driver.reset
-@sound.driver.reset:
+   @sound.driver.reset: equ $+1
     ld hl,0
-@sound.driver.reset.len:
+   @sound.driver.reset.len: equ $+1
     ld a,0
     or a
     jr z,@no.silence
@@ -2257,9 +2257,9 @@ insert.outs:
 
     ex de,hl
     push bc
-@sound.driver:
+   @sound.driver: equ $+1
     ld hl,0
-@sound.driver.len:
+   @sound.driver.len: equ $+1
     ld bc,0
     ldir
     pop bc

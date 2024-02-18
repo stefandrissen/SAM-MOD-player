@@ -1029,7 +1029,7 @@ fat.load:
 
  @no.megabyte:
 
-    ld (@page + 1),a
+    ld (@page),a
 
     ld de,inst.buffer
     ldir
@@ -1049,7 +1049,7 @@ fat.load:
 
     pop de              ; target
 
- @page:
+   @page: equ $+1
     ld h,0
     ld bc,(@var.bytes_cluster)
     call inst.buffer
@@ -1058,9 +1058,9 @@ fat.load:
     res 6,h
     jr z,@page.ok
 
-    ld a,(@page + 1)
+    ld a,(@page)
     inc a
-    ld (@page + 1),a
+    ld (@page),a
 
  @page.ok:
 

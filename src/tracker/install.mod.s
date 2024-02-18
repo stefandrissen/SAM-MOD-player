@@ -36,12 +36,12 @@
  @no.megabyte:
 
     ld a,(tracker.ptr.page.mod.low)
-    ld (@page.mod.1+1),a
-    ld (@page.mod.2+1),a
-    ld (@page.mod.3+1),a
-    ld (@page.mod.4+1),a
-    ld (@page.mod.5+1),a
-    ld (@page.mod.6+1),a
+    ld (@page.mod.1),a
+    ld (@page.mod.2),a
+    ld (@page.mod.3),a
+    ld (@page.mod.4),a
+    ld (@page.mod.5),a
+    ld (@page.mod.6),a
 
     call set.high.memory.a
 
@@ -60,7 +60,7 @@
     ld (tracker.samples.low),a
 
     call mod.get.song_positions.a
-    ld (song.len + 1 - 0x8000),a
+    ld (song.length - 0x8000),a
 
     ; copy pattern table to area within tracker page
     call mod.get.pattern_table.hl
@@ -126,7 +126,7 @@
 
     call mod.get.sample.bhl
     set 7,h
- @page.mod.1:
+   @page.mod.1: equ $+1
     ld a,0
     add a,b
     ld b,a
@@ -251,7 +251,7 @@
 
         push hl
 
-         @page.mod.2:
+           @page.mod.2: equ $+1
             cp page.mod
             jr z,@nz
 
@@ -260,8 +260,8 @@
          @nz:
             dec hl
 
-            ld (@source.lo + 1),hl
-            ld (@source.hi + 1),a
+            ld (@source.lo),hl
+            ld (@source.hi),a
 
         pop hl                          ; source: AHL in block D -> last byte of sample
         push hl
@@ -281,8 +281,8 @@
 
             ld a,b
             sbc c
-            ld (@result.lo + 1),hl  ; number of bytes to be
-            ld (@result.hi + 1),a   ; copied put in result
+            ld (@result.lo),hl      ; number of bytes to be
+            ld (@result.hi),a       ; copied put in result
 
         pop hl
 
@@ -318,12 +318,12 @@
         ld (ix + st.start + 0),l    ; new start address of
         ld (ix + st.start + 1),h    ; sample at shifted
         ld (ix + st.start + 2),a    ; position
-     @page.mod.3:
+       @page.mod.3: equ $+1
         cp page.mod
         jr z,@bottom.page
 
         dec a
-        ld (@page + 1),a
+        ld (@page),a
         call set.high.memory.a
 
         set 6,h
@@ -361,9 +361,9 @@
 
      @noaddgap:
 
-     @page:
+       @page: equ $+1
         ld a,0
-     @page.mod.4:
+       @page.mod.4: equ $+1
         cp page.mod
         jr z,@nz
 
@@ -374,16 +374,16 @@
      @nz:
         ; now pointing to address before gap
 
-        ld (@target.lo + 1),hl
-        ld (@target.hi + 1),a
+        ld (@target.lo),hl
+        ld (@target.hi),a
 
         ; so lddr copy sample from old position to higher address
 
         @copy.loop:
 
-         @result.lo:
+           @result.lo: equ $+1
             ld hl,0
-         @result.hi:
+           @result.hi: equ $+1
             ld a,0
             ld bc,move.size
             or a
@@ -403,16 +403,16 @@
             ld b,h
 
          @keepcopying:
-            ld (@result.lo + 1),hl
-            ld (@result.hi + 1),a
+            ld (@result.lo),hl
+            ld (@result.hi),a
 
             ld a,b
             or c
             jr z,@nocopy
 
-         @source.lo:
+           @source.lo: equ $+1
             ld hl,0
-         @source.hi:
+           @source.hi: equ $+1
             ld a,0
             call set.high.memory.a
 
@@ -421,7 +421,7 @@
 
             lddr                        ; copy from source to buffer
 
-         @page.mod.5:
+           @page.mod.5: equ $+1
             cp page.mod
             jr z,@nz
 
@@ -430,13 +430,13 @@
             jr nz,@nz
             dec a
          @nz:
-            ld (@source.hi + 1),a
-            ld (@source.lo + 1),hl
+            ld (@source.hi),a
+            ld (@source.lo),hl
 
             ld hl,move.spc + move.size - 1
-         @target.lo:
+           @target.lo: equ $+1
             ld de,0
-         @target.hi:
+           @target.hi: equ $+1
             ld a,0
             call set.high.memory.a
 
@@ -444,7 +444,7 @@
 
             lddr                        ; copy from buffer to target
 
-         @page.mod.6:
+           @page.mod.6: equ $+1
             cp page.mod
             jr z,@nz
 
@@ -453,10 +453,10 @@
             jr nz,@nz
             dec a
          @nz:
-            ld (@target.hi + 1),a
-            ld (@target.lo + 1),de
+            ld (@target.hi),a
+            ld (@target.lo),de
          @nocopy:
-            ld a,(@result.hi + 1)
+            ld a,(@result.hi)
             inc a               ;stop when A=255
 
             jr nz,@-copy.loop
@@ -1090,7 +1090,7 @@ set.high.memory.a:
 
 @fs.high:
 
- rs.bp.page:
+   rs.bp.page: equ $+1
     ld a,0      ;burst page
     or low.memory.ram.0
     out (port.lmpr),a

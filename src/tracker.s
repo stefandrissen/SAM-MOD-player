@@ -290,7 +290,7 @@ tracker:
     bit 7,a
     jr nz,loop.time   ;reached song position 128
 
- song.len:
+   song.length: equ $+1
     cp 0
     jr nz,nonewposyet
 

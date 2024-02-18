@@ -995,7 +995,7 @@ sam.match:
 
     ld a,page.mod
     out (port.hmpr),a
-    ld (@page+1),a
+    ld (@page),a
 
     ld hl,dos.sector + 9
     ld de,load.offs
@@ -1020,7 +1020,7 @@ sam.match:
     defb dos.hrsad
     di
 
-   @page:
+   @page: equ $+1
     ld a,0
     out (port.hmpr),a
 

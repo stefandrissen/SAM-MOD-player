@@ -322,11 +322,11 @@ device.start:
     ld hl,device.device.port
     add a,(hl)
 
-    ld (@device.device+1),a
+    ld (@device.device),a
     ld a,(device.speed)
-    ld (@device.speed+1),a
+    ld (@device.speed),a
     ld a,(loader.ram)
-    ld (@loader.ram+1),a
+    ld (@loader.ram),a
 
     call @call.burstplayer.create
 
@@ -339,25 +339,25 @@ device.start:
 @call.burstplayer.create:
 
     in a,(port.hmpr)
-    ld (@store.hmpr+1),a
+    ld (@store.hmpr),a
 
     ld a,page.create.burstplayer
     call @fix.page
     out (port.hmpr),a
 
-@device.device:
+   @device.device: equ $+1
     ld a,0
     ld (burstplayer.device),a
-@device.speed:
+   @device.speed: equ $+1
     ld a,0
     ld (burstplayer.amiga),a
-@loader.ram:
+   @loader.ram: equ $+1
     ld a,0
     ld (burstplayer.ram),a
 
     call burstplayer.create
 
-@store.hmpr:
+@store.hmpr: equ $+1
     ld a,0
     out (port.hmpr),a
 

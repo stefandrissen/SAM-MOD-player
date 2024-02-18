@@ -61,7 +61,7 @@ loader.unpack:
     add hl,de       ; hl -> first sample byte
 
     ld b,a
-  @page.mod:
+   @page.mod: equ $+1
     ld e,page.mod
 
     @loop:
@@ -231,7 +231,7 @@ loader.unpack:
  @pages.init:
 
     ld a,(loader.ram)       ; loader is still in section C
-    ld (@page.d+1),a
+    ld (@loader.ram),a
     and %11100
     jr z,@+no.megabyte
 
@@ -251,13 +251,14 @@ loader.unpack:
     out (port.hmpr),a
 
   @continue:
-    ld (@page.mod+1),a
+    ld (@page.mod),a
 
     ret
 
  ;---------------------------------------------------------------
  @page.d:
 
+   @loader.ram: equ $+1
     ld a,0                  ; loader is no longer in section C
     and %11100
 

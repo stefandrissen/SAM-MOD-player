@@ -38,7 +38,7 @@
  @found:
 
     ld a,c
-    ld (rs.bp.page+1),a
+    ld (rs.bp.page),a
 
     ;---------------------------------------------------------------------------
     ;set up the finetune tables

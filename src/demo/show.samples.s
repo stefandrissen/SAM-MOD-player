@@ -86,10 +86,10 @@ get.samples:
  ; - de = sample table
 
     xor a
-    ld (c1.inst+1),a
-    ld (c2.inst+1),a
-    ld (c3.inst+1),a
-    ld (c4.inst+1),a
+    ld (@c1.inst),a
+    ld (@c2.inst),a
+    ld (@c3.inst),a
+    ld (@c4.inst),a
     cpl
     ld (int.rtn.pag),a
     call cls
@@ -160,22 +160,22 @@ sample.cursors.interrupt:
 
     ld b,32
 
-    ld a,(c1.inst+1)
+    ld a,(@c1.inst)
     or a
     ld c,0
     call nz,clear.cursor
 
-    ld a,(c4.inst+1)
+    ld a,(@c4.inst)
     or a
     ld c,0
     call nz,clear.cursor
 
-    ld a,(c2.inst+1)
+    ld a,(@c2.inst)
     or a
     ld c,31
     call nz,clear.cursor
 
-    ld a,(c3.inst+1)
+    ld a,(@c3.inst)
     or a
     ld c,31
     call nz,clear.cursor
@@ -194,7 +194,7 @@ sample.cursors.interrupt:
     rrca
     or c
     jr z,$+5
-    ld (c1.inst+1),a
+    ld (@c1.inst),a
     inc l
     inc l
 
@@ -211,7 +211,7 @@ sample.cursors.interrupt:
     rrca
     or c
     jr z,$+5
-    ld (c2.inst+1),a
+    ld (@c2.inst),a
     inc l
     inc l
 
@@ -228,7 +228,7 @@ sample.cursors.interrupt:
     rrca
     or c
     jr z,$+5
-    ld (c3.inst+1),a
+    ld (@c3.inst),a
     inc l
     inc l
 
@@ -245,7 +245,7 @@ sample.cursors.interrupt:
     rrca
     or c
     jr z,$+5
-    ld (c4.inst+1),a
+    ld (@c4.inst),a
     inc l
     inc l
 
@@ -253,7 +253,7 @@ sample.cursors.interrupt:
     or a
     jr z,@skip.c1
 
- c1.inst:
+   @c1.inst: equ $+1
     ld a,0
     or a
     ld c,0
@@ -265,7 +265,7 @@ sample.cursors.interrupt:
     or a
     jr z,@skip.c4
 
- c4.inst:
+   @c4.inst: equ $+1
     ld a,0
     or a
     ld c,0
@@ -277,7 +277,7 @@ sample.cursors.interrupt:
     or a
     jr z,@skip.c2
 
- c2.inst:
+   @c2.inst: equ $+1
     ld a,0
     or a
     ld c,31
@@ -289,7 +289,7 @@ sample.cursors.interrupt:
     or a
     jr z,@skip.c3
 
- c3.inst:
+   @c3.inst: equ $+1
     ld a,0
     or a
     ld c,31

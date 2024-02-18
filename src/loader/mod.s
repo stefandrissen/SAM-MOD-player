@@ -886,7 +886,7 @@ mod.determine.octaves:
 ;    ld a,3
 ;    ret
 
-    ld (@page+1),a
+    ld (@page),a
 
     ld hl,(@var.mod.pattern.offset)
     set 7,h
@@ -899,10 +899,10 @@ mod.determine.octaves:
         bit 6,h
         jr z,@page.ok
         res 6,h
-     @page:
+       @page: equ $+1
         ld a,0
         inc a
-        ld (@page+1),a
+        ld (@page),a
         call set.high.memory.a
 
      @page.ok:
