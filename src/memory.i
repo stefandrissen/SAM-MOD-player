@@ -72,9 +72,9 @@ tick.fraction:          equ var + 42    ; 1/256 frame counter for tracker
 tick:                   equ var + 43    ; frame counter for tracker
 speed:                  equ var + 44    ; song speed in frames
 tempo:                  equ var + 45    ; bpm speed (relative to 125)
-song.pos:               equ var + 47    ; position in songtable (0-127)
+song.position:          equ var + 47    ; position in songtable (0-127)
 pattern.num:            equ var + 48    ; pattern being played (0-255)
-pattern.pos:            equ var + 49    ; row being played (0-63)
+pattern.row:            equ var + 49    ; row being played (0-63)
 enable.burst:           equ var + 50    ; start burstplayer
 exit.burst:             equ var + 52    ; stop burstplayer and exit
 disable.pos:            equ var + 54    ; disable "B" command (jump) + looping

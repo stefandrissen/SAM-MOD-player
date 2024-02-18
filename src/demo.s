@@ -248,7 +248,7 @@ demo:
 
     ld b,32                     ;for print routine
     ld hl,screen + screen.24.rows * 0 + 24
-    ld a,(song.pos)
+    ld a,(song.position)
     ld c,a
     call print.hi.nibble
     ld a,c
@@ -262,7 +262,7 @@ demo:
     call print.lo.nibble
     inc l
 
-    ld a,(pattern.pos)
+    ld a,(pattern.row)
     ld c,a
     call print.hi.nibble
     ld a,c
@@ -305,7 +305,7 @@ demo:
     bit 3,c
     jr nz,@not.left
 
-    ld hl,pattern.pos
+    ld hl,pattern.row
     dec (hl)
     dec (hl)
     bit 7,(hl)

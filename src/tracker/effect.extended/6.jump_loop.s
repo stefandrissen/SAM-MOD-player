@@ -9,34 +9,35 @@
     ld a,(parameter)
     and 0x0f
     jr z,@setloop
+
     ld b,a
- loopcount: equ $+1
+   jump_loop.loop_counter: equ $+1
     ld a,0
     or a
     jr z,@continue
 
     dec a
  r1.130:
-    ld (loopcount),a
+    ld (jump_loop.loop_counter),a
     ret z
 
- jmploop:
- pattpos: equ $+1
+ @jump_loop:
+   jump_loop.pattern.row: equ $+1
     ld a,0
-    ld (pbreak.pos),a
-    ld a,1
-    ld (pbreak.flag),a
+    ld (pattern_break.row),a
+    cpl                         ; -> a = always non-zero
+    ld (pattern_break.flag),a
     ret
 
  @continue:
     ld a,b
  r1.131:
-    ld (loopcount),a
-    jr jmploop
+    ld (jump_loop.loop_counter),a
+    jr @jump_loop
 
  @setloop:
-    ld a,(pattern.pos)
+    ld a,(pattern.row)
  r1.132:
-    ld (pattpos),a
+    ld (jump_loop.pattern.row),a
 
     ret

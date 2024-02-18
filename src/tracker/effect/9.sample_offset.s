@@ -13,10 +13,10 @@
     jr z,@sample_offset.zero
 
  r1.097:
-    ld (cx.effect.sample.offset),a
+    ld (sample_offset.offset),a
 
  @sample_offset.zero:
- cx.effect.sample.offset: equ $+1
+   sample_offset.offset: equ $+1
     ld a,0
  r1.098:
     ld hl,(cx.sample.offset)

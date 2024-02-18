@@ -7,11 +7,11 @@
  r1.111:
     ld a,(parameter)
     dec a
-    ld (song.pos),a
+    ld (song.position),a
  pj2:
     xor a
-    ld (pbreak.pos),a
+    ld (pattern_break.row),a
     inc a
-    ld (posjump.flag),a
+    ld (position_jump.flag),a
 
     ret

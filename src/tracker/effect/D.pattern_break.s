@@ -23,8 +23,8 @@
     cp 0x40
     jr nc,pj2
 
-    ld (pbreak.pos),a
+    ld (pattern_break.row),a
     ld a,1
-    ld (posjump.flag),a
+    ld (position_jump.flag),a
 
     ret

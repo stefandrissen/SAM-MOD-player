@@ -1194,9 +1194,9 @@ reset.song:
     ; ld (disable.pos),a    ;no position jumping (temp)
 
     xor a
-    ld (pattern_delay.c),a
-    ld (song.pos),a
-    ld (pattern.pos),a
+    ld (pattern_delay.counter),a
+    ld (song.position),a
+    ld (pattern.row),a
     ld (mstatus),a
 
     ld ix,reset.list
@@ -1289,11 +1289,11 @@ reset.list:
     defb 0
     defw c1 + trem.pos
     defb 0
-    defw c1 + cx.effect.sample.offset
+    defw c1 + sample_offset.offset
     defb 0
-    defw c1 + loopcount
+    defw c1 + jump_loop.loop_counter
     defb 0
-    defw c1 + pattpos
+    defw c1 + jump_loop.pattern.row
     defb 0
     defw c1 + instrument.new
     defb 0

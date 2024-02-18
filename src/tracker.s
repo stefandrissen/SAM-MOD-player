@@ -161,7 +161,7 @@ tracker:
 
     ld (tick),a
 
-    ld a,(pattern_delay.c)  ; for pattern delay command
+    ld a,(pattern_delay.counter)
     or a
     jr z,@get.new.note      ; get note data if no delay
 
@@ -185,7 +185,7 @@ tracker:
 ;-------------------------------------------------------------------------------
 @get.new.note:
 
-    ld a,(song.pos)
+    ld a,(song.position)
     ld l,a
     ld h,pattern.table / 0x100
     ld a,(hl)               ;get pattern
@@ -215,7 +215,7 @@ tracker:
     jr z,$+3
     inc c
 
-    ld a,(pattern.pos)
+    ld a,(pattern.row)
     add a
     add a
     ld h,0
@@ -233,44 +233,44 @@ tracker:
     call c4 + play.voice
 
  dskip:
-    ld hl,pattern.pos
+    ld hl,pattern.row
     inc (hl)
 
- pattern_delay.f: equ $+1
+ pattern_delay.flag: equ $+1
     ld a,0
     or a
     jr z,@no.new.delay
 
-    ld (pattern_delay.c),a
+    ld (pattern_delay.counter),a
     xor a
-    ld (pattern_delay.f),a
+    ld (pattern_delay.flag),a
 
  @no.new.delay:
 
- pattern_delay.c: equ $+1
+   pattern_delay.counter: equ $+1
     ld a,0
     or a
-    jr z,no.pat.delay
+    jr z,@no.pattern_delay
 
     dec a
-    ld (pattern_delay.c),a
-    jr z,no.pat.delay
+    ld (pattern_delay.counter),a
+    jr z,@no.pattern_delay
 
     dec (hl)                ; if pattern delay -> undo inc (hl)
 
- no.pat.delay:
- pbreak.flag: equ $+1
+ @no.pattern_delay:
+   pattern_break.flag: equ $+1
     ld a,0
     or a
     jr z,nnpysk
 
     xor a
-    ld (pbreak.flag),a
- pbreak.pos: equ $+1
+    ld (pattern_break.flag),a
+ pattern_break.row: equ $+1
     ld a,0
     ld (hl),a
     xor a
-    ld (pbreak.pos),a
+    ld (pattern_break.row),a
 
  nnpysk:
 
@@ -279,12 +279,12 @@ tracker:
     jr c,nonewposyet
 
  next.position:
-    ld a,(pbreak.pos)
-    ld (pattern.pos),a
+    ld a,(pattern_break.row)
+    ld (pattern.row),a
     xor a
-    ld (pbreak.pos),a
-    ld (posjump.flag),a
-    ld hl,song.pos
+    ld (pattern_break.row),a
+    ld (position_jump.flag),a
+    ld hl,song.position
     inc (hl)
     ld a,(hl)
     bit 7,a
@@ -310,10 +310,8 @@ tracker:
     ret
 
  nonewposyet:
- posjump.flag: equ $+1
-    ld a,0
-    ;init=0, "B"=1, "D"=1
-
+   position_jump.flag: equ $+1
+    ld a,0              ; initial 0, position_jump or pattern_break -> 1
     or a
     jr nz,next.position
 
