@@ -15,6 +15,12 @@
 
 			<echo message="assembling: @{source} mapfile:@{mapfile}" />
 
+			<local name="source" />
+			<condition property="source" value="@{source}/@{source}">
+				<available file="src/@{source}" type="dir" />
+			</condition>
+			<property name="source" value="@{source}"/>
+
 			<mkdir dir="obj" />
 
 			<exec executable="${python}" failonerror="true">
@@ -22,7 +28,7 @@
 				<arg value="--obj=obj/@{obj}" />
 				<arg value="--mapfile=obj/@{source}.map" if:true="@{mapfile}" />
 				<arg line="-D debug" if:true="@{debug}" />
-				<arg value="src/@{source}.s" />
+				<arg value="src/${source}.s" />
 			</exec>
 
 		</sequential>
@@ -174,6 +180,14 @@ defm "${version}"
 		</exec>
 
 		<simcoupe disk="test-pitch.mgt" />
+
+	</target>
+
+	<!-- assemble tracker -->
+
+	<target name="assemble-tracker">
+
+		<assemble source="tracker" />
 
 	</target>
 

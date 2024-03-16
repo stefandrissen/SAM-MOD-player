@@ -11,10 +11,10 @@
 
 ; https://github.com/johnnovak/nim-mod/blob/master/doc/Protracker%20effects%20(FireLight)%20(.mod).txt
 
-include "memory.i"
-include "ports/internal.i"
-include "ports/megabyte.i"
-include "constants/mod.i"
+include "../memory.i"
+include "../ports/internal.i"
+include "../ports/megabyte.i"
+include "../constants/mod.i"
 
     org 0x8000
 
@@ -36,8 +36,8 @@ tracker.gap:            defb 0              ; [3|6]
 
 ;-------------------------------------------------------------------------------
 
-@init.tracker:  include "tracker/init.s"
-@install.mod:   include "tracker/install.mod.s"
+@init.tracker:  include "init.s"
+@install.mod:   include "install.mod.s"
 
 ;===============================================================================
 ; tracker
@@ -90,7 +90,7 @@ sample.table:
 
 table.finetune: defs 1024
 
-finelist:       include "tracker/tables/finetune.i"
+finelist:       include "tables/finetune.i"
 
 ;-------------------------------------------------------------------------------
 ;first 64 bytes of bpm table are not used, so use this space
@@ -98,12 +98,12 @@ finelist:       include "tracker/tables/finetune.i"
 
 table.bpm:
 
-table.arpeggio: include "tracker/tables/arpeggio.i"
-table.vibrato:  include "tracker/tables/vibrato.i"
-                include "tracker/tables/bpm.i"
+table.arpeggio: include "tables/arpeggio.i"
+table.vibrato:  include "tables/vibrato.i"
+                include "tables/bpm.i"
 
 ;-------------------------------------------------------------------------------
-table.retrig:   include "tracker/tables/retrig.i"
+table.retrig:   include "tables/retrig.i"
 
 ;-------------------------------------------------------------------------------
 tracker:
@@ -789,9 +789,9 @@ bp.volume:
 
 ;---------------------------------------------------------------
 
-@effect.arpeggio:               include "tracker/effect/0.arpeggio.s"
-effect.portamento_up:           include "tracker/effect/1.portamento_up.s"
-effect.portamento_down:         include "tracker/effect/2.portamento_down.s"
+@effect.arpeggio:               include "effect/0.arpeggio.s"
+effect.portamento_up:           include "effect/1.portamento_up.s"
+effect.portamento_down:         include "effect/2.portamento_down.s"
 
 @set.tone:
  ;---------------------------------------------------------------
@@ -846,40 +846,40 @@ effect.portamento_down:         include "tracker/effect/2.portamento_down.s"
 
     ret
 
-@effect.tone_portamento:        include "tracker/effect/3.tone_portamento.s"
-@effect.vibrato:                include "tracker/effect/4.vibrato.s"
-@effect.tone_volume_slide:      include "tracker/effect/5.tone_volume_slide.s"
-@effect.vibrato_volume_slide:   include "tracker/effect/6.vibrato_volume_slide.s"
-@effect.tremolo:                include "tracker/effect/7.tremolo.s"
+@effect.tone_portamento:        include "effect/3.tone_portamento.s"
+@effect.vibrato:                include "effect/4.vibrato.s"
+@effect.tone_volume_slide:      include "effect/5.tone_volume_slide.s"
+@effect.vibrato_volume_slide:   include "effect/6.vibrato_volume_slide.s"
+@effect.tremolo:                include "effect/7.tremolo.s"
 
-@effect.sample_offset:          include "tracker/effect/9.sample_offset.s"
-@effect.volume_slide:           include "tracker/effect/A.volume_slide.s"
-@effect.position_jump:          include "tracker/effect/B.position_jump.s"
-@effect.set_volume:             include "tracker/effect/C.set_volume.s"
-@effect.pattern_break:          include "tracker/effect/D.pattern_break.s"
-@effect.extended:               include "tracker/effect/E.extended.s"
-@effect.set_speed:              include "tracker/effect/F.set_speed.s"
+@effect.sample_offset:          include "effect/9.sample_offset.s"
+@effect.volume_slide:           include "effect/A.volume_slide.s"
+@effect.position_jump:          include "effect/B.position_jump.s"
+@effect.set_volume:             include "effect/C.set_volume.s"
+@effect.pattern_break:          include "effect/D.pattern_break.s"
+@effect.extended:               include "effect/E.extended.s"
+@effect.set_speed:              include "effect/F.set_speed.s"
 
 @effect.none:           ; simply continue through to filter RET
 
 ;---------------------------------------------------------------
 ; Extended Effects
 
-@eeffect.filter:                include "tracker/effect.extended/0.filter.s"
-@eeffect.fine_porta_up:         include "tracker/effect.extended/1.fine_porta_up.s"
-@eeffect.fine_porta_down:       include "tracker/effect.extended/2.fine_porta_down.s"
-@eeffect.set_gliss_control:     include "tracker/effect.extended/3.set_gliss_control.s"
-@eeffect.set_vibrato_control:   include "tracker/effect.extended/4.set_vibrato_control.s"
-@eeffect.set_fine_tune:         include "tracker/effect.extended/5.set_fine_tune.s"
-@eeffect.jump_loop:             include "tracker/effect.extended/6.jump_loop.s"
-@eeffect.set_tremolo_control:   include "tracker/effect.extended/7.set_tremolo_control.s"
+@eeffect.filter:                include "effect.extended/0.filter.s"
+@eeffect.fine_porta_up:         include "effect.extended/1.fine_porta_up.s"
+@eeffect.fine_porta_down:       include "effect.extended/2.fine_porta_down.s"
+@eeffect.set_gliss_control:     include "effect.extended/3.set_gliss_control.s"
+@eeffect.set_vibrato_control:   include "effect.extended/4.set_vibrato_control.s"
+@eeffect.set_fine_tune:         include "effect.extended/5.set_fine_tune.s"
+@eeffect.jump_loop:             include "effect.extended/6.jump_loop.s"
+@eeffect.set_tremolo_control:   include "effect.extended/7.set_tremolo_control.s"
 
-@eeffect.retrig_note:           include "tracker/effect.extended/9.retrig_note.s"
-@eeffect.volume_fine_up:        include "tracker/effect.extended/A.volume_fine_up.s"
-@eeffect.volume_fine_down:      include "tracker/effect.extended/B.volume_fine_down.s"
-@eeffect.note_cut:              include "tracker/effect.extended/C.note_cut.s"
-@eeffect.note_delay:            include "tracker/effect.extended/D.note_delay.s"
-@eeffect.pattern_delay:         include "tracker/effect.extended/E.pattern_delay.s"
+@eeffect.retrig_note:           include "effect.extended/9.retrig_note.s"
+@eeffect.volume_fine_up:        include "effect.extended/A.volume_fine_up.s"
+@eeffect.volume_fine_down:      include "effect.extended/B.volume_fine_down.s"
+@eeffect.note_cut:              include "effect.extended/C.note_cut.s"
+@eeffect.note_delay:            include "effect.extended/D.note_delay.s"
+@eeffect.pattern_delay:         include "effect.extended/E.pattern_delay.s"
 
 ;---------------------------------------------------------------
 
@@ -982,8 +982,8 @@ move.size:  equ 6 * 256     ;move size = gap size
 
     org $ + 0x8000
 
-conv.list:  include "tracker/lists/conv.i"
-build.list: include "tracker/lists/build.i"
+conv.list:  include "lists/conv.i"
+build.list: include "lists/build.i"
 
 ;-------------------------------------------------------------------------------
 

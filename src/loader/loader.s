@@ -1,20 +1,20 @@
 ;SAM MOD player - DOS loader
 
- ;(C) 1996-2022 Stefan Drissen
+ ;(C) 1996-2024 Stefan Drissen
 
  ; to do:
  ; - handle dos errors better (doser)
  ; + add sample runways while loading
 
 ; constants
-    include "memory.i"
-    include "ports/internal.i"
-    include "ports/megabyte.i"
-    include "ports/keyboard.i"
-    include "ports/fdc.i"
-    include "constants/dos.i"
-    include "constants/mod.i"
-    include "constants/opcodes.i"
+    include "../memory.i"
+    include "../ports/internal.i"
+    include "../ports/megabyte.i"
+    include "../ports/keyboard.i"
+    include "../ports/fdc.i"
+    include "../constants/dos.i"
+    include "../constants/mod.i"
+    include "../constants/opcodes.i"
 
 load.offs:  equ 0x8000
 
@@ -39,7 +39,7 @@ load.offs:  equ 0x8000
 ;-------------------------------------------------------------------------------
 loader.font_high:
 
-    mdat "../res/font.bin"
+    mdat "../../res/font.bin"
 
 ;-------------------------------------------------------------------------------
 cursor.init:
@@ -1819,8 +1819,8 @@ colours:
 
 load.screen:
     defm "SAM MOD player             "
-    include "constants/text.version.i"
-    include "constants/text.copyright.i"
+    include "../constants/text.version.i"
+    include "../constants/text.copyright.i"
     defb 0,30
     defm "Use CURSORS + RETURN or JOYSTICK"
 
@@ -1898,10 +1898,10 @@ relocate.low:
 
 ;-------------------------------------------------------------------------------
 
-include "loader/bdos.s"
-include "loader/unpack.s"
-include "loader/fat.s"
-include "loader/mod.s"
+include "bdos.s"
+include "unpack.s"
+include "fat.s"
+include "mod.s"
 
 ;-------------------------------------------------------------------------------
 
@@ -1945,7 +1945,7 @@ loader.directory.len:               equ loader.directory.date + 3
 
 ;===============================================================
 
-    include "device.s"
+    include "../device.s"
 
 assert $ + 0x0200 < 0xe000
 

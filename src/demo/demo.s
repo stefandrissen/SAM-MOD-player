@@ -1,13 +1,13 @@
 ;SAM MOD player - demo
 
-;(C) 1996-2022 Stefan Drissen
+;(C) 1996-2024 Stefan Drissen
 
-include "memory.i"
-include "ports/internal.i"
-include "ports/megabyte.i"
-include "ports/keyboard.i"
-include "constants/mod.i"
-include "constants/opcodes.i"
+include "../memory.i"
+include "../ports/internal.i"
+include "../ports/megabyte.i"
+include "../ports/keyboard.i"
+include "../constants/mod.i"
+include "../constants/opcodes.i"
 
 ;-------------------------------------------------------------------------------
 ; demo is the program that runs in "foreground" mode
@@ -701,12 +701,12 @@ demo:
 
 ;-------------------------------------------------------------------------------
 
-    include "demo/show.help.s"          ; F1
-    include "demo/show.samples.s"       ; F2
-    include "demo/show.samples.ext.s"   ; F3
-    include "demo/show.pattern.s"       ; F4
-    include "demo/show.summary.s"       ; F5
-    include "demo/show.burst.s"         ; F6
+    include "show.help.s"          ; F1
+    include "show.samples.s"       ; F2
+    include "show.samples.ext.s"   ; F3
+    include "show.pattern.s"       ; F4
+    include "show.summary.s"       ; F5
+    include "show.burst.s"         ; F6
 
 ;-------------------------------------------------------------------------------
 set.palette:
@@ -1113,7 +1113,7 @@ calculate.volume.tables:
     inc h
     ld b,(hl)         ;output bits
 
-    include "volume.s"
+    include "../volume.s"
 
 ;-------------------------------------------------------------------------------
 @bits.per.device:
