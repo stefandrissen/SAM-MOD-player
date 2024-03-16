@@ -15,21 +15,21 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v2    
-    
+    - uses: actions/checkout@v4
+
     - name: Set up Python
-      uses: actions/setup-python@v2
+      uses: actions/setup-python@v4
       with:
         python-version: '3.x'
-        
-    - name: Set up JDK 11
-      uses: actions/setup-java@v2
+
+    - name: Set up JDK 17
+      uses: actions/setup-java@v3
       with:
-        java-version: '11'
-        distribution: 'adopt'
-        
+        java-version: '17'
+        distribution: 'temurin'
+
     - name: Set up pyz80
       run: wget https://raw.githubusercontent.com/simonowen/pyz80/master/pyz80.py
-    
+
     - name: Build with Ant
       run: ant create-disk -Dpython=python -Dpyz80=pyz80.py -Dmapfile=false
