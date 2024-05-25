@@ -41,10 +41,10 @@
     ld (rs.bp.page),a
 
     ;---------------------------------------------------------------------------
-    ;set up the finetune tables
+    ;set up the note period lookup table
 
-    ld hl,table.finetune
-    ld de,table.finetune + 1
+    ld hl,table.periods
+    ld de,table.periods + 1
     ld bc,0x400 - 1
     ld (hl),0xff
     ldir
@@ -54,7 +54,7 @@
 
     @loop:
 
-        ld h,table.finetune / 0x100
+        ld h,table.periods / 0x100
         ld a,(de)
         inc de
         ld l,a

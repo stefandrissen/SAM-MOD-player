@@ -18,7 +18,7 @@
     ld l,a
     jr nc,$+3
     inc h
-    ld a,(tick)
+    ld a,(song.tick)
     add a,l
     ld l,a            ;can't overflow
     ld a,(hl)

@@ -187,14 +187,14 @@ print.percent:
 ; PATTERN TRACKER for MOD player
 
  ; runs off tracker frame interrupt
- ; only run when frame counter (tick) <> 0
+ ; only run when frame counter (song.tick) <> 0
 
 pattern.interrupt:
 
-    ld hl,(tick.fraction)
-    ld de,(tempo)
+    ld hl,(song.tick.fraction)
+    ld de,(song.bpm)
     add hl,de
-    ld a,(speed)
+    ld a,(song.speed)
     dec a
     cp h
 
@@ -206,7 +206,7 @@ pattern.interrupt:
     or a
     jp z,@print.channel.4_3
 
-    ld a,(tick)
+    ld a,(song.tick)
     or a
     ret nz
 

@@ -11,6 +11,14 @@
 
 ; https://github.com/johnnovak/nim-mod/blob/master/doc/Protracker%20effects%20(FireLight)%20(.mod).txt
 
+; revisit main loop:
+; - https://github.com/zeropolis79/PETSCIIRobots-SDL/blob/main/PT2.3A_replay_cia.cpp
+; - https://github.com/8bitbubsy/pt2-clone/blob/master/src/pt2_replayer.c
+; - https://github.com/8bitbubsy/pt23f/blob/main/PT2.3F.s
+
+; Amiga audio hardware reference
+; - https://www.amigarealm.com/computing/knowledge/hardref/ch5.htm
+
 include "../memory.i"
 include "../ports/internal.i"
 include "../ports/megabyte.i"
@@ -88,7 +96,9 @@ sample.table:
 
 
 
-table.finetune: defs 1024
+; lookup table to get from a note period [56..856] to a note number [0 - 47]
+; this table is populated using the values from fine tune 0
+table.periods: defs 1024
 
 finelist:       include "tables/finetune.i"
 
@@ -145,35 +155,35 @@ tracker:
     dec a
     ret z
 
-    ld hl,(tick.fraction)
+    ld hl,(song.tick.fraction)
     ld a,h
-    ld de,(tempo)
+    ld de,(song.bpm)
     add hl,de
-    ld (tick.fraction),hl
+    ld (song.tick.fraction),hl
     cp h                    ; tick integer not changed
     ret z
 
-    ld a,(speed)
+    ld a,(song.speed)
     ld c,a
     ld a,h
     sub c
     jr c,@on.same.row       ; tick <> speed
 
-    ld (tick),a
+    ld (song.tick),a
 
     ld a,(pattern_delay.counter)
     or a
-    jr z,@get.new.note      ; get note data if no delay
+    jr z,@playVoices        ; get note data if no delay
 
-    call @no.new.all        ; else just do fx
+    call @checkEffects      ; else just do fx
     jp dskip
 
  @on.same.row:              ; tick <> speed
-    call @no.new.all        ; do fx
+    call @checkEffects      ; do fx
     jp nonewposyet          ; check position change
 
 ;-------------------------------------------------------------------------------
-@no.new.all:
+@checkEffects:
 
     ;no new note data for all channels - fx only
 
@@ -183,7 +193,7 @@ tracker:
     jp c4 + check.fx
 
 ;-------------------------------------------------------------------------------
-@get.new.note:
+@playVoices:
 
     ld a,(song.position)
     ld l,a
@@ -571,36 +581,39 @@ play.voice:
     and 0xf0            ; a = x_
     or c                ; c = _E hi = param, lo = command
     cp 0x5e             ; E5 = fine tune
-    jr z,do.fine
+    jr nz,@not.FineTune
+
+ r1.020:
+    call @eeffect.setFineTune
+    jr @setPeriod
+
+ @not.finetune:
 
     ld a,c              ; a = _E (only command now)
     cp 3                ; 3 = tone portamento
-    jr z,@check.tone
+    jr z,@is.TonePorta
 
     cp 5                ; 5 = tone portamento + volume slide
-    jr z,@check.tone
+    jr nz,@not.TonePorta
 
-    jr @set.period
-
- do.fine:
- r1.020:
-    call @eeffect.set_fine_tune
-    jr @set.period
-
- ;-------------------------------------------------------------------------------
- @check.tone:
+ @is.TonePorta:
 
  r1.021:
     call @set.tone
  r1.022:
     jp @effects.on_tick_0
 
+ @not.TonePorta:
+
+    ; cp 9                ; sample offset
+    ; call @effects.on_tick_0
+
  ;-------------------------------------------------------------------------------
- @set.period:
+ @setPeriod:
  r1.023:
     ld hl,(@note_period)
     ld a,h
-    add table.finetune / 0x100
+    add table.periods / 0x100
     ld h,a
 
     ld l,(hl)           ; get note number (*2)
@@ -790,27 +803,27 @@ bp.volume:
 ;---------------------------------------------------------------
 
 @effect.arpeggio:               include "effect/0.arpeggio.s"
-effect.portamento_up:           include "effect/1.portamento_up.s"
-effect.portamento_down:         include "effect/2.portamento_down.s"
+effect.portaUp:                 include "effect/1.portaUp.s"
+effect.portaDown:               include "effect/2.portaDown.s"
 
 @set.tone:
  ;---------------------------------------------------------------
  @note_period: equ $+1
     ld hl,0             ; Ppp
     ld a,h
-    add table.finetune / 0x100
+    add table.periods / 0x100
     ld h,a
 
-    ld l,(hl)           ;get note number (*2)
+    ld l,(hl)           ; get note number (*2)
     ld b,l
-    inc l               ;255 = note not found
-    jr nz,@found.finetune
+    inc l               ; 255 = note not found
+    jr nz,@standard.period
 
  r1.053:
     ld hl,(@note_period)
-    jr @no.tune
+    jr @skip.finetune   ; can only finetune when standard period
 
- @found.finetune:
+ @standard.period:
     dec l
  r1.054:
     ld a,(finetune)
@@ -825,9 +838,9 @@ effect.portamento_down:         include "effect/2.portamento_down.s"
     ld h,(hl)
     ld l,a
 
- @no.tune:
+ @skip.finetune:
  r1.055:
-    ld (wanted.per),hl
+    ld (wanted.period),hl
  r2.010:
     ld de,(period)
     xor a
@@ -842,44 +855,44 @@ effect.portamento_down:         include "effect/2.portamento_down.s"
 
  @clear.tone:
  r1.057:
-    ld (wanted.per),hl
+    ld (wanted.period),hl
 
     ret
 
-@effect.tone_portamento:        include "effect/3.tone_portamento.s"
+@effect.tonePortamento:         include "effect/3.tonePortamento.s"
 @effect.vibrato:                include "effect/4.vibrato.s"
-@effect.tone_volume_slide:      include "effect/5.tone_volume_slide.s"
-@effect.vibrato_volume_slide:   include "effect/6.vibrato_volume_slide.s"
+@effect.tonePlusVolSlide:       include "effect/5.tonePlusVolSlide.s"
+@effect.vibratoPlusVolSlide:    include "effect/6.vibratoPlusVolSlide.s"
 @effect.tremolo:                include "effect/7.tremolo.s"
 
-@effect.sample_offset:          include "effect/9.sample_offset.s"
-@effect.volume_slide:           include "effect/A.volume_slide.s"
-@effect.position_jump:          include "effect/B.position_jump.s"
-@effect.set_volume:             include "effect/C.set_volume.s"
-@effect.pattern_break:          include "effect/D.pattern_break.s"
+@effect.sampleOffset:           include "effect/9.sampleOffset.s"
+@effect.volumeSlide:            include "effect/A.volumeSlide.s"
+@effect.positionJump:           include "effect/B.positionJump.s"
+@effect.volumeChange:           include "effect/C.volumeChange.s"
+@effect.patternBreak:           include "effect/D.patternBreak.s"
 @effect.extended:               include "effect/E.extended.s"
-@effect.set_speed:              include "effect/F.set_speed.s"
+@effect.setSpeed:               include "effect/F.setSpeed.s"
 
 @effect.none:           ; simply continue through to filter RET
 
 ;---------------------------------------------------------------
 ; Extended Effects
 
-@eeffect.filter:                include "effect.extended/0.filter.s"
-@eeffect.fine_porta_up:         include "effect.extended/1.fine_porta_up.s"
-@eeffect.fine_porta_down:       include "effect.extended/2.fine_porta_down.s"
-@eeffect.set_gliss_control:     include "effect.extended/3.set_gliss_control.s"
-@eeffect.set_vibrato_control:   include "effect.extended/4.set_vibrato_control.s"
-@eeffect.set_fine_tune:         include "effect.extended/5.set_fine_tune.s"
-@eeffect.jump_loop:             include "effect.extended/6.jump_loop.s"
-@eeffect.set_tremolo_control:   include "effect.extended/7.set_tremolo_control.s"
+@eeffect.filterOnOff:           include "effect.extended/0.filterOnOff.s"
+@eeffect.finePortaUp:           include "effect.extended/1.finePortaUp.s"
+@eeffect.finePortaDown:         include "effect.extended/2.finePortaDown.s"
+@eeffect.setGlissControl:       include "effect.extended/3.setGlissControl.s"
+@eeffect.setVibratoControl:     include "effect.extended/4.setVibratoControl.s"
+@eeffect.setFineTune:           include "effect.extended/5.setFineTune.s"
+@eeffect.jumpLoop:              include "effect.extended/6.jumpLoop.s"
+@eeffect.setTremoloControl:     include "effect.extended/7.setTremoloControl.s"
 
-@eeffect.retrig_note:           include "effect.extended/9.retrig_note.s"
-@eeffect.volume_fine_up:        include "effect.extended/A.volume_fine_up.s"
-@eeffect.volume_fine_down:      include "effect.extended/B.volume_fine_down.s"
-@eeffect.note_cut:              include "effect.extended/C.note_cut.s"
-@eeffect.note_delay:            include "effect.extended/D.note_delay.s"
-@eeffect.pattern_delay:         include "effect.extended/E.pattern_delay.s"
+@eeffect.retrigNote:            include "effect.extended/9.retrigNote.s"
+@eeffect.volumeFineUp:          include "effect.extended/A.volumeFineUp.s"
+@eeffect.volumeFineDown:        include "effect.extended/B.volumeFineDown.s"
+@eeffect.noteCut:               include "effect.extended/C.noteCut.s"
+@eeffect.noteDelay:             include "effect.extended/D.noteDelay.s"
+@eeffect.patternDelay:          include "effect.extended/E.patternDelay.s"
 
 ;---------------------------------------------------------------
 
@@ -892,33 +905,33 @@ effect.portamento_down:         include "effect/2.portamento_down.s"
     r0.000: defw period.nop             ; 0
     r0.001: defw period.nop             ; 1
     r0.002: defw period.nop             ; 2
-    r0.003: defw period.nop             ; 3 check earlier (tone portamento)
+    r0.003: defw period.nop             ; 3
     r0.004: defw period.nop             ; 4
-    r0.005: defw period.nop             ; 5 check earlier (tone portamento + volume slide)
+    r0.005: defw period.nop             ; 5
     r0.006: defw period.nop             ; 6
     r0.007: defw period.nop             ; 7
     r0.008: defw period.nop             ; 8
-    r0.009: defw @effect.sample_offset  ; 9
+    r0.009: defw @effect.sampleOffset   ; 9
     r0.010: defw period.nop             ; A
-    r0.011: defw @effect.position_jump  ; B
-    r0.012: defw @effect.set_volume     ; C
-    r0.013: defw @effect.pattern_break  ; D
+    r0.011: defw @effect.positionJump   ; B
+    r0.012: defw @effect.volumeChange   ; C
+    r0.013: defw @effect.patternBreak   ; D
     r0.014: defw @effect.extended       ; E
-    r0.015: defw @effect.set_speed      ; F
+    r0.015: defw @effect.setSpeed       ; F
 
  @list.effects.after_tick_0:
     ; effects not on tick 0
     r0.016: defw @effect.arpeggio               ; 0
-    r0.017: defw effect.portamento_up           ; 1
-    r0.018: defw effect.portamento_down         ; 2
-    r0.019: defw @effect.tone_portamento        ; 3
+    r0.017: defw effect.portaUp                 ; 1
+    r0.018: defw effect.portaDown               ; 2
+    r0.019: defw @effect.tonePortamento         ; 3
     r0.020: defw @effect.vibrato                ; 4
-    r0.021: defw @effect.tone_volume_slide      ; 5
-    r0.022: defw @effect.vibrato_volume_slide   ; 6
+    r0.021: defw @effect.tonePlusVolSlide       ; 5
+    r0.022: defw @effect.vibratoPlusVolSlide    ; 6
     r0.023: defw @effect.tremolo                ; 7
     r0.024: defw @effect.none                   ; 8
     r0.025: defw @effect.none                   ; 9
-    r0.026: defw @effect.volume_slide           ; A
+    r0.026: defw @effect.volumeSlide            ; A
     r0.027: defw @effect.none                   ; B
     r0.028: defw @effect.none                   ; C
     r0.029: defw @effect.none                   ; D
@@ -927,21 +940,21 @@ effect.portamento_down:         include "effect/2.portamento_down.s"
 
  list.effects.extended:
     ; extended effects (effect E)
-    r0.032: defw @eeffect.filter                ; 0
-    r0.033: defw @eeffect.fine_porta_up         ; 1
-    r0.034: defw @eeffect.fine_porta_down       ; 2
-    r0.035: defw @eeffect.set_gliss_control     ; 3
-    r0.036: defw @eeffect.set_vibrato_control   ; 4
-    r0.037: defw @eeffect.set_fine_tune         ; 5
-    r0.038: defw @eeffect.jump_loop             ; 6
-    r0.039: defw @eeffect.set_tremolo_control   ; 7
+    r0.032: defw @eeffect.filterOnOff           ; 0
+    r0.033: defw @eeffect.finePortaUp           ; 1
+    r0.034: defw @eeffect.finePortaDown         ; 2
+    r0.035: defw @eeffect.setGlissControl       ; 3
+    r0.036: defw @eeffect.setVibratoControl     ; 4
+    r0.037: defw @eeffect.setFineTune           ; 5
+    r0.038: defw @eeffect.jumpLoop              ; 6
+    r0.039: defw @eeffect.setTremoloControl     ; 7
     r0.040: defw @effect.none                   ; 8 not a command
-    r0.041: defw @eeffect.retrig_note           ; 9
-    r0.042: defw @eeffect.volume_fine_up        ; A
-    r0.043: defw @eeffect.volume_fine_down      ; B
-    r0.044: defw @eeffect.note_cut              ; C
-    r0.045: defw @eeffect.note_delay            ; D
-    r0.046: defw @eeffect.pattern_delay         ; E
+    r0.041: defw @eeffect.retrigNote            ; 9
+    r0.042: defw @eeffect.volumeFineUp          ; A
+    r0.043: defw @eeffect.volumeFineDown        ; B
+    r0.044: defw @eeffect.noteCut               ; C
+    r0.045: defw @eeffect.noteDelay             ; D
+    r0.046: defw @eeffect.patternDelay          ; E
     r0.047: defw @effect.none                   ; F funk it not supported
 
 ;-------------------------------------------------------------------------------

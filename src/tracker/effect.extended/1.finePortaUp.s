@@ -1,7 +1,7 @@
  ;---------------------------------------------------------------
  ; Extended Effect 1 - Fine Porta Up
 
-    ld a,(tick)
+    ld a,(song.tick)
     or a
     ret nz
 
@@ -9,4 +9,4 @@
  r1.119:
     ld (porta_up.mask),a
  r1.120:
-    jp effect.portamento_up
+    jp effect.portaUp

@@ -277,13 +277,13 @@ demo:
     ; print speed and tempo
 
     ld hl,screen + screen.24.rows * 1 + 18
-    ld a,(speed)
+    ld a,(song.speed)
     ld c,a
     call print.hi.nibble
     ld a,c
     call print.lo.nibble
 
-    ld hl,(tempo)
+    ld hl,(song.bpm)
     ld b,h
     ld c,l              ; bc = tempo
     srl h
@@ -326,7 +326,7 @@ demo:
   @wait.left:
 
     ei              ;just in case we're pausing
-    ld a,(tick)
+    ld a,(song.tick)
     or a
     jr nz,@wait.left
 
@@ -334,8 +334,8 @@ demo:
 
     bit 4,c
     jr nz,@not.right
-    ld a,(speed)
-    ld hl,tick
+    ld a,(song.speed)
+    ld hl,song.tick
     ld (hl),a
 
   @wait.right:

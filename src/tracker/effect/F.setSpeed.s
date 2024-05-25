@@ -20,12 +20,12 @@
     ld e,(hl)
     inc l
     ld d,(hl)
-    ld (tempo),de
+    ld (song.bpm),de
 
     ret
 
  @speed:
-    ld (speed),a
+    ld (song.speed),a
 
     ret
 

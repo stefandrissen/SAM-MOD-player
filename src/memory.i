@@ -68,10 +68,10 @@ vol.update:             equ var + 40    ; when set do extra burst volume update 
                                         ; burstplayer acts on changed value of c?.on.
 
 countint:               equ var + 41    ; user frame counter
-tick.fraction:          equ var + 42    ; 1/256 frame counter for tracker
-tick:                   equ var + 43    ; frame counter for tracker
-speed:                  equ var + 44    ; song speed in frames
-tempo:                  equ var + 45    ; bpm speed (relative to 125)
+song.tick.fraction:     equ var + 42    ; 1/256 frame counter for tracker
+song.tick:              equ var + 43    ; frame counter for tracker
+song.speed:             equ var + 44    ; song speed in frames
+song.bpm:               equ var + 45    ; bpm speed (relative to 125)
 song.position:          equ var + 47    ; position in songtable (0-127)
 pattern.num:            equ var + 48    ; pattern being played (0-255)
 pattern.row:            equ var + 49    ; row being played (0-63)

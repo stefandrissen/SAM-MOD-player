@@ -1,7 +1,7 @@
  ;---------------------------------------------------------------
  ; Effect 0 - Arpeggio
  ;---------------------------------------------------------------
-    ld a,(tick)                 ; [1-31]
+    ld a,(song.tick)            ; [1-31]
     ld h,table.arpeggio / 0x100 ; table on 256 boundary
     ld l,a
     ld a,(hl)                   ; -> a = tick mod 3

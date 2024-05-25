@@ -1,7 +1,7 @@
 ;---------------------------------------------------------------
  ; Extended Effect 6 - Jump Loop
 
-    ld a,(tick)
+    ld a,(song.tick)
     or a
     ret nz
 

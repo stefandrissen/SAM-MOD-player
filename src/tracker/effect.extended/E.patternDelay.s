@@ -1,7 +1,7 @@
  ;---------------------------------------------------------------
  ; Extended Effect E - Pattern Delay
 
-    ld a,(tick)
+    ld a,(song.tick)
     or a
     ret nz
 

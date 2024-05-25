@@ -5,7 +5,7 @@
     ld a,(parameter)
     and 0x0f
     ld b,a
-    ld a,(tick)
+    ld a,(song.tick)
     cp b
     ret nz
 

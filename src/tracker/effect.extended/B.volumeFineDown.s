@@ -1,7 +1,7 @@
  ;---------------------------------------------------------------
  ; Extended Effect B - Volume Fine Down
 
-    ld a,(tick)
+    ld a,(song.tick)
     or a
     ret nz
 

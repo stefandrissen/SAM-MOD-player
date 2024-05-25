@@ -1,2 +1,3 @@
 /obj/
-/res/mods
+/res/*
+!/res/dos

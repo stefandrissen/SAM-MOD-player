@@ -159,7 +159,7 @@
         ld a,0
         jr z,$+3                ; !!! length 1 word should also be no sample
         dec a
-        ld (iy + st.sample),a   ; -1 = no sample
+        ld (iy + st.sample),a   ; 0 = no sample / -1 = sample
 
         push hl
 
@@ -1188,7 +1188,7 @@ reset.song:
     ld (hl),a               ;update volume?
 
     ld hl,0x500
-    ld (tick.fraction),hl
+    ld (song.tick.fraction),hl
     call reset.speed
 
     ; ld (disable.pos),a    ;no position jumping (temp)
@@ -1250,9 +1250,9 @@ reset.song:
 reset.speed:
 
     ld a,6
-    ld (speed),a
+    ld (song.speed),a
     ld hl,0x100
-    ld (tempo),hl
+    ld (song.bpm),hl
 
     ret
 
@@ -1267,9 +1267,9 @@ reset.list:
     defb 0
     defw c1 + period + 1
     defb 0
-    defw c1 + wanted.per + 0
+    defw c1 + wanted.period + 0
     defb 0
-    defw c1 + wanted.per + 1
+    defw c1 + wanted.period + 1
     defb 0
     defw c1 + porta_up.mask
     defb 0xff

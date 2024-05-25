@@ -14,7 +14,7 @@
 
  tonenochng:
  @use.last.parameter:
- wanted.per: equ $+1
+ wanted.period: equ $+1
     ld de,0
     ld a,d
     or e
@@ -48,7 +48,7 @@
  @reset.tone.portamento:
     ld hl,0
  r1.062:
-    ld (wanted.per),hl
+    ld (wanted.period),hl
 
  @tone.set.period:
     add hl,de
