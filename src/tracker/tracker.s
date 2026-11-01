@@ -600,6 +600,13 @@ play.voice:
 
  r1.021:
     call @set.tone
+ r1.149:
+    ld a,(instrument.new)
+    ld b,a
+ r1.150:
+    ld a,(instrument.current)
+    cp b
+    jr nz,@set.sample.pointer
  r1.022:
     jp @effects.on_tick_0
 
@@ -674,6 +681,8 @@ play.voice:
     ld (trem.pos),a
 
  @tremolo.unchanged:
+
+ @set.sample.pointer:
 
  cx.sample.offset: equ $+1
     ld hl,0

@@ -19,7 +19,7 @@
 			<condition property="source" value="@{source}/@{source}">
 				<available file="src/@{source}" type="dir" />
 			</condition>
-			<property name="source" value="@{source}"/>
+			<property name="source" value="@{source}" />
 
 			<mkdir dir="obj" />
 
@@ -57,10 +57,7 @@
 
 		<sequential>
 
-			<echo file="src/constants/text.version.i">; SAM MOD player version
-
-defm "${version}"
-</echo>
+			<update-messages />
 
 			<assemble source="loader" mapfile="${mapfile}" />
 			<assemble source="demo" mapfile="${mapfile}" />
@@ -96,6 +93,29 @@ defm "${version}"
 			<copy file="obj/${debug}.map" tofile="obj/SAM.MOD.player.${version}.map" if:true="${mapfile}" />
 
 			<simcoupe disk="SAM.MOD.player.${version}.mgt" if:true="@{launch}" />
+
+		</sequential>
+
+	</macrodef>
+
+	<macrodef name="update-messages">
+
+		<sequential>
+
+			<echo file="src/constants/text.version.i">; SAM MOD player version
+
+defm "${version}"
+</echo>
+
+			<local name="year" />
+			<tstamp>
+				<format property="year" pattern="yyyy" />
+			</tstamp>
+
+			<echo file="src/constants/text.copyright.i">; copyright year
+
+defm "(C) ${year} Stefan Drissen"
+</echo>
 
 		</sequential>
 
