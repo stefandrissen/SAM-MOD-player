@@ -1043,9 +1043,9 @@ sam.match:
     jr z,@-loop
 
     res 6,h
-    ld a,(@-page+1)
+    ld a,(@-page)
     inc a
-    ld (@-page+1),a
+    ld (@-page),a
 
     jr @-loop
 
