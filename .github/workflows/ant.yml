@@ -15,18 +15,18 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v7
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v7
       with:
         python-version: '3.x'
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
+    - name: Set up JDK
+      uses: actions/setup-java@v6
       with:
-        java-version: '17'
-        distribution: 'temurin'
+        distribution: temurin
+        java-version: latest
 
     - name: Set up pyz80
       run: wget https://raw.githubusercontent.com/simonowen/pyz80/master/pyz80.py
