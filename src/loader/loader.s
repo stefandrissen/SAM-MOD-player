@@ -1,6 +1,6 @@
 ;SAM MOD player - DOS loader
 
- ;(C) 1996-2024 Stefan Drissen
+ ;(C) 1996-2026 Stefan Drissen
 
  ; to do:
  ; - handle dos errors better (doser)
@@ -343,9 +343,6 @@ loader.palette:
     ld a,1
     ld (msdos+1),a
 
-    xor a
-    ld (nodisc+1),a
-
     ret
 
 ;-------------------------------------------------------------------------------
@@ -436,11 +433,6 @@ loader:
     call fat.disk.read
     pop de
 
- nodisc:
-    ld a,0  ; set by errnodisc
-    or a
-    jr nz,@select.file
-
     push de
     ld ix,black.attributes
     ld a,6
@@ -492,6 +484,8 @@ loader:
     call @insert.patterns
     call @insert.size
 
+    call @checkFileSize
+
     pop bc
 
     ld de,@mes.details
@@ -505,6 +499,10 @@ loader:
         ld a," "
         call print.chr
         djnz @-loop
+
+    ld a,b
+    ld (@loader.FileTooLarge),a
+    call @checkFileSize
 
     ld de,mes.drv
 
@@ -521,8 +519,15 @@ loader:
     bit 5,a
     jp z,loader.quit
 
+   @loader.FileTooLarge: equ $+1
+    ld a,0
+    or a
+    jr nz,@tooLarge
+
     call scan.keyboard.return
     jp nz,select.key
+
+   @tooLarge:
 
     ld a,(ix + @loader.dir.type)
     cp 0x81     ; drive 2
@@ -580,6 +585,44 @@ loader:
     pop bc                      ; toss bc
     ld c,1
     jp select.key
+
+;-------------------------------------------------------------------------------
+@checkFileSize:
+
+    push hl
+
+    ld a,(@loader.FileTooLarge)
+    or a
+    ld de,colours + 8 * colour.green
+    jr z,@ok
+
+    ld de,colours + 8 * colour.purple
+   @ok:
+
+    ld hl,screen.attributes + screen.32.rows * 30 + screen.width - 4
+    ld c,6
+   @loopC:
+    ld b,4
+    ld a,(de)
+   @loopB:
+    ld (hl),a
+    inc hl
+    djnz @-loopB
+
+    ld a,l
+    add 32 - 4
+    ld l,a
+    jr nc,@nc
+    inc h
+   @nc:
+
+    inc de
+    dec c
+    jr nz,@-loopC
+
+    pop hl
+
+    ret
 
 ;-------------------------------------------------------------------------------
 @directory.read:
@@ -678,8 +721,37 @@ loader:
 ;-------------------------------------------------------------------------------
 @insert.size:
 
-    ld l,(ix + @loader.dir.size + 0)
-    ld h,(ix + @loader.dir.size + 1)
+    ld l,(ix + @loader.dir.size + 0)    ; in
+    ld h,(ix + @loader.dir.size + 1)    ; kb
+
+    ld c,0
+
+    push hl
+
+    ex de,hl
+
+    ld a,(loader.ram)   ; 256K per bit
+    ld h,a
+    and %11100
+    jr nz,@ok           ; all fine when meg
+
+    ld l,c
+
+    sbc hl,de
+    jr c,@tooLarge
+
+    ld de,6 * 16        ; need 6 pages - page 0 (dos), burstplayer, tracker, dos, screen, loader
+    sbc hl,de
+    jr nc,@ok
+
+   @tooLarge:
+    inc c
+
+   @ok:
+    ld a,c
+    ld (@loader.FileTooLarge),a
+
+    pop hl
 
     ld de,@mes.details.size
 
@@ -1713,11 +1785,16 @@ cls:
     ld hl,loader.palette
     ld de,palette.table
     ld bc,0x10
+
+    push hl
+    push bc
+
     ldir
 
-    ld hl,loader.palette
+    pop bc
+    pop hl
+
     ld de,palette.table + 0x14
-    ld bc,0x10
     ldir
 
     ret
@@ -1816,7 +1893,6 @@ colours:
  colour.yellow:  equ 5
     defb 13+56,14+56,6,14+56,13+56,0,0,0
 
-
 load.screen:
     defm "SAM MOD player             "
     include "../constants/text.version.i"
@@ -1841,16 +1917,6 @@ black.attributes:
 ;-------------------------------------------------------------------------------
 
 text.volume.label:  defm "0123456789abcdef"
-
-;-------------------------------------------------------------------------------
-errnodisc:
-
-    ; this WAS called by the FDC routines
-
-    ld sp,(save.sam.sp+1)
-    ld a,1
-    ld (nodisc+1),a
-    ret
 
 ;-------------------------------------------------------------------------------
 select.drive.1:
@@ -1948,5 +2014,3 @@ loader.directory.len:               equ loader.directory.date + 3
     include "../device.s"
 
 assert $ + 0x0200 < 0xe000
-
-
