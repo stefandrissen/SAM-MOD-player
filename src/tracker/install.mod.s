@@ -1080,10 +1080,35 @@ set.high.memory.a:
 
  @no.megabyte:
 
+    ld a,(tracker.ram.low) ; %01 = 256K, %10 = 512K
+    and %10
+    rlca
+    rlca
+    rlca
+    or 0x0a    ;  page.burstplayer && 0x0f
+    ld (@page.burstplayer),a
+
+    pop af
+    push af
+   @page.burstplayer: equ $+1
+    sub 0
+    jp nc,@outOfMemory
+
     pop af
     out (port.hmpr),a
 
     ret
+
+   @outOfMemory:
+
+    in a,(port.lmpr)
+    and low.memory.page.mask
+    out (port.hmpr),a
+
+    ld a,-1
+    ld (tracker.samples),a
+
+    jp @exit
 
 ;===============================================================
     org $ + 0x8000
@@ -1233,7 +1258,7 @@ reset.song:
     call c4 + period.nop
 
 ;---------------------------------------------------------------
-
+ @exit:
  @im.stsp: equ $+1
     ld sp,0
 

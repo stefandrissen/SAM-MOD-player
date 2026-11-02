@@ -1,6 +1,6 @@
 ;SAM MOD player - demo
 
-;(C) 1996-2024 Stefan Drissen
+;(C) 1996-2026 Stefan Drissen
 
 include "../memory.i"
 include "../ports/internal.i"
@@ -46,7 +46,7 @@ demo.samples:       defb 0  ; [15|31]
  ; - c = RAM
 
     in a,(port.hmpr)
-    ld (@store.hmpr+1),a
+    ld (@store.hmpr),a
 
     bit 1,c
     jr nz,@is.512K
@@ -109,6 +109,8 @@ demo.samples:       defb 0  ; [15|31]
     call tracker.install.mod
 
     ld (demo.samples),a
+    cp -1
+    jr z,@exit
 
     ld a,(tracker.octaves)
     ld hl,tracker.display - 0x8000
@@ -135,7 +137,8 @@ demo.samples:       defb 0  ; [15|31]
 
     call burstplayer.start
 
- @store.hmpr:
+ @exit:
+ @store.hmpr: equ $+1
     ld a,0
     out (port.hmpr),a
 
