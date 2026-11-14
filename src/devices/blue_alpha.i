@@ -1,4 +1,6 @@
-; blue alpha sound sampler
+; Blue Alpha Sound Sampler
+
+; https://www.worldofsam.org/products/sound-sampler
 
 ;-------------------------------------------------------------------------------
 

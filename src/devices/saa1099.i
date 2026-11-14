@@ -1,4 +1,6 @@
-; internal philips saa1099 sound chip
+; internal Philips SAA1099 stereo sound generator
+
+; https://www.worldofsam.org/products/saa1099
 
 ;-------------------------------------------------------------------------------
 

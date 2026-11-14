@@ -1,4 +1,6 @@
-; samdac / eddac on printer port 1 or 2
+; SAMdac / eddac on printer port 1 or 2
+
+; https://www.worldofsam.org/products/samdac
 
 ;-------------------------------------------------------------------------------
 

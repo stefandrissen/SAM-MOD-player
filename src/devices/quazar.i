@@ -1,4 +1,6 @@
-;quazar surround soundcard
+; Quazar Surround
+
+; https://www.worldofsam.org/products/quazar-surround
 
 ;-------------------------------------------------------------------------------
 
@@ -26,13 +28,13 @@ properties.quazar:
 
     ld a,%10000000
     dec b
-    out (c),a           ; rear right
+    out (c),a           ; right rear  - 0x05d0
     dec b
-    out (c),a           ; rear left
+    out (c),a           ; left rear   - 0x04d0
     dec b
-    out (c),a           ; front right
+    out (c),a           ; right front - 0x03d0
     dec b
-    out (c),a           ; front left
+    out (c),a           ; left front  - 0x02d0
 
     @init.len: equ $ - @init
 
