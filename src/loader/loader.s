@@ -1,6 +1,6 @@
-;SAM MOD player - DOS loader
+; SAM MOD player - DOS loader
 
- ;(C) 1996-2026 Stefan Drissen
+ ; (C) 1996-2026 Stefan Drissen
 
  ; to do:
  ; - handle dos errors better (doser)

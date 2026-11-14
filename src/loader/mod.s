@@ -1,6 +1,6 @@
-;SAM MOD player - check mod type based on header
+; SAM MOD player - check mod type based on header
 
- ;(C) 2021-2022 Stefan Drissen
+ ; (C) 2021-2026 Stefan Drissen
 
  ; https://github.com/cmatsuoka/tracker-history/blob/master/reference/amiga/soundtracker/Ultimate_Soundtracker-format.txt
  ; http://helllabs.org/tracker-history/trackers.svg

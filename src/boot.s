@@ -1,6 +1,6 @@
 ; SAM MOD player
 
-; (C) 2019-2021 Stefan Drissen
+; (C) 2019-2026 Stefan Drissen
 
 ; boot file to load the rest
 

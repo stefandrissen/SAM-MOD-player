@@ -1,13 +1,13 @@
 ; SAM MOD player - loader: fat (aka ms-dos / pc-dos)
 
+; (C) 2019-2026 Stefan Drissen
+
 ; https://en.wikipedia.org/wiki/Design_of_the_FAT_file_system
 ; https://en.wikipedia.org/wiki/File_Allocation_Table#FAT12
 ; https://www.eit.lth.se/fileadmin/eit/courses/eitn50/Literature/fat12_description.pdf
 
 ; to do:
 ; - fix msdos
-
-;(C) 2019-2022 Stefan Drissen
 
 ;-------------------------------------------------------------------------------
 

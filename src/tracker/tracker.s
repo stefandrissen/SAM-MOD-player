@@ -1,6 +1,6 @@
-;SAM MOD player - tracker
+; SAM MOD player - tracker
 
-;(C) 1995-2024 Stefan Drissen
+; (C) 1995-2026 Stefan Drissen
 
 ; first execute "BURST" and install "DEMO"
 

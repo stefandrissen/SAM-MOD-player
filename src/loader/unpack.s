@@ -1,6 +1,6 @@
-;SAM MOD player - unpack
+; SAM MOD player - unpack
 
- ;(C) 1995-2021 Stefan Drissen
+ ; (C) 1995-2026 Stefan Drissen
 
  ; When the internal sound chip was only output device, 4 bits per sample was
  ; enough. Packed mods pack two sample nibbles per byte, saving space on disk.

@@ -1,6 +1,6 @@
-;SAM MOD player - b-dos loader
+; SAM MOD player - b-dos loader
 
-;(C) 2019-2022 Stefan Drissen
+; (C) 2019-2026 Stefan Drissen
 
 ; - Record list size (in sectors) = (all sectors / 1600 + 32) / 32
 ; - Selected record (disk drive = 0) = (PEEK DVAR 7 = 2) * DPEEK DVAR 25

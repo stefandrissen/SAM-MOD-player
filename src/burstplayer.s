@@ -1,6 +1,6 @@
 ; SAM MOD player - MAKE burstplayer
 
-; (C) 1995-2024 Stefan Drissen
+; (C) 1995-2026 Stefan Drissen
 
 ; 384 t-states per line, 312 lines = 119808 t-states per frame
 ; 6MHz / 119808 = 50.08 Hz

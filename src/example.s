@@ -1,6 +1,6 @@
 ; SAM MOD player - example
 
-; (C) 1996-2021 Stefan Drissen
+; (C) 1996-2026 Stefan Drissen
 
     include "memory.i"
     include "ports/internal.i"

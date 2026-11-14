@@ -1,6 +1,6 @@
 ; SAM MOD player - dos interface
 
-; (C) 2019-2021 Stefan Drissen
+; (C) 2019-2026 Stefan Drissen
 
 dos.sector:     equ 0x4900  ; 512 bytes for sector
 

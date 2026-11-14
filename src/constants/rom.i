@@ -1,6 +1,6 @@
 ; SAM Basic ROM routines and floating point calculator defines
 ;
-; (C) 2021 Stefan Drissen
+; (C) 2021-2026 Stefan Drissen
 ;
 ; source: https://www.worldofsam.org/products/sam-coupe-technical-manual
 ;-------------------------------------------------------------------------------
