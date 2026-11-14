@@ -121,7 +121,7 @@ maker:
     ld hl,bp.audio_buffer.2
     ld bc,2 * bp.audio_buffer.bytes
     ld a,(burstplayer.device)
-    cp device.quazar            ; if QSS -> bp.audio_buffer.2 higher
+    cp device.quazar            ; bp.audio_buffer.2 higher
     jr nz,not.qss.pt
     add hl,bc
     ld bc,4 * bp.audio_buffer.bytes
@@ -2107,12 +2107,30 @@ set.silence:
     inc hl
 
 ;---------------------------------------------------------------
-;swap channel 3 and 4 addresses if device is SAA
+;swap output channels
+
+    ; 1 - left
+    ; 2 - right
+    ; 3 - right
+    ; 4 - left
 
     ld a,(burstplayer.device)
     ld (bp.device),a
     cp device.saa
+    jr z,@swap.saa
+
+    cp device.quazar
     ret nz
+
+    ; Quazar Surround: swap 1 & 2
+
+    ld hl,bp.channel_1
+    ld de,bp.channel_2
+    jr @swap.channels
+
+   @swap.saa:
+
+    ; SAA1099: swap 3 & 4, 1 & 4
 
     ld hl,bp.channel_3
     ld de,bp.channel_4
