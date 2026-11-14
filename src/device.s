@@ -1,6 +1,6 @@
 ; device selection screen
 ;
-; (C) 2021-2024 Stefan Drissen
+; (C) 2021-2026 Stefan Drissen
 ;
 ; after selection, memory can be reclaimed
 
@@ -494,7 +494,7 @@ row.device: equ 5
     defb 0
     defm " Blue Alpha Sampler"
     defb 0
-    defm " Quazar Soundcard"
+    defm " Quazar Surround"
     defb 0
     defm " Screen"
     defb 0,2
