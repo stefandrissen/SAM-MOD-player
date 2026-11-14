@@ -4,32 +4,32 @@
 
 ## Structure
 
-- boot
-- loader
-- burstplayer
-- demo
-- tracker
-- example
+- [boot](#boot)
+- [loader](#loader)
+- [burstplayer](#burstplayer)
+- [demo](#demo)
+- [tracker](#tracker)
+- [example](#example)
 
-### boot
+### Boot
 
 This autoboot file will load the loading screen, all code and then start the SAM MOD player.
 
-### loader
+### Loader
 
 This is the initial front end. It provides a screen to select the output device:
 
-- [saa1099 sound chip](https://www.worldofsam.org/products/saa1099)
-- [samdac](https://www.worldofsam.org/products/samdac)
-- dac
-- [blue alpha sampler](https://www.worldofsam.org/products/sound-sampler)
-- [quazar soundcard](https://www.worldofsam.org/products/quazar-surround)
-- colour lookup table
+- [Sound Chip - SAA1099](https://www.worldofsam.org/products/saa1099)
+- [SAMdac](https://www.worldofsam.org/products/samdac)
+- DAC
+- [Blue Alpha Sampler](https://www.worldofsam.org/products/sound-sampler)
+- [Quazar Surround](https://www.worldofsam.org/products/quazar-surround)
+- Screen (Colour LookUp Table)
 
 And the type of Amiga the mod was intended for:
 
-- pal
-- ntsc
+- PAL
+- NTSC
 
 Once these have been selected, the burst player code is generated.
 
@@ -37,7 +37,7 @@ The disk (or mass storage device) is then scanned for mod files, the drive can b
 
 When a file is selected, it is loaded and the "demo" starts.
 
-### burstplayer
+### Burstplayer
 
 This generates the code for the burst player based on the output device:
 
@@ -52,31 +52,31 @@ During the border area, timing is manual.  During the screen area line interrupt
 the line interrupt, the second is timed manually at 1.5 line, after which control is given back to the "demo" until the next line
 interrupt occurs.
 
-### demo
+### Demo
 
 This shows information on the module being played via various screens:
 
-- help (f1)
-- samples short (f2)
-- samples detailed (f3)
-- tracker (f4) - initial
-- supported effects (f5)
-- sample debug info (f6)
+- help (F1)
+- samples short (F2)
+- samples detailed (F3)
+- tracker (F4) - initial
+- supported effects (F5)
+- sample debug info (F6)
 
-### tracker
+### Tracker
 
 This is the tracker. It is called every frame.
 It reads the pattern and sample information and fills the pointers for the sample playback buffers.
 
-### example
+### Example
 
 This is a simple example that replaces the "demo".
 
-## compiling
+## Compiling
 
 Ant is used to invoke [pyz80](https://github.com/simonowen/pyz80) for assembling, this can be executed from Eclipse or Visual Studio Code.
 
 "all" will assemble loader, demo, burstplayer and tracker, the four object files are then assembling boot which produces an autoboot disk image.
 SimCoupe is then started with the disk image.
 
-The properties used to find python, pyz80 and [SimCoupe](https://www.simcoupe.org/) are at the top of the build.xml file.
+The properties used to find python, pyz80 and [SimCoupe](https://www.simcoupe.org/) are in the [.properties](.properties) file.
