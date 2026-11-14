@@ -1089,12 +1089,17 @@ set.high.memory.a:
     ld (@page.burstplayer),a
 
     pop af
+
+    cp 0xff    ; page 0 in section D
+    jr z,@ok
+
     push af
    @page.burstplayer: equ $+1
     sub 0
     jp nc,@outOfMemory
 
     pop af
+   @ok:
     out (port.hmpr),a
 
     ret
